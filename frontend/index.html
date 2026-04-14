@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Nigeria Power Grid Monitor</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f4f6f8;
+        }
+
+        h1 {
+            font-size: 28px;
+        }
+
+        #mw {
+            font-size: 60px;
+            font-weight: bold;
+            color: orange;
+            margin: 10px 0;
+            transition: color 0.3s ease;
+        }
+
+        #source, #time, #insight {
+            color: gray;
+            font-size: 14px;
+        }
+
+        #alert {
+            font-size: 16px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .chart-container {
+            width: 70%;
+            margin: 40px auto;
+        }
+    </style>
+
+    <script>
+        let powerData = [];
+        let labels = [];
+        let chart;
+        let previousMW = null;
+
+        async function fetchData() {
+            try {
+                const response = await fetch("http://127.0.0.1:8000/data");
+                const data = await response.json();
+
+                const mw = data.total_generation_mw;
+
+                // ===== MAIN VALUE =====
+                const mwElement = document.getElementById("mw");
+                mwElement.innerText = mw + " MW";
+
+                // ===== TREND COLOR =====
+                if (previousMW !== null) {
+                    if (mw > previousMW) {
+                        mwElement.style.color = "green";
+                    } else if (mw < previousMW) {
+                        mwElement.style.color = "red";
+                    } else {
+                        mwElement.style.color = "orange";
+                    }
+                }
+                previousMW = mw;
+
+                // ===== META INFO =====
+                document.getElementById("source").innerText = "Source: " + data.source;
+                document.getElementById("time").innerText = "Last updated: " + new Date().toLocaleTimeString();
+
+                // ===== ALERT =====
+                const alertBox = document.getElementById("alert");
+                const insight = document.getElementById("insight");
+
+                if (mw < 3000) {
+                    alertBox.innerText = "Critical grid level";
+                    alertBox.style.color = "red";
+                    insight.innerText = "Possible grid stress or generation shortfall.";
+                } else if (mw < 4500) {
+                    alertBox.innerText = "Moderate supply";
+                    alertBox.style.color = "orange";
+                    insight.innerText = "Grid operating below optimal capacity.";
+                } else {
+                    alertBox.innerText = "Stable supply";
+                    alertBox.style.color = "green";
+                    insight.innerText = "Grid operating within stable range.";
+                }
+
+                // ===== STORE DATA =====
+                powerData.push(mw);
+                labels.push(new Date().toLocaleTimeString());
+
+                if (powerData.length > 10) {
+                    powerData.shift();
+                    labels.shift();
+                }
+
+                updateChart();
+
+            } catch (error) {
+                console.log("Error fetching data:", error);
+            }
+        }
+
+        function updateChart() {
+            if (!chart) {
+                const ctx = document.getElementById("chart").getContext("2d");
+
+                chart = new Chart(ctx, {
+                    type: "line",
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: "Generation (MW)",
+                            data: powerData,
+                            borderColor: "rgba(0, 123, 255, 1)",
+                            backgroundColor: "rgba(0, 123, 255, 0.2)",
+                            borderWidth: 3,
+                            tension: 0.4,
+                            pointRadius: 3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    font: { size: 14 }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+
+            } else {
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = powerData;
+                chart.update();
+            }
+        }
+
+        function start() {
+            fetchData();
+            setInterval(fetchData, 3000);
+        }
+    </script>
+</head>
+
+<body onload="start()">
+
+    <h1>Nigeria Power Grid Monitor</h1>
+    <p style="color: gray;">National Grid (NG)</p>
+
+    <div id="mw">Loading...</div>
+
+    <p id="source"></p>
+    <p id="time"></p>
+    <p id="alert"></p>
+    <p id="insight"></p>
+
+    <div class="chart-container">
+        <canvas id="chart"></canvas>
+    </div>
+
+</body>
+</html>
