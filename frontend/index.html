@@ -52,7 +52,7 @@
 
         async function fetchData() {
             try {
-                const response = await fetch("http://127.0.0.1:8000/data");
+                const response = await fetch("http://nigeria-power-dashboard-1.onrender.com/data");
                 const data = await response.json();
 
                 const mw = data.total_generation_mw;
