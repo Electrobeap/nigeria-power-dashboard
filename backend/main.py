@@ -1,12 +1,13 @@
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from backend.scraper import fetch_grid_data
 
 app = FastAPI()
 
 @app.get("/")
-def home():
-	return{"message": "Nigeria Power API running"}
+def serve_frontend():	
+	return FileResponse("../frontend/index.html")
 
 @app.get("/data")
 def get_data():
