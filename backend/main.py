@@ -7,7 +7,7 @@ app = FastAPI()
 
 @app.get("/")
 def serve_frontend():	
-	return FileResponse("../frontend/index.html")
+	return FileResponse("frontend/index.html")
 
 @app.get("/data")
 def get_data():
