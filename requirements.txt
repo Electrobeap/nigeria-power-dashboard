@@ -1,6 +1,8 @@
 beautifulsoup4==4.12.3
 Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
 gunicorn==22.0.0
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
 requests==2.32.3
-
-# SQLite is provided by the Python standard library.
+SQLAlchemy==2.0.36
