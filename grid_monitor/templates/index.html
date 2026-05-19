@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nigeria Power Grid Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+<main>
+    <header class="app-header">
+        <div>
+            <h1>Nigeria Power Grid Monitor</h1>
+            <p class="subtle">Real-time generation, historical trend, GenCo performance, and DisCo allocation intelligence.</p>
+        </div>
+        <div class="source-box">
+            <div class="subtle" id="source">Loading source...</div>
+            <div class="subtle" id="refresh-state">Starting live refresh...</div>
+        </div>
+    </header>
+
+    <div class="banner" id="error-banner"></div>
+
+    <section class="hero-grid">
+        <article class="panel live-panel">
+            <div class="subtle" id="time">Fetching latest grid snapshot...</div>
+            <div class="mw" id="mw">...</div>
+            <div class="status-row">
+                <div class="pill amber" id="status">Loading</div>
+                <div class="pill blue" id="trend">Collecting trend</div>
+            </div>
+            <p class="subtle" id="insight">Waiting for the first live reading.</p>
+
+            <div class="metrics compact">
+                <div class="metric">
+                    <span>Reporting GenCos</span>
+                    <strong id="reporting">...</strong>
+                </div>
+                <div class="metric">
+                    <span>As At</span>
+                    <strong id="as-at">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Moving Average</span>
+                    <strong id="moving-average">...</strong>
+                </div>
+                <div class="metric">
+                    <span>24h Samples</span>
+                    <strong id="sample-count">...</strong>
+                </div>
+            </div>
+        </article>
+
+        <article class="panel chart-panel">
+            <div class="section-head">
+                <div>
+                    <h2>24h Generation Trend</h2>
+                    <p class="subtle" id="chart-note">Stored readings with moving average.</p>
+                </div>
+                <div class="pill blue" id="chart-window">24 hours</div>
+            </div>
+            <div class="chart-wrap">
+                <canvas id="chart"></canvas>
+                <div class="empty-state" id="chart-empty">Collecting historical readings. The first stored point appears after capture.</div>
+            </div>
+        </article>
+    </section>
+
+    <section class="analytics-grid">
+        <article class="analytics-card">
+            <span>Grid Health</span>
+            <strong id="grid-health">...</strong>
+            <p id="grid-health-note">...</p>
+        </article>
+        <article class="analytics-card">
+            <span>Stability Score</span>
+            <strong id="stability-score">...</strong>
+            <p id="stability-note">...</p>
+        </article>
+        <article class="analytics-card">
+            <span>Volatility</span>
+            <strong id="volatility">...</strong>
+            <p id="volatility-note">...</p>
+        </article>
+        <article class="analytics-card">
+            <span>Load Concentration</span>
+            <strong id="load-concentration">...</strong>
+            <p id="load-note">...</p>
+        </article>
+        <article class="analytics-card">
+            <span>Top GenCo</span>
+            <strong id="top-genco">...</strong>
+            <p id="top-genco-note">...</p>
+        </article>
+    </section>
+
+    <section class="content-grid">
+        <article class="panel">
+            <div class="section-head">
+                <h2>Daily Grid Performance</h2>
+                <span class="subtle" id="daily-date">...</span>
+            </div>
+            <div class="metrics">
+                <div class="metric">
+                    <span>Peak Generation</span>
+                    <strong id="peak">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Off-Peak Generation</span>
+                    <strong id="off-peak">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Highest Stored</span>
+                    <strong id="daily-high">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Lowest Stored</span>
+                    <strong id="daily-low">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Energy Generated</span>
+                    <strong id="energy-generated">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Energy Sent Out</span>
+                    <strong id="energy-sent">...</strong>
+                </div>
+            </div>
+        </article>
+
+        <article class="panel">
+            <div class="section-head">
+                <h2>DisCo Load Profile</h2>
+                <span class="subtle" id="disco-time">...</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr><th>Company</th><th>MW</th></tr>
+                    </thead>
+                    <tbody id="discos">
+                    <tr><td colspan="2">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="panel wide">
+            <div class="section-head">
+                <h2>GenCo Performance</h2>
+                <span class="subtle" id="genco-time">...</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr><th>Plant</th><th>MW</th></tr>
+                    </thead>
+                    <tbody id="gencos">
+                    <tr><td colspan="2">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+</main>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
