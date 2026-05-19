@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nigeria Power Grid Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f4f7fb;
+            --panel: #ffffff;
+            --text: #152033;
+            --muted: #667085;
+            --line: #d8e0ea;
+            --line-strong: #b9c5d4;
+            --green: #11845b;
+            --green-bg: #e8f7ef;
+            --amber: #b76e00;
+            --amber-bg: #fff4dc;
+            --red: #c83532;
+            --red-bg: #ffeceb;
+            --blue: #206bc4;
+            --blue-soft: rgba(32, 107, 196, 0.12);
+            --ink-soft: #eef2f6;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 16px;
+            letter-spacing: 0;
+        }
+
+        main {
+            width: min(1240px, calc(100% - 32px));
+            margin: 24px auto 40px;
+        }
+
+        header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 18px;
+            align-items: end;
+            margin-bottom: 18px;
+        }
+
+        h1,
+        h2,
+        p {
+            margin: 0;
+        }
+
+        h1 {
+            font-size: clamp(30px, 5vw, 52px);
+            line-height: 1.02;
+            font-weight: 800;
+        }
+
+        h2 {
+            font-size: 18px;
+            line-height: 1.2;
+        }
+
+        .subtle {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .header-copy {
+            display: grid;
+            gap: 6px;
+        }
+
+        .source-box {
+            display: grid;
+            justify-items: end;
+            gap: 4px;
+            text-align: right;
+        }
+
+        .source-link {
+            color: var(--blue);
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .source-link:hover {
+            text-decoration: underline;
+        }
+
+        .banner {
+            display: none;
+            margin-bottom: 16px;
+            border: 1px solid var(--red);
+            background: var(--red-bg);
+            color: var(--red);
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .banner.visible {
+            display: block;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 10px 28px rgba(16, 24, 40, 0.06);
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(280px, 0.8fr) minmax(360px, 1.2fr);
+            gap: 22px;
+            align-items: stretch;
+        }
+
+        .headline {
+            display: grid;
+            align-content: space-between;
+            min-height: 360px;
+        }
+
+        .mw {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 10px;
+            color: var(--amber);
+            font-size: clamp(40px, 5vw, 56px);
+            font-weight: 800;
+            line-height: 0.95;
+            margin: 12px 0;
+            overflow-wrap: anywhere;
+        }
+
+        .mw-unit {
+            font-size: 0.46em;
+            line-height: 1;
+        }
+
+        .mw.green {
+            color: var(--green);
+        }
+
+        .mw.red {
+            color: var(--red);
+        }
+
+        .status-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--line);
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .pill.green {
+            color: var(--green);
+            background: var(--green-bg);
+            border-color: rgba(17, 132, 91, 0.28);
+        }
+
+        .pill.amber {
+            color: var(--amber);
+            background: var(--amber-bg);
+            border-color: rgba(183, 110, 0, 0.28);
+        }
+
+        .pill.red {
+            color: var(--red);
+            background: var(--red-bg);
+            border-color: rgba(200, 53, 50, 0.28);
+        }
+
+        .pill.blue {
+            color: var(--blue);
+            background: var(--blue-soft);
+            border-color: rgba(32, 107, 196, 0.24);
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .metric {
+            border-top: 1px solid var(--line);
+            padding-top: 12px;
+            min-width: 0;
+        }
+
+        .metric span {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+
+        .metric strong {
+            display: block;
+            margin-top: 5px;
+            font-size: clamp(20px, 3vw, 28px);
+            line-height: 1.1;
+            overflow-wrap: anywhere;
+        }
+
+        .chart-panel {
+            display: grid;
+            grid-template-rows: auto minmax(280px, 1fr);
+            gap: 12px;
+            min-height: 360px;
+        }
+
+        .chart-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chart-wrap {
+            position: relative;
+            min-height: 300px;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 300px;
+        }
+
+        .empty-state {
+            display: none;
+            position: absolute;
+            inset: 0;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px dashed var(--line-strong);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+            padding: 18px;
+        }
+
+        .empty-state.visible {
+            display: flex;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-top: 18px;
+        }
+
+        .section-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th,
+        td {
+            border-bottom: 1px solid var(--line);
+            padding: 10px 4px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th {
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+
+        th:last-child,
+        td:last-child {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        tbody tr:hover {
+            background: var(--ink-soft);
+        }
+
+        .table-wrap {
+            max-height: 430px;
+            overflow: auto;
+        }
+
+        .wide {
+            grid-column: 1 / -1;
+        }
+
+        .loading {
+            opacity: 0.72;
+        }
+
+        @media (max-width: 960px) {
+            header,
+            .hero,
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .source-box {
+                justify-items: start;
+                text-align: left;
+            }
+
+            .headline,
+            .chart-panel {
+                min-height: auto;
+            }
+        }
+
+        @media (max-width: 560px) {
+            main {
+                width: min(100% - 20px, 1240px);
+                margin-top: 16px;
+            }
+
+            .panel {
+                padding: 16px;
+            }
+
+            .metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-heading,
+            .section-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .pill {
+                white-space: normal;
+            }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <header>
+        <div class="header-copy">
+            <h1>Nigeria Power Grid Monitor</h1>
+            <p class="subtle">Live generation, historical trend, GenCo output, and DisCo allocation intelligence.</p>
+        </div>
+        <div class="source-box">
+            <div class="subtle" id="source">Loading source...</div>
+            <div class="subtle" id="refresh-state">Starting live refresh...</div>
+        </div>
+    </header>
+
+    <div class="banner" id="error-banner"></div>
+
+    <section class="panel hero">
+        <div class="headline">
+            <div>
+                <div class="subtle" id="time">Fetching latest grid snapshot...</div>
+                <div class="mw" id="mw">...</div>
+                <div class="status-row">
+                    <div class="pill amber" id="status">Loading</div>
+                    <div class="pill blue" id="trend">Collecting trend</div>
+                </div>
+                <p class="subtle" id="insight">Waiting for the first live reading.</p>
+            </div>
+            <div class="metrics">
+                <div class="metric">
+                    <span>Reporting GenCos</span>
+                    <strong id="reporting">...</strong>
+                </div>
+                <div class="metric">
+                    <span>As At</span>
+                    <strong id="as-at">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Rolling Average</span>
+                    <strong id="rolling-average">...</strong>
+                </div>
+                <div class="metric">
+                    <span>24h Samples</span>
+                    <strong id="sample-count">...</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-panel">
+            <div class="chart-heading">
+                <div>
+                    <h2>24h Generation Trend</h2>
+                    <div class="subtle" id="chart-note">Stored readings with rolling average.</div>
+                </div>
+                <div class="pill blue" id="chart-window">24 hours</div>
+            </div>
+            <div class="chart-wrap">
+                <canvas id="chart"></canvas>
+                <div class="empty-state" id="chart-empty">Collecting historical readings. The first stored point appears after capture.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="grid">
+        <div class="panel">
+            <div class="section-head">
+                <h2>Daily Grid Performance</h2>
+                <span class="subtle" id="daily-date">...</span>
+            </div>
+            <div class="metrics">
+                <div class="metric">
+                    <span>Peak Generation</span>
+                    <strong id="peak">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Off-Peak Generation</span>
+                    <strong id="off-peak">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Highest Stored</span>
+                    <strong id="daily-high">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Lowest Stored</span>
+                    <strong id="daily-low">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Energy Generated</span>
+                    <strong id="energy-generated">...</strong>
+                </div>
+                <div class="metric">
+                    <span>Energy Sent Out</span>
+                    <strong id="energy-sent">...</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="section-head">
+                <h2>DisCo Load Profile</h2>
+                <span class="subtle" id="disco-time">...</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr><th>Company</th><th>MW</th></tr>
+                    </thead>
+                    <tbody id="discos">
+                    <tr><td colspan="2">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel wide">
+            <div class="section-head">
+                <h2>GenCo Performance</h2>
+                <span class="subtle" id="genco-time">...</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr><th>Plant</th><th>MW</th></tr>
+                    </thead>
+                    <tbody id="gencos">
+                    <tr><td colspan="2">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+    const REFRESH_MS = 60000;
+    const chartLabels = [];
+    const generationReadings = [];
+    const rollingReadings = [];
+    let chart;
+    let previousMW = null;
+
+    const ids = [
+        "source", "refresh-state", "error-banner", "time", "mw", "status", "trend",
+        "insight", "reporting", "as-at", "rolling-average", "sample-count", "chart",
+        "chart-empty", "chart-note", "chart-window", "daily-date", "peak", "off-peak",
+        "daily-high", "daily-low", "energy-generated", "energy-sent", "disco-time",
+        "genco-time", "discos", "gencos",
+    ];
+    const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+
+    function formatNumber(value, digits = 2) {
+        if (value === null || value === undefined || Number.isNaN(Number(value))) return "...";
+        return Number(value).toLocaleString(undefined, {
+            maximumFractionDigits: digits,
+            minimumFractionDigits: digits,
+        });
+    }
+
+    function formatMW(value, digits = 2) {
+        return `${formatNumber(value, digits)} MW`;
+    }
+
+    function formatTimestamp(value) {
+        if (!value) return "...";
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    }
+
+    function escapeHTML(value) {
+        return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            "\"": "&quot;",
+            "'": "&#039;",
+        }[char]));
+    }
+
+    function setBanner(message) {
+        el["error-banner"].textContent = message || "";
+        el["error-banner"].classList.toggle("visible", Boolean(message));
+    }
+
+    function gridStatus(mw, stale) {
+        if (stale) {
+            return ["Stored fallback", "amber", "Live source is unavailable, so the latest stored reading is shown."];
+        }
+        if (mw < 3000) {
+            return ["Critical grid level", "red", "Possible grid stress or generation shortfall."];
+        }
+        if (mw < 4500) {
+            return ["Moderate supply", "amber", "Grid is operating below a stronger supply band."];
+        }
+        return ["Stable supply", "green", "Grid is operating in a stronger supply band."];
+    }
+
+    function fetchJSON(url) {
+        return fetch(url, { cache: "no-store" }).then(async (response) => {
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.error || `Request failed: ${url}`);
+            }
+            return payload;
+        });
+    }
+
+    function renderRows(target, rows, nameKey, valueKey) {
+        if (!rows || rows.length === 0) {
+            target.innerHTML = `<tr><td colspan="2">No records available.</td></tr>`;
+            return;
+        }
+
+        target.innerHTML = rows
+            .map((row) => (
+                `<tr><td>${escapeHTML(row[nameKey])}</td><td>${formatNumber(row[valueKey])}</td></tr>`
+            ))
+            .join("");
+    }
+
+    function renderTrend(analytics) {
+        const trend = analytics?.last_24h_generation_trend;
+        if (!trend) {
+            el.trend.textContent = "Collecting trend";
+            el.trend.className = "pill blue";
+            return;
+        }
+
+        const sign = trend.change_mw > 0 ? "+" : "";
+        const percent = trend.change_percent === null ? "" : ` (${sign}${formatNumber(trend.change_percent)}%)`;
+        el.trend.textContent = `${sign}${formatMW(trend.change_mw)}${percent}`;
+        el.trend.className = `pill ${trend.direction === "up" ? "green" : trend.direction === "down" ? "red" : "blue"}`;
+    }
+
+    function renderLive(data, analytics) {
+        const mw = Number(data.total_generation_mw);
+        const [statusText, statusClass, insight] = gridStatus(mw, data.stale);
+
+        el.mw.innerHTML = `<span>${formatNumber(mw)}</span><span class="mw-unit">MW</span>`;
+        el.mw.className = "mw";
+        if (previousMW !== null && mw > previousMW) el.mw.classList.add("green");
+        if (previousMW !== null && mw < previousMW) el.mw.classList.add("red");
+        previousMW = mw;
+
+        el.time.textContent = `Fetched ${formatTimestamp(data.fetched_at)}`;
+        el.status.textContent = statusText;
+        el.status.className = `pill ${statusClass}`;
+        el.insight.textContent = insight;
+        el.reporting.textContent = data.reporting_gencos ?? "...";
+        el["as-at"].textContent = data.as_at_time ?? "...";
+
+        const daily = data.daily || {};
+        el["daily-date"].textContent = daily.performance_date ? `Performance date ${daily.performance_date}` : "...";
+        el.peak.textContent = formatMW(daily.peak_generation_mw);
+        el["off-peak"].textContent = formatMW(daily.off_peak_generation_mw);
+        el["energy-generated"].textContent = `${formatNumber(daily.energy_generated_mwh)} MWh`;
+        el["energy-sent"].textContent = `${formatNumber(daily.energy_sent_out_mwh)} MWh`;
+
+        el.source.innerHTML =
+            `Source: <a class="source-link" href="${escapeHTML(data.source_url)}" target="_blank" rel="noreferrer">${escapeHTML(data.source)}</a>`;
+
+        renderTrend(analytics);
+    }
+
+    function renderAnalytics(analytics) {
+        if (!analytics || analytics.sample_count === 0) {
+            el["rolling-average"].textContent = "...";
+            el["sample-count"].textContent = "0";
+            el["daily-high"].textContent = "...";
+            el["daily-low"].textContent = "...";
+            renderTrend(null);
+            return;
+        }
+
+        el["rolling-average"].textContent = formatMW(analytics.rolling_average_mw);
+        el["sample-count"].textContent = analytics.sample_count;
+        el["daily-high"].textContent = formatMW(analytics.highest_daily_generation?.total_generation_mw);
+        el["daily-low"].textContent = formatMW(analytics.lowest_daily_generation?.total_generation_mw);
+        el["chart-window"].textContent = `${analytics.window_hours} hours`;
+        renderTrend(analytics);
+    }
+
+    function renderChart(history) {
+        const points = history?.history || [];
+        const hasPoints = points.length > 0;
+        el["chart-empty"].classList.toggle("visible", !hasPoints);
+
+        chartLabels.splice(0, chartLabels.length, ...points.map((point) => formatTimestamp(point.timestamp)));
+        generationReadings.splice(0, generationReadings.length, ...points.map((point) => point.total_generation_mw));
+        rollingReadings.splice(0, rollingReadings.length, ...points.map((point) => point.rolling_average_mw));
+
+        if (!window.Chart) {
+            el["chart-empty"].textContent = "Chart library unavailable. Data tables and metrics are still live.";
+            el["chart-empty"].classList.add("visible");
+            return;
+        }
+
+        if (!chart) {
+            chart = new Chart(el.chart.getContext("2d"), {
+                type: "line",
+                data: {
+                    labels: chartLabels,
+                    datasets: [
+                        {
+                            label: "Generation MW",
+                            data: generationReadings,
+                            borderColor: "#206bc4",
+                            backgroundColor: "rgba(32, 107, 196, 0.12)",
+                            borderWidth: 3,
+                            tension: 0.32,
+                            pointRadius: 2,
+                            fill: true,
+                        },
+                        {
+                            label: "Rolling average",
+                            data: rollingReadings,
+                            borderColor: "#11845b",
+                            borderDash: [6, 4],
+                            borderWidth: 2,
+                            tension: 0.28,
+                            pointRadius: 0,
+                            fill: false,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: "index",
+                    },
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                            labels: {
+                                boxWidth: 12,
+                                usePointStyle: true,
+                            },
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${formatMW(context.parsed.y)}`,
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 8,
+                            },
+                            grid: {
+                                display: false,
+                            },
+                        },
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: (value) => formatNumber(value, 0),
+                            },
+                        },
+                    },
+                },
+            });
+        } else {
+            chart.update();
+        }
+    }
+
+    function renderDiscos(payload) {
+        el["disco-time"].textContent = payload?.as_at ? `As at ${payload.as_at}` : formatTimestamp(payload?.fetched_at);
+        renderRows(el.discos, payload?.discos || [], "company", "load_allocation_mw");
+    }
+
+    function renderGencos(payload) {
+        el["genco-time"].textContent = formatTimestamp(payload?.fetched_at || payload?.reading_timestamp);
+        renderRows(el.gencos, payload?.gencos || [], "plant", "generation_mw");
+    }
+
+    function resultValue(results, key) {
+        const result = results[key];
+        return result && result.status === "fulfilled" ? result.value : null;
+    }
+
+    function resultError(results, key) {
+        const result = results[key];
+        return result && result.status === "rejected" ? result.reason.message : null;
+    }
+
+    async function refresh() {
+        document.body.classList.add("loading");
+        el["refresh-state"].textContent = "Refreshing...";
+        setBanner("");
+
+        const settled = await Promise.allSettled([
+            fetchJSON("/api/grid/live"),
+            fetchJSON("/api/history?hours=24&limit=288"),
+            fetchJSON("/api/discos"),
+            fetchJSON("/api/gencos"),
+        ]);
+        const results = {
+            live: settled[0],
+            history: settled[1],
+            discos: settled[2],
+            gencos: settled[3],
+        };
+
+        const history = resultValue(results, "history");
+        if (history) {
+            renderAnalytics(history.analytics);
+            renderChart(history);
+        }
+
+        const live = resultValue(results, "live");
+        if (live) {
+            renderLive(live, history?.analytics);
+        }
+
+        const discos = resultValue(results, "discos") || live?.disco_profile;
+        if (discos) renderDiscos(discos);
+
+        const gencos = resultValue(results, "gencos") || (live ? {
+            gencos: live.gencos,
+            fetched_at: live.fetched_at,
+        } : null);
+        if (gencos) renderGencos(gencos);
+
+        const errors = ["live", "history", "discos", "gencos"]
+            .map((key) => resultError(results, key))
+            .filter(Boolean);
+        if (errors.length) {
+            setBanner(errors[0]);
+        }
+
+        if (!live && !history && !discos && !gencos) {
+            el.status.textContent = "Source unavailable";
+            el.status.className = "pill red";
+            el.insight.textContent = "No live or stored grid data is currently available.";
+        }
+
+        el["refresh-state"].textContent = `Last refresh ${new Date().toLocaleTimeString()}`;
+        document.body.classList.remove("loading");
+    }
+
+    refresh().catch((error) => {
+        setBanner(error.message);
+        el.status.textContent = "Source unavailable";
+        el.status.className = "pill red";
+        el.insight.textContent = "No live or stored grid data is currently available.";
+        document.body.classList.remove("loading");
+    });
+    setInterval(() => {
+        refresh().catch((error) => setBanner(error.message));
+    }, REFRESH_MS);
+</script>
+</body>
+</html>
