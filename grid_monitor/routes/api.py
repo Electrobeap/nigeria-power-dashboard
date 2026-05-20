@@ -1,8 +1,10 @@
+import copy
 from typing import Any
 
 from flask import Blueprint, current_app, jsonify, request
 
-from grid_monitor.services.analytics import enrich_history_payload, history_analytics
+from grid_monitor.services.analytics import enrich_history_payload, history_analytics, multi_window_analytics
+from grid_monitor.services.cache import get_cached
 from grid_monitor.services.scheduler import scheduler_status
 from grid_monitor.services.scraper import get_dashboard_payload, get_disco_profile, get_live_grid_payload
 from grid_monitor.services.storage import (
@@ -19,6 +21,7 @@ api_bp = Blueprint("api", __name__)
 
 
 def _timestamped(payload: dict[str, Any]) -> dict[str, Any]:
+    payload = copy.deepcopy(payload)
     payload.setdefault("response_timestamp", utc_now_iso())
     return payload
 
@@ -132,10 +135,14 @@ def grid_discos():
 def latest():
     snapshot = get_latest_snapshot()
     if snapshot:
-        snapshot["analytics"] = history_analytics(
-            get_history_points(24, 288),
-            24,
-            snapshot,
+        snapshot["analytics"] = get_cached(
+            f"analytics:latest:{snapshot['reading_timestamp']}",
+            current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+            lambda: multi_window_analytics(
+                get_history_points(24, 288),
+                get_history_points(168, 2016),
+                snapshot,
+            ),
         )
         return _json(snapshot)
 
@@ -144,7 +151,11 @@ def latest():
         save_grid_snapshot(live)
         snapshot = get_latest_snapshot()
         if snapshot:
-            snapshot["analytics"] = history_analytics(get_history_points(24, 288), 24, snapshot)
+            snapshot["analytics"] = multi_window_analytics(
+                get_history_points(24, 288),
+                get_history_points(168, 2016),
+                snapshot,
+            )
         return _json(snapshot or live)
     except Exception as exc:
         return _error(str(exc), 503, "source_unavailable")
@@ -154,9 +165,19 @@ def latest():
 def history():
     hours = bounded_float(request.args.get("hours"), 24, 1, 168)
     limit = bounded_int(request.args.get("limit"), 288, 1, 2000)
-    latest_snapshot = get_latest_snapshot()
-    points = get_history_points(hours, limit)
-    return _json(enrich_history_payload(points, hours, limit, latest_snapshot))
+
+    def load_payload():
+        latest_snapshot = get_latest_snapshot()
+        points = get_history_points(hours, limit)
+        return enrich_history_payload(points, hours, limit, latest_snapshot)
+
+    return _json(
+        get_cached(
+            f"history:{hours}:{limit}",
+            current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+            load_payload,
+        )
+    )
 
 
 @api_bp.get("/api/discos")
@@ -205,14 +226,25 @@ def gencos():
 def analytics():
     hours = bounded_float(request.args.get("hours"), 24, 1, 168)
     limit = bounded_int(request.args.get("limit"), 288, 1, 2000)
-    latest_snapshot = get_latest_snapshot()
-    points = get_history_points(hours, limit)
-    return _json(
-        {
+
+    def load_payload():
+        latest_snapshot = get_latest_snapshot()
+        points = get_history_points(hours, limit)
+        points_24h = get_history_points(24, 288)
+        points_7d = get_history_points(168, 2016)
+        return {
             "hours": hours,
             "limit": limit,
             "analytics": history_analytics(points, hours, latest_snapshot),
+            "windows": multi_window_analytics(points_24h, points_7d, latest_snapshot),
         }
+
+    return _json(
+        get_cached(
+            f"analytics:{hours}:{limit}",
+            current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+            load_payload,
+        )
     )
 
 
@@ -240,6 +272,7 @@ def metadata():
             "storage": {
                 "database_uri": current_app.config["SAFE_DATABASE_URI"],
                 "capture_interval_seconds": current_app.config["HISTORY_CAPTURE_INTERVAL_SECONDS"],
+                "analytics_cache_ttl_seconds": current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
             },
             "endpoints": endpoints,
         }

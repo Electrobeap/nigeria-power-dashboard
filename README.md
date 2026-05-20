@@ -1,18 +1,18 @@
-# Nigeria Power Grid Monitor
+# Nigeria Power Data
 
-Production-grade Flask analytics platform for live and historical Nigeria power-grid intelligence from NISO/NIGGRID public data.
+Production-grade Flask energy intelligence dashboard for Nigeria power-grid analytics at `https://nigeriapowerdata.com`.
 
-## Current Capabilities
+## Capabilities
 
-- Live generation scrape from NISO/NIGGRID.
-- PostgreSQL persistence through SQLAlchemy, with SQLite fallback for local development.
-- 5-minute background history capture.
-- Duplicate-safe storage keyed by source reading timestamp.
-- GenCo and DisCo records stored per grid snapshot.
-- 24-hour trend, moving average, highest and lowest generation metrics.
-- Advanced analytics: generation volatility, supply stability score, DisCo load concentration, top GenCos, and grid health classification.
-- Structured JSON logs, retrying scraper, source timeout protection, stale fallback responses, and health metadata.
-- Responsive dashboard with loading states, error handling, trend arrows, stress indicators, and improved chart rendering.
+- Real-time NISO/NIGGRID data scraping.
+- PostgreSQL persistence through SQLAlchemy.
+- Flask-Migrate/Alembic migrations.
+- APScheduler data collection every 30 minutes.
+- Historical generation, DisCo allocation, GenCo performance, and analytics snapshot storage.
+- 24-hour and 7-day trends, moving averages, peak generation, outage detection, volatility, and rolling health score.
+- Modern responsive dashboard with dark mode, sticky header, status badges, KPI cards, loading states, and polished Chart.js visuals.
+- SEO basics: meta tags, OpenGraph tags, favicon, `robots.txt`, and `sitemap.xml`.
+- Future AdSense-safe layout zones: sidebar, in-content, and footer slots.
 
 ## Project Structure
 
@@ -29,17 +29,20 @@ Production-grade Flask analytics platform for live and historical Nigeria power-
 │   │   └── web.py
 │   ├── services/
 │   │   ├── analytics.py
+│   │   ├── cache.py
 │   │   ├── scheduler.py
 │   │   ├── scraper.py
 │   │   ├── storage.py
 │   │   └── validation.py
 │   ├── static/
 │   │   ├── css/dashboard.css
-│   │   └── js/dashboard.js
+│   │   ├── js/dashboard.js
+│   │   └── favicon.svg
 │   ├── templates/index.html
 │   └── utils/
 │       ├── logging.py
 │       └── time.py
+├── migrations/
 ├── Procfile
 ├── render.yaml
 ├── requirements.txt
@@ -50,48 +53,42 @@ Production-grade Flask analytics platform for live and historical Nigeria power-
 
 The app uses a Flask application factory in `grid_monitor/__init__.py`.
 
-- `routes/` exposes web and REST endpoints.
-- `services/scraper.py` fetches and parses NISO/NIGGRID pages with retries and cache fallback.
-- `services/storage.py` persists snapshots, GenCo data, and DisCo data with SQLAlchemy.
-- `services/analytics.py` calculates historical and operational metrics.
-- `services/scheduler.py` runs the lightweight 5-minute capture loop.
-- `models.py` defines `grid_snapshots`, `genco_data`, and `disco_data`.
-- Static dashboard assets live under `grid_monitor/static`.
+- `models.py` defines `grid_snapshots`, `genco_data`, `disco_data`, and `analytics_snapshots`.
+- `services/scraper.py` handles NISO/NIGGRID fetches, parsing, retries, timeouts, and stale cache fallback.
+- `services/storage.py` persists readings and analytics snapshots.
+- `services/analytics.py` computes 24h/7d trends, moving averages, outage signals, volatility, and health scores.
+- `services/scheduler.py` uses APScheduler with one job id and `max_instances=1` to avoid duplicate collection jobs.
+- `routes/api.py` exposes compatibility and analytics APIs.
+- `routes/web.py` serves the dashboard, `robots.txt`, `sitemap.xml`, and favicon.
 
 ## Database
 
-Preferred production database:
+Production uses PostgreSQL via `DATABASE_URL`.
+
+Render PostgreSQL usually injects this automatically:
 
 ```text
-PostgreSQL on Render
+DATABASE_URL=postgresql://user:password@host:5432/database
 ```
 
-Set one of:
+The app normalizes Render `postgres://` URLs to SQLAlchemy-compatible `postgresql+psycopg2://`.
 
-- `DATABASE_URL`
-- `SQLALCHEMY_DATABASE_URI`
-- `GRID_DATABASE_URL`
-
-Render PostgreSQL usually injects `DATABASE_URL` automatically after attaching a database to the web service. The app normalizes Render-style `postgres://` URLs for SQLAlchemy.
-
-Local fallback:
+Local fallback is SQLite:
 
 ```text
-sqlite:///data/grid_history.sqlite3
+GRID_SQLITE_PATH=data/grid_history.sqlite3
 ```
-
-Tables are created automatically at startup with `db.create_all()`.
 
 ## API Endpoints
 
-Existing compatibility endpoints:
+Compatibility endpoints:
 
 - `GET /data`
 - `GET /api/grid/live`
 - `GET /api/grid/gencos`
 - `GET /api/grid/discos`
 
-Primary platform endpoints:
+Analytics platform endpoints:
 
 - `GET /api/latest`
 - `GET /api/history?hours=24&limit=288`
@@ -101,42 +98,40 @@ Primary platform endpoints:
 - `GET /api/metadata`
 - `GET /api/health`
 
-Every JSON response includes `response_timestamp`. Errors use a consistent shape:
-
-```json
-{
-  "error": "Message",
-  "code": "source_unavailable",
-  "status": 503,
-  "response_timestamp": "2026-05-19T00:00:00+00:00"
-}
-```
+Every JSON response includes `response_timestamp`.
 
 ## Environment Variables
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `DATABASE_URL` | unset | Render PostgreSQL connection string. |
-| `SQLALCHEMY_DATABASE_URI` | unset | Explicit SQLAlchemy database URI. |
-| `GRID_DATABASE_URL` | unset | Alternative database URI. |
+| `SQLALCHEMY_DATABASE_URI` | unset | Explicit SQLAlchemy URI. |
+| `GRID_DATABASE_URL` | unset | Alternate database URI. |
 | `GRID_SQLITE_PATH` | `data/grid_history.sqlite3` | Local SQLite fallback path. |
-| `HISTORY_CAPTURE_ENABLED` | `1` | Enables background capture. |
-| `HISTORY_CAPTURE_INTERVAL_SECONDS` | `300` | Capture interval. Minimum is 60 seconds. |
-| `HISTORY_CAPTURE_ON_STARTUP` | `1` | Runs one capture when the worker starts. |
+| `APP_BASE_URL` | `https://nigeriapowerdata.com` | Canonical domain for sitemap/robots. |
+| `HISTORY_CAPTURE_ENABLED` | `1` | Enables APScheduler collection. |
+| `HISTORY_CAPTURE_INTERVAL_SECONDS` | `1800` | 30-minute collection interval. |
+| `HISTORY_CAPTURE_ON_STARTUP` | `1` | Captures once when the worker starts. |
+| `AUTO_CREATE_TABLES` | `1` | Local convenience fallback. Use migrations in production. |
+| `ANALYTICS_CACHE_TTL_SECONDS` | `120` | API analytics cache TTL. |
 | `GRID_SOURCE_TIMEOUT_SECONDS` | `12` | Scraper HTTP timeout. |
 | `GRID_SCRAPER_RETRIES` | `2` | Scraper retry attempts. |
-| `GRID_SCRAPER_BACKOFF_SECONDS` | `1.5` | Retry backoff base. |
+| `GRID_SCRAPER_BACKOFF_SECONDS` | `1.5` | Linear retry backoff base. |
 | `GRID_CACHE_TTL_SECONDS` | `60` | In-memory source cache TTL. |
 | `ROLLING_AVERAGE_WINDOW` | `12` | Moving-average reading window. |
-| `LOG_LEVEL` | `INFO` | Logging level. |
+| `OUTAGE_DROP_THRESHOLD_PERCENT` | `35` | Sharp-drop outage detection threshold. |
+| `OUTAGE_CRITICAL_MW` | `2500` | Critical generation outage threshold. |
+| `LOG_LEVEL` | `INFO` | Structured logging level. |
 
 ## Local Setup
 
 ```powershell
 python -m venv .venv
-.\\.venv\\Scripts\\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 Copy-Item .env.example .env
+$env:FLASK_APP = "app.py"
+flask db upgrade
 python app.py
 ```
 
@@ -146,39 +141,59 @@ Open:
 - Health: http://127.0.0.1:5000/api/health
 - Metadata: http://127.0.0.1:5000/api/metadata
 
-## Render Deployment
+## Migration Commands
 
-The included `Procfile` and `render.yaml` use:
+Initialize migrations only once, if the `migrations/` folder does not exist:
 
-```text
-gunicorn app:app --workers 1 --threads 4 --timeout 75 --max-requests 1000 --max-requests-jitter 100 --bind 0.0.0.0:$PORT
+```powershell
+$env:FLASK_APP = "app.py"
+flask db init
 ```
 
-One worker is intentional because the app has one background capture loop. Use more workers only if capture is moved to a separate worker service or external scheduler.
+Create a migration after model changes:
 
-## Migration Steps From SQLite MVP
+```powershell
+$env:FLASK_APP = "app.py"
+$env:AUTO_CREATE_TABLES = "0"
+flask db migrate -m "describe schema change"
+```
 
-1. Add a Render PostgreSQL database.
-2. Attach it to the existing Render web service so `DATABASE_URL` is available.
-3. Deploy this code.
-4. Confirm `/api/health` shows a PostgreSQL database URI and `database.ok: true`.
-5. Wait for the first scheduled capture or call `/api/latest` to bootstrap a live snapshot if storage is empty.
+Apply migrations:
 
-Existing SQLite history is not automatically copied to PostgreSQL. For long-term continuity, export old SQLite rows and import them into `grid_snapshots`, `genco_data`, and `disco_data` before switching production traffic.
+```powershell
+$env:FLASK_APP = "app.py"
+flask db upgrade
+```
 
-## Production Notes
+## Render Deployment
 
-- The live endpoint still scrapes NIGGRID directly and preserves its response fields.
-- If the upstream source fails, endpoints return cached data or the latest stored snapshot with `stale: true` where possible.
-- If both source and storage are empty, source-backed endpoints return `503`.
-- Structured logs are emitted as JSON for Render log streams.
-- `db.create_all()` keeps deployment simple. For stricter schema evolution later, add Alembic/Flask-Migrate.
+1. Create or attach a Render PostgreSQL database.
+2. Ensure the web service has `DATABASE_URL`.
+3. Set `APP_BASE_URL=https://nigeriapowerdata.com`.
+4. Keep one Gunicorn worker while APScheduler runs in-process.
+5. Push to GitHub and redeploy.
+
+The included `Procfile` and `render.yaml` run:
+
+```text
+flask --app app.py db upgrade && gunicorn app:app --workers 1 --threads 4 --timeout 75 --max-requests 1000 --max-requests-jitter 100 --bind 0.0.0.0:$PORT
+```
+
+One worker prevents duplicate APScheduler jobs. If you later scale web workers, move the scheduler into a separate Render worker service or external cron.
+
+## SEO And AdSense Prep
+
+- `robots.txt` and `sitemap.xml` are served from Flask.
+- Canonical URL points to `https://nigeriapowerdata.com/`.
+- The dashboard contains non-intrusive ad placeholders for future Google AdSense:
+  - sidebar slot
+  - in-content responsive slot
+  - footer banner slot
 
 ## Recommended Next Improvements
 
-- Move the capture loop into a separate Render worker or external cron once traffic grows.
-- Add Alembic migrations before making frequent schema changes.
-- Add auth/rate limiting for any non-public admin endpoints.
-- Add alerting on `/api/health` and capture failure logs.
-- Add tests around parser fixtures from NIGGRID HTML snapshots.
-- Add a retention policy or rollups once historical storage grows.
+- Move scheduled ingestion into a dedicated Render worker when traffic grows.
+- Add parser fixture tests using saved NIGGRID HTML samples.
+- Add uptime monitoring for `/api/health`.
+- Add admin-only manual capture endpoint protected by auth.
+- Add daily rollup tables once historical data grows.

@@ -1,4 +1,3 @@
-import math
 from statistics import pstdev
 from typing import Any
 
@@ -81,6 +80,16 @@ def generation_trend(points: list[dict[str, Any]]) -> dict[str, Any] | None:
     }
 
 
+def peak_generation(points: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not points:
+        return None
+    peak = max(points, key=lambda item: item["total_generation_mw"])
+    return {
+        "timestamp": peak["timestamp"],
+        "total_generation_mw": peak["total_generation_mw"],
+    }
+
+
 def generation_volatility(points: list[dict[str, Any]]) -> dict[str, Any]:
     if len(points) < 2:
         return {"volatility_mw": 0.0, "volatility_percent": 0.0, "classification": "insufficient_data"}
@@ -97,6 +106,59 @@ def generation_volatility(points: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "volatility_mw": _round(volatility),
         "volatility_percent": _round(percent),
+        "classification": classification,
+    }
+
+
+def detect_outages(points: list[dict[str, Any]]) -> dict[str, Any]:
+    if not points:
+        return {
+            "detected": False,
+            "events": [],
+            "event_count": 0,
+            "classification": "unknown",
+        }
+
+    threshold_percent = current_app.config["OUTAGE_DROP_THRESHOLD_PERCENT"]
+    critical_mw = current_app.config["OUTAGE_CRITICAL_MW"]
+    events: list[dict[str, Any]] = []
+    previous = None
+    for point in points:
+        mw = float(point["total_generation_mw"])
+        if mw <= critical_mw:
+            events.append(
+                {
+                    "timestamp": point["timestamp"],
+                    "type": "critical_generation",
+                    "generation_mw": _round(mw),
+                    "threshold_mw": critical_mw,
+                }
+            )
+        if previous:
+            prev_mw = float(previous["total_generation_mw"])
+            drop_percent = ((prev_mw - mw) / prev_mw) * 100 if prev_mw else 0
+            if drop_percent >= threshold_percent:
+                events.append(
+                    {
+                        "timestamp": point["timestamp"],
+                        "type": "sharp_drop",
+                        "from_generation_mw": _round(prev_mw),
+                        "to_generation_mw": _round(mw),
+                        "drop_percent": _round(drop_percent),
+                    }
+                )
+        previous = point
+
+    if not events:
+        classification = "clear"
+    elif len(events) <= 2:
+        classification = "watch"
+    else:
+        classification = "elevated"
+    return {
+        "detected": bool(events),
+        "events": events[-10:],
+        "event_count": len(events),
         "classification": classification,
     }
 
@@ -119,6 +181,38 @@ def supply_stability_score(points: list[dict[str, Any]]) -> dict[str, Any]:
     else:
         classification = "weak"
     return {"score": _round(score, 1), "classification": classification}
+
+
+def rolling_health_score(points: list[dict[str, Any]]) -> dict[str, Any]:
+    if not points:
+        return {"score": None, "classification": "unknown"}
+
+    critical = current_app.config["GRID_STRESS_CRITICAL_MW"]
+    stressed = current_app.config["GRID_STRESS_STRESSED_MW"]
+    stable = current_app.config["GRID_STRESS_STABLE_MW"]
+    scores: list[float] = []
+    for point in points:
+        mw = float(point["total_generation_mw"])
+        if mw < critical:
+            score = max(0, 35 * (mw / critical))
+        elif mw < stressed:
+            score = 35 + 25 * ((mw - critical) / max(1, stressed - critical))
+        elif mw < stable:
+            score = 60 + 25 * ((mw - stressed) / max(1, stable - stressed))
+        else:
+            score = min(100, 85 + 15 * min(1, (mw - stable) / max(1, stable)))
+        scores.append(score)
+
+    average = sum(scores) / len(scores)
+    if average >= 80:
+        classification = "healthy"
+    elif average >= 60:
+        classification = "stable"
+    elif average >= 40:
+        classification = "stressed"
+    else:
+        classification = "critical"
+    return {"score": _round(average, 1), "classification": classification}
 
 
 def disco_load_concentration(discos: list[dict[str, Any]]) -> dict[str, Any]:
@@ -183,8 +277,11 @@ def history_analytics(points: list[dict[str, Any]], hours: float, latest_snapsho
             "moving_average_window_readings": current_app.config["ROLLING_AVERAGE_WINDOW"],
             "highest_daily_generation": None,
             "lowest_daily_generation": None,
+            "peak_generation": None,
+            "outage_detection": detect_outages(points),
             "generation_volatility": generation_volatility(points),
             "supply_stability_score": supply_stability_score(points),
+            "rolling_health_score": rolling_health_score(points),
             "disco_load_concentration": disco_load_concentration([]),
             "top_performing_gencos": [],
             "grid_health": classify_grid_health(None),
@@ -211,8 +308,11 @@ def history_analytics(points: list[dict[str, Any]], hours: float, latest_snapsho
             "timestamp": lowest["timestamp"],
             "total_generation_mw": lowest["total_generation_mw"],
         },
+        "peak_generation": peak_generation(points),
+        "outage_detection": detect_outages(points),
         "generation_volatility": generation_volatility(points),
         "supply_stability_score": supply_stability_score(points),
+        "rolling_health_score": rolling_health_score(points),
         "disco_load_concentration": disco_load_concentration(latest_discos),
         "top_performing_gencos": top_performing_gencos(latest_gencos, total_generation),
         "grid_health": classify_grid_health(total_generation),
@@ -226,4 +326,15 @@ def enrich_history_payload(points: list[dict[str, Any]], hours: float, limit: in
         "limit": limit,
         "history": enriched_points,
         "analytics": history_analytics(enriched_points, hours, latest_snapshot),
+    }
+
+
+def multi_window_analytics(
+    points_24h: list[dict[str, Any]],
+    points_7d: list[dict[str, Any]],
+    latest_snapshot: dict[str, Any] | None,
+) -> dict[str, Any]:
+    return {
+        "trend_24h": history_analytics(points_24h, 24, latest_snapshot),
+        "trend_7d": history_analytics(points_7d, 168, latest_snapshot),
     }

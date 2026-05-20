@@ -8,13 +8,31 @@ let previousMW = null;
 const ids = [
     "source", "refresh-state", "error-banner", "time", "mw", "status", "trend",
     "insight", "reporting", "as-at", "moving-average", "sample-count", "chart",
-    "chart-empty", "chart-note", "chart-window", "daily-date", "peak", "off-peak",
+    "chart-empty", "chart-window", "daily-date", "peak", "off-peak",
     "daily-high", "daily-low", "energy-generated", "energy-sent", "disco-time",
     "genco-time", "discos", "gencos", "grid-health", "grid-health-note",
     "stability-score", "stability-note", "volatility", "volatility-note",
     "load-concentration", "load-note", "top-genco", "top-genco-note",
+    "outage-status", "outage-note", "api-health", "api-health-note",
+    "trend-7d", "trend-7d-note", "theme-toggle",
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+
+function initTheme() {
+    const stored = localStorage.getItem("grid-theme");
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = stored || (prefersDark ? "dark" : "light");
+    document.documentElement.dataset.theme = theme;
+    el["theme-toggle"].textContent = theme === "dark" ? "Light" : "Dark";
+}
+
+function toggleTheme() {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("grid-theme", next);
+    el["theme-toggle"].textContent = next === "dark" ? "Light" : "Dark";
+    if (chart) chart.update();
+}
 
 function formatNumber(value, digits = 2) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) return "...";
@@ -55,20 +73,15 @@ function setBanner(message) {
     el["error-banner"].classList.toggle("visible", Boolean(message));
 }
 
-function fetchJSON(url) {
-    return fetch(url, { cache: "no-store" }).then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(payload.error || `Request failed: ${url}`);
-        }
-        return payload;
-    });
+async function fetchJSON(url) {
+    const response = await fetch(url, { cache: "no-store" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `Request failed: ${url}`);
+    return payload;
 }
 
 function gridStatus(mw, stale, health) {
-    if (stale) {
-        return ["Stored fallback", "amber", "Live source is unavailable, so the latest stored reading is shown."];
-    }
+    if (stale) return ["Stored fallback", "amber", "Live source is unavailable, so the latest stored reading is shown."];
     if (health?.classification) {
         return [
             health.classification.replaceAll("_", " "),
@@ -86,27 +99,23 @@ function renderRows(target, rows, nameKey, valueKey) {
         target.innerHTML = `<tr><td colspan="2">No records available.</td></tr>`;
         return;
     }
-
     target.innerHTML = rows
-        .map((row) => (
-            `<tr><td>${escapeHTML(row[nameKey])}</td><td>${formatNumber(row[valueKey])}</td></tr>`
-        ))
+        .map((row) => `<tr><td>${escapeHTML(row[nameKey])}</td><td>${formatNumber(row[valueKey])}</td></tr>`)
         .join("");
 }
 
-function renderTrend(analytics) {
+function renderTrendBadge(analytics) {
     const trend = analytics?.last_24h_generation_trend;
     if (!trend) {
         el.trend.textContent = "Collecting trend";
-        el.trend.className = "pill blue";
+        el.trend.className = "badge blue";
         return;
     }
-
     const sign = trend.change_mw > 0 ? "+" : "";
     const arrow = trend.direction === "up" ? "&uarr;" : trend.direction === "down" ? "&darr;" : "&rarr;";
     const percent = trend.change_percent === null ? "" : ` (${sign}${formatNumber(trend.change_percent)}%)`;
     el.trend.innerHTML = `${arrow} ${sign}${formatMW(trend.change_mw)}${percent}`;
-    el.trend.className = `pill ${trend.direction === "up" ? "green" : trend.direction === "down" ? "red" : "blue"}`;
+    el.trend.className = `badge ${trend.direction === "up" ? "green" : trend.direction === "down" ? "red" : "blue"}`;
 }
 
 function renderLive(data, analytics) {
@@ -121,7 +130,7 @@ function renderLive(data, analytics) {
 
     el.time.textContent = `Fetched ${formatTimestamp(data.fetched_at)}`;
     el.status.textContent = statusText;
-    el.status.className = `pill ${statusClass}`;
+    el.status.className = `badge ${statusClass}`;
     el.insight.textContent = insight;
     el.reporting.textContent = data.reporting_gencos ?? "...";
     el["as-at"].textContent = data.as_at_time ?? "...";
@@ -135,31 +144,34 @@ function renderLive(data, analytics) {
 
     el.source.innerHTML =
         `Source: <a class="source-link" href="${escapeHTML(data.source_url)}" target="_blank" rel="noreferrer">${escapeHTML(data.source)}</a>`;
-
-    renderTrend(analytics);
+    renderTrendBadge(analytics);
 }
 
-function renderAnalytics(analytics) {
+function renderAnalytics(analytics, windows) {
     if (!analytics || analytics.sample_count === 0) {
-        el["moving-average"].textContent = "...";
-        el["sample-count"].textContent = "0";
-        el["daily-high"].textContent = "...";
-        el["daily-low"].textContent = "...";
-        renderAdvancedAnalytics(null);
-        renderTrend(null);
+        renderEmptyAnalytics();
         return;
     }
 
     el["moving-average"].textContent = formatMW(analytics.rolling_average_mw);
-    el["sample-count"].textContent = analytics.sample_count;
+    el["sample-count"].textContent = `${analytics.sample_count} stored readings`;
     el["daily-high"].textContent = formatMW(analytics.highest_daily_generation?.total_generation_mw);
     el["daily-low"].textContent = formatMW(analytics.lowest_daily_generation?.total_generation_mw);
     el["chart-window"].textContent = `${analytics.window_hours} hours`;
-    renderTrend(analytics);
-    renderAdvancedAnalytics(analytics);
+    renderTrendBadge(analytics);
+    renderAdvancedAnalytics(analytics, windows);
 }
 
-function renderAdvancedAnalytics(analytics) {
+function renderEmptyAnalytics() {
+    el["moving-average"].textContent = "...";
+    el["sample-count"].textContent = "No stored readings yet";
+    el["daily-high"].textContent = "...";
+    el["daily-low"].textContent = "...";
+    renderAdvancedAnalytics(null, null);
+    renderTrendBadge(null);
+}
+
+function renderAdvancedAnalytics(analytics, windows) {
     if (!analytics) {
         el["grid-health"].textContent = "...";
         el["grid-health-note"].textContent = "Awaiting live generation.";
@@ -171,19 +183,24 @@ function renderAdvancedAnalytics(analytics) {
         el["load-note"].textContent = "Awaiting DisCo profile.";
         el["top-genco"].textContent = "...";
         el["top-genco-note"].textContent = "Awaiting GenCo output.";
+        el["outage-status"].textContent = "...";
+        el["outage-note"].textContent = "Awaiting trend data.";
         return;
     }
 
     const health = analytics.grid_health || {};
     const stability = analytics.supply_stability_score || {};
+    const rollingHealth = analytics.rolling_health_score || {};
     const volatility = analytics.generation_volatility || {};
     const load = analytics.disco_load_concentration || {};
+    const outage = analytics.outage_detection || {};
     const top = analytics.top_performing_gencos?.[0];
+    const sevenDay = windows?.trend_7d?.last_24h_generation_trend;
 
     el["grid-health"].textContent = health.classification || "...";
     el["grid-health-note"].textContent = health.message || "No classification available.";
     el["stability-score"].textContent = stability.score === null ? "..." : `${formatNumber(stability.score, 1)}/100`;
-    el["stability-note"].textContent = stability.classification || "No stability score available.";
+    el["stability-note"].textContent = `${stability.classification || "unknown"} supply, ${rollingHealth.classification || "unknown"} rolling health`;
     el.volatility.textContent = `${formatNumber(volatility.volatility_percent)}%`;
     el["volatility-note"].textContent = `${formatMW(volatility.volatility_mw)} spread, ${volatility.classification || "unknown"}`;
     el["load-concentration"].textContent = load.classification || "...";
@@ -194,6 +211,16 @@ function renderAdvancedAnalytics(analytics) {
     el["top-genco-note"].textContent = top
         ? `${formatMW(top.generation_mw)}${top.share_percent ? `, ${formatNumber(top.share_percent)}% share` : ""}`
         : "No GenCo output data.";
+    el["outage-status"].textContent = outage.classification || "unknown";
+    el["outage-note"].textContent = outage.detected
+        ? `${outage.event_count} event${outage.event_count === 1 ? "" : "s"} detected`
+        : "No outage pattern detected in this window.";
+    el["trend-7d"].textContent = sevenDay
+        ? `${sevenDay.change_mw > 0 ? "+" : ""}${formatMW(sevenDay.change_mw)}`
+        : "...";
+    el["trend-7d-note"].textContent = sevenDay
+        ? `${sevenDay.direction}, ${formatNumber(sevenDay.change_percent)}% over stored 7-day window`
+        : "Awaiting 7-day storage depth.";
 }
 
 function renderChart(history) {
@@ -205,12 +232,9 @@ function renderChart(history) {
     generationReadings.splice(0, generationReadings.length, ...points.map((point) => point.total_generation_mw));
     movingAverageReadings.splice(0, movingAverageReadings.length, ...points.map((point) => point.moving_average_mw));
 
-    if (!window.Chart) {
-        el["chart-empty"].textContent = "Chart library unavailable. Data tables and metrics are still live.";
-        el["chart-empty"].classList.add("visible");
-        return;
-    }
+    if (!window.Chart || !hasPoints) return;
 
+    const gridColor = getComputedStyle(document.documentElement).getPropertyValue("--line").trim();
     if (!chart) {
         chart = new Chart(el.chart.getContext("2d"), {
             type: "line",
@@ -230,7 +254,7 @@ function renderChart(history) {
                     {
                         label: "Moving average",
                         data: movingAverageReadings,
-                        borderColor: "#11845b",
+                        borderColor: "#18a66a",
                         borderDash: [6, 4],
                         borderWidth: 2,
                         tension: 0.28,
@@ -242,57 +266,43 @@ function renderChart(history) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    intersect: false,
-                    mode: "index",
-                },
+                interaction: { intersect: false, mode: "index" },
                 plugins: {
-                    legend: {
-                        position: "bottom",
-                        labels: {
-                            boxWidth: 12,
-                            usePointStyle: true,
-                        },
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => `${context.dataset.label}: ${formatMW(context.parsed.y)}`,
-                        },
-                    },
+                    legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
+                    tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${formatMW(context.parsed.y)}` } },
                 },
                 scales: {
                     x: {
-                        ticks: {
-                            maxRotation: 0,
-                            autoSkip: true,
-                            maxTicksLimit: 8,
-                        },
-                        grid: {
-                            display: false,
-                        },
+                        ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+                        grid: { display: false },
                     },
                     y: {
                         beginAtZero: false,
-                        ticks: {
-                            callback: (value) => formatNumber(value, 0),
-                        },
+                        ticks: { callback: (value) => formatNumber(value, 0) },
+                        grid: { color: gridColor },
                     },
                 },
             },
         });
     } else {
+        chart.options.scales.y.grid.color = gridColor;
         chart.update();
     }
 }
 
-function renderDiscos(payload) {
-    el["disco-time"].textContent = payload?.as_at ? `As at ${payload.as_at}` : formatTimestamp(payload?.fetched_at);
-    renderRows(el.discos, payload?.discos || [], "company", "load_allocation_mw");
+function renderTables(latest) {
+    const profile = latest?.disco_profile || {};
+    el["disco-time"].textContent = profile.as_at ? `As at ${profile.as_at}` : formatTimestamp(profile.fetched_at);
+    el["genco-time"].textContent = formatTimestamp(latest?.fetched_at || latest?.reading_timestamp);
+    renderRows(el.discos, profile.discos || [], "company", "load_allocation_mw");
+    renderRows(el.gencos, latest?.gencos || [], "plant", "generation_mw");
 }
 
-function renderGencos(payload) {
-    el["genco-time"].textContent = formatTimestamp(payload?.fetched_at || payload?.reading_timestamp);
-    renderRows(el.gencos, payload?.gencos || [], "plant", "generation_mw");
+function renderHealth(payload) {
+    if (!payload) return;
+    el["api-health"].textContent = payload.ok ? "Operational" : "Degraded";
+    const next = payload.capture?.next_run_at ? `Next capture ${formatTimestamp(payload.capture.next_run_at)}` : "Scheduler idle";
+    el["api-health-note"].textContent = `${payload.database?.snapshot_count ?? 0} snapshots. ${next}.`;
 }
 
 function resultValue(results, key) {
@@ -311,49 +321,33 @@ async function refresh() {
     setBanner("");
 
     const settled = await Promise.allSettled([
-        fetchJSON("/api/grid/live"),
+        fetchJSON("/api/latest"),
         fetchJSON("/api/history?hours=24&limit=288"),
-        fetchJSON("/api/discos"),
-        fetchJSON("/api/gencos"),
+        fetchJSON("/api/health"),
     ]);
-    const results = {
-        live: settled[0],
-        history: settled[1],
-        discos: settled[2],
-        gencos: settled[3],
-    };
-
+    const results = { latest: settled[0], history: settled[1], health: settled[2] };
+    const latest = resultValue(results, "latest");
     const history = resultValue(results, "history");
-    const analytics = history?.analytics;
+    const health = resultValue(results, "health");
+    const analytics = history?.analytics || latest?.analytics?.trend_24h;
+    const windows = latest?.analytics || history?.windows;
+
     if (history) {
-        renderAnalytics(analytics);
+        renderAnalytics(analytics, windows);
         renderChart(history);
     }
-
-    const live = resultValue(results, "live");
-    if (live) {
-        renderLive(live, analytics);
+    if (latest) {
+        renderLive(latest, analytics);
+        renderTables(latest);
     }
+    renderHealth(health);
 
-    const discos = resultValue(results, "discos") || live?.disco_profile;
-    if (discos) renderDiscos(discos);
+    const errors = ["latest", "history", "health"].map((key) => resultError(results, key)).filter(Boolean);
+    if (errors.length) setBanner(errors[0]);
 
-    const gencos = resultValue(results, "gencos") || (live ? {
-        gencos: live.gencos,
-        fetched_at: live.fetched_at,
-    } : null);
-    if (gencos) renderGencos(gencos);
-
-    const errors = ["live", "history", "discos", "gencos"]
-        .map((key) => resultError(results, key))
-        .filter(Boolean);
-    if (errors.length) {
-        setBanner(errors[0]);
-    }
-
-    if (!live && !history && !discos && !gencos) {
+    if (!latest && !history) {
         el.status.textContent = "Source unavailable";
-        el.status.className = "pill red";
+        el.status.className = "badge red";
         el.insight.textContent = "No live or stored grid data is currently available.";
     }
 
@@ -361,14 +355,13 @@ async function refresh() {
     document.body.classList.remove("loading");
 }
 
+initTheme();
+el["theme-toggle"].addEventListener("click", toggleTheme);
 refresh().catch((error) => {
     setBanner(error.message);
     el.status.textContent = "Source unavailable";
-    el.status.className = "pill red";
+    el.status.className = "badge red";
     el.insight.textContent = "No live or stored grid data is currently available.";
     document.body.classList.remove("loading");
 });
-
-setInterval(() => {
-    refresh().catch((error) => setBanner(error.message));
-}, REFRESH_MS);
+setInterval(() => refresh().catch((error) => setBanner(error.message)), REFRESH_MS);

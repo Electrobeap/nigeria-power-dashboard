@@ -40,6 +40,12 @@ class GridSnapshot(db.Model):
         lazy="selectin",
         order_by="desc(DiscoData.load_allocation_mw)",
     )
+    analytics_snapshots = db.relationship(
+        "AnalyticsSnapshot",
+        back_populates="snapshot",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
 
 class GencoData(db.Model):
@@ -66,3 +72,30 @@ class DiscoData(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
 
     snapshot = db.relationship("GridSnapshot", back_populates="disco_data")
+
+
+class AnalyticsSnapshot(db.Model):
+    __tablename__ = "analytics_snapshots"
+    __table_args__ = (
+        UniqueConstraint("snapshot_id", "window_hours", name="uq_analytics_snapshot_window"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    snapshot_id = db.Column(
+        db.Integer,
+        db.ForeignKey("grid_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    calculated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    window_hours = db.Column(db.Integer, nullable=False, index=True)
+    trend_json = db.Column(db.JSON, nullable=False, default=dict)
+    volatility_json = db.Column(db.JSON, nullable=False, default=dict)
+    health_json = db.Column(db.JSON, nullable=False, default=dict)
+    stability_json = db.Column(db.JSON, nullable=False, default=dict)
+    outage_json = db.Column(db.JSON, nullable=False, default=dict)
+    concentration_json = db.Column(db.JSON, nullable=False, default=dict)
+    top_gencos_json = db.Column(db.JSON, nullable=False, default=list)
+    summary_json = db.Column(db.JSON, nullable=False, default=dict)
+
+    snapshot = db.relationship("GridSnapshot", back_populates="analytics_snapshots")

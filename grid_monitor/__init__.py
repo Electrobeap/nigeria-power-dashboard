@@ -1,9 +1,10 @@
 import atexit
+import sys
 
 from flask import Flask
 
 from grid_monitor.config import Config
-from grid_monitor.extensions import db
+from grid_monitor.extensions import db, migrate
 from grid_monitor.routes.api import api_bp
 from grid_monitor.routes.web import web_bp
 from grid_monitor.services.scheduler import start_scheduler, stop_scheduler
@@ -17,6 +18,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     configure_logging(app)
     db.init_app(app)
+    migrate.init_app(app, db)
 
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
@@ -24,7 +26,8 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     with app.app_context():
         init_database()
 
-    if app.config["HISTORY_CAPTURE_ENABLED"]:
+    is_flask_db_command = "db" in sys.argv
+    if app.config["HISTORY_CAPTURE_ENABLED"] and not is_flask_db_command:
         start_scheduler(app)
 
     log_event("app_startup", database_uri=app.config["SAFE_DATABASE_URI"])

@@ -7,7 +7,8 @@ from flask import current_app
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from grid_monitor.extensions import db
-from grid_monitor.models import DiscoData, GencoData, GridSnapshot
+from grid_monitor.models import AnalyticsSnapshot, DiscoData, GencoData, GridSnapshot
+from grid_monitor.services.cache import clear_cache
 from grid_monitor.services.validation import validate_live_payload
 from grid_monitor.utils.logging import log_event
 from grid_monitor.utils.time import source_reading_timestamp, to_iso, utc_now
@@ -23,8 +24,13 @@ def _ensure_sqlite_parent() -> None:
 
 def init_database() -> None:
     _ensure_sqlite_parent()
-    db.create_all()
-    log_event("database_initialized", database_uri=current_app.config["SAFE_DATABASE_URI"])
+    if current_app.config["AUTO_CREATE_TABLES"]:
+        db.create_all()
+    log_event(
+        "database_initialized",
+        database_uri=current_app.config["SAFE_DATABASE_URI"],
+        auto_create_tables=current_app.config["AUTO_CREATE_TABLES"],
+    )
 
 
 def save_grid_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
@@ -79,11 +85,49 @@ def save_grid_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
         log_event("snapshot_save_failed", logging.ERROR, reading_timestamp=to_iso(reading_timestamp))
         raise
 
+    clear_cache("analytics:")
+    clear_cache("history:")
     return {
         "inserted": True,
         "snapshot_id": snapshot.id,
         "reading_timestamp": to_iso(snapshot.reading_timestamp),
     }
+
+
+def save_analytics_snapshot(snapshot_id: int, window_hours: int, analytics: dict[str, Any]) -> dict[str, Any]:
+    existing = AnalyticsSnapshot.query.filter_by(
+        snapshot_id=snapshot_id,
+        window_hours=window_hours,
+    ).first()
+    record = existing or AnalyticsSnapshot(snapshot_id=snapshot_id, window_hours=window_hours)
+    record.trend_json = analytics.get("last_24h_generation_trend") or analytics.get("trend") or {}
+    record.volatility_json = analytics.get("generation_volatility") or {}
+    record.health_json = analytics.get("grid_health") or {}
+    record.stability_json = {
+        "supply": analytics.get("supply_stability_score"),
+        "rolling_health": analytics.get("rolling_health_score"),
+    }
+    record.outage_json = analytics.get("outage_detection") or {}
+    record.concentration_json = analytics.get("disco_load_concentration") or {}
+    record.top_gencos_json = analytics.get("top_performing_gencos") or []
+    record.summary_json = analytics
+
+    try:
+        db.session.add(record)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        log_event(
+            "analytics_snapshot_save_failed",
+            logging.ERROR,
+            snapshot_id=snapshot_id,
+            window_hours=window_hours,
+        )
+        raise
+
+    clear_cache("analytics:")
+    clear_cache("history:")
+    return {"analytics_snapshot_id": record.id, "window_hours": window_hours}
 
 
 def snapshot_to_payload(snapshot: GridSnapshot) -> dict[str, Any]:
@@ -158,11 +202,13 @@ def get_history_points(hours: float, limit: int) -> list[dict[str, Any]]:
 def storage_status() -> dict[str, Any]:
     try:
         snapshot_count = GridSnapshot.query.count()
+        analytics_count = AnalyticsSnapshot.query.count()
         latest = get_latest_snapshot_model()
         return {
             "ok": True,
             "database_uri": current_app.config["SAFE_DATABASE_URI"],
             "snapshot_count": snapshot_count,
+            "analytics_snapshot_count": analytics_count,
             "latest_timestamp": to_iso(latest.reading_timestamp) if latest else None,
         }
     except Exception as exc:

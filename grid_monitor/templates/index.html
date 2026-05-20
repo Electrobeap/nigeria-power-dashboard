@@ -3,166 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nigeria Power Grid Monitor</title>
+    <meta name="description" content="Nigeria Power Data provides real-time electricity generation, GenCo performance, DisCo allocation, and power-grid health analytics.">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#102033">
+    <meta property="og:title" content="Nigeria Power Data">
+    <meta property="og:description" content="Real-time Nigeria power grid intelligence, historical trends, and energy analytics.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nigeriapowerdata.com/">
+    <meta property="og:site_name" content="Nigeria Power Data">
+    <meta name="twitter:card" content="summary">
+    <title>Nigeria Power Data | Real-Time Grid Intelligence</title>
+    <link rel="canonical" href="https://nigeriapowerdata.com/">
+    <link rel="icon" href="{{ url_for('web.favicon') }}" type="image/svg+xml">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 </head>
 <body>
-<main>
-    <header class="app-header">
+<header class="topbar">
+    <a class="brand" href="/" aria-label="Nigeria Power Data home">
+        <span class="brand-mark">N</span>
+        <span>
+            <strong>Nigeria Power Data</strong>
+            <small>Real-time grid intelligence</small>
+        </span>
+    </a>
+    <div class="topbar-actions">
+        <span class="refresh-state" id="refresh-state">Starting live refresh...</span>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+    </div>
+</header>
+
+<main class="shell">
+    <section class="hero-copy">
         <div>
-            <h1>Nigeria Power Grid Monitor</h1>
-            <p class="subtle">Real-time generation, historical trend, GenCo performance, and DisCo allocation intelligence.</p>
+            <p class="eyebrow">NISO/NIGGRID public data</p>
+            <h1>Production-grade electricity generation analytics for Nigeria.</h1>
         </div>
         <div class="source-box">
-            <div class="subtle" id="source">Loading source...</div>
-            <div class="subtle" id="refresh-state">Starting live refresh...</div>
+            <div id="source">Loading source...</div>
+            <div id="time">Fetching latest snapshot...</div>
         </div>
-    </header>
+    </section>
 
     <div class="banner" id="error-banner"></div>
 
-    <section class="hero-grid">
-        <article class="panel live-panel">
-            <div class="subtle" id="time">Fetching latest grid snapshot...</div>
-            <div class="mw" id="mw">...</div>
-            <div class="status-row">
-                <div class="pill amber" id="status">Loading</div>
-                <div class="pill blue" id="trend">Collecting trend</div>
-            </div>
-            <p class="subtle" id="insight">Waiting for the first live reading.</p>
+    <div class="layout-grid">
+        <section class="main-column">
+            <section class="kpi-grid">
+                <article class="card kpi-card primary">
+                    <span>Total Generation</span>
+                    <strong class="mw skeleton-text" id="mw">...</strong>
+                    <div class="status-row">
+                        <span class="badge amber" id="status">Loading</span>
+                        <span class="badge blue" id="trend">Collecting trend</span>
+                    </div>
+                    <p id="insight">Waiting for the first live reading.</p>
+                </article>
+                <article class="card kpi-card">
+                    <span>Grid Health</span>
+                    <strong id="grid-health">...</strong>
+                    <p id="grid-health-note">...</p>
+                </article>
+                <article class="card kpi-card">
+                    <span>Stability</span>
+                    <strong id="stability-score">...</strong>
+                    <p id="stability-note">...</p>
+                </article>
+                <article class="card kpi-card">
+                    <span>Volatility</span>
+                    <strong id="volatility">...</strong>
+                    <p id="volatility-note">...</p>
+                </article>
+            </section>
 
-            <div class="metrics compact">
-                <div class="metric">
+            <section class="card chart-card">
+                <div class="section-head">
+                    <div>
+                        <h2>Generation Trend</h2>
+                        <p>24-hour generation with moving average and stress signals.</p>
+                    </div>
+                    <span class="badge blue" id="chart-window">24 hours</span>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="chart"></canvas>
+                    <div class="empty-state" id="chart-empty">Collecting historical readings.</div>
+                </div>
+            </section>
+
+            <div class="ad-slot ad-slot-horizontal" aria-label="Future advertisement slot">
+                <span>Sponsored</span>
+            </div>
+
+            <section class="insight-grid">
+                <article class="card mini-card">
                     <span>Reporting GenCos</span>
                     <strong id="reporting">...</strong>
-                </div>
-                <div class="metric">
+                    <p id="genco-time">...</p>
+                </article>
+                <article class="card mini-card">
                     <span>As At</span>
                     <strong id="as-at">...</strong>
-                </div>
-                <div class="metric">
+                    <p>Latest source reading time</p>
+                </article>
+                <article class="card mini-card">
                     <span>Moving Average</span>
                     <strong id="moving-average">...</strong>
-                </div>
-                <div class="metric">
-                    <span>24h Samples</span>
-                    <strong id="sample-count">...</strong>
-                </div>
-            </div>
-        </article>
+                    <p id="sample-count">...</p>
+                </article>
+                <article class="card mini-card">
+                    <span>Load Concentration</span>
+                    <strong id="load-concentration">...</strong>
+                    <p id="load-note">...</p>
+                </article>
+                <article class="card mini-card">
+                    <span>Top GenCo</span>
+                    <strong id="top-genco">...</strong>
+                    <p id="top-genco-note">...</p>
+                </article>
+                <article class="card mini-card">
+                    <span>Outage Detection</span>
+                    <strong id="outage-status">...</strong>
+                    <p id="outage-note">...</p>
+                </article>
+            </section>
 
-        <article class="panel chart-panel">
-            <div class="section-head">
-                <div>
-                    <h2>24h Generation Trend</h2>
-                    <p class="subtle" id="chart-note">Stored readings with moving average.</p>
-                </div>
-                <div class="pill blue" id="chart-window">24 hours</div>
-            </div>
-            <div class="chart-wrap">
-                <canvas id="chart"></canvas>
-                <div class="empty-state" id="chart-empty">Collecting historical readings. The first stored point appears after capture.</div>
-            </div>
-        </article>
-    </section>
+            <section class="content-grid">
+                <article class="card">
+                    <div class="section-head">
+                        <h2>Daily Grid Performance</h2>
+                        <span id="daily-date">...</span>
+                    </div>
+                    <div class="metric-list">
+                        <div><span>Peak Generation</span><strong id="peak">...</strong></div>
+                        <div><span>Off-Peak Generation</span><strong id="off-peak">...</strong></div>
+                        <div><span>Highest Stored</span><strong id="daily-high">...</strong></div>
+                        <div><span>Lowest Stored</span><strong id="daily-low">...</strong></div>
+                        <div><span>Energy Generated</span><strong id="energy-generated">...</strong></div>
+                        <div><span>Energy Sent Out</span><strong id="energy-sent">...</strong></div>
+                    </div>
+                </article>
 
-    <section class="analytics-grid">
-        <article class="analytics-card">
-            <span>Grid Health</span>
-            <strong id="grid-health">...</strong>
-            <p id="grid-health-note">...</p>
-        </article>
-        <article class="analytics-card">
-            <span>Stability Score</span>
-            <strong id="stability-score">...</strong>
-            <p id="stability-note">...</p>
-        </article>
-        <article class="analytics-card">
-            <span>Volatility</span>
-            <strong id="volatility">...</strong>
-            <p id="volatility-note">...</p>
-        </article>
-        <article class="analytics-card">
-            <span>Load Concentration</span>
-            <strong id="load-concentration">...</strong>
-            <p id="load-note">...</p>
-        </article>
-        <article class="analytics-card">
-            <span>Top GenCo</span>
-            <strong id="top-genco">...</strong>
-            <p id="top-genco-note">...</p>
-        </article>
-    </section>
+                <article class="card table-card">
+                    <div class="section-head">
+                        <h2>DisCo Load Profile</h2>
+                        <span id="disco-time">...</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Company</th><th>MW</th></tr></thead>
+                            <tbody id="discos"><tr><td colspan="2"><span class="spinner"></span> Loading...</td></tr></tbody>
+                        </table>
+                    </div>
+                </article>
 
-    <section class="content-grid">
-        <article class="panel">
-            <div class="section-head">
-                <h2>Daily Grid Performance</h2>
-                <span class="subtle" id="daily-date">...</span>
-            </div>
-            <div class="metrics">
-                <div class="metric">
-                    <span>Peak Generation</span>
-                    <strong id="peak">...</strong>
-                </div>
-                <div class="metric">
-                    <span>Off-Peak Generation</span>
-                    <strong id="off-peak">...</strong>
-                </div>
-                <div class="metric">
-                    <span>Highest Stored</span>
-                    <strong id="daily-high">...</strong>
-                </div>
-                <div class="metric">
-                    <span>Lowest Stored</span>
-                    <strong id="daily-low">...</strong>
-                </div>
-                <div class="metric">
-                    <span>Energy Generated</span>
-                    <strong id="energy-generated">...</strong>
-                </div>
-                <div class="metric">
-                    <span>Energy Sent Out</span>
-                    <strong id="energy-sent">...</strong>
-                </div>
-            </div>
-        </article>
+                <article class="card table-card wide">
+                    <div class="section-head">
+                        <h2>GenCo Performance</h2>
+                        <span>Latest plant output</span>
+                    </div>
+                    <div class="table-wrap tall">
+                        <table>
+                            <thead><tr><th>Plant</th><th>MW</th></tr></thead>
+                            <tbody id="gencos"><tr><td colspan="2"><span class="spinner"></span> Loading...</td></tr></tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+        </section>
 
-        <article class="panel">
-            <div class="section-head">
-                <h2>DisCo Load Profile</h2>
-                <span class="subtle" id="disco-time">...</span>
+        <aside class="side-column">
+            <div class="ad-slot ad-slot-sidebar" aria-label="Future sidebar advertisement slot">
+                <span>Sidebar ad slot</span>
             </div>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                    <tr><th>Company</th><th>MW</th></tr>
-                    </thead>
-                    <tbody id="discos">
-                    <tr><td colspan="2">Loading...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </article>
+            <article class="card side-card">
+                <span>API Health</span>
+                <strong id="api-health">Checking...</strong>
+                <p id="api-health-note">Scheduler and database status.</p>
+            </article>
+            <article class="card side-card">
+                <span>7-Day Trend</span>
+                <strong id="trend-7d">...</strong>
+                <p id="trend-7d-note">Awaiting stored data.</p>
+            </article>
+        </aside>
+    </div>
 
-        <article class="panel wide">
-            <div class="section-head">
-                <h2>GenCo Performance</h2>
-                <span class="subtle" id="genco-time">...</span>
-            </div>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                    <tr><th>Plant</th><th>MW</th></tr>
-                    </thead>
-                    <tbody id="gencos">
-                    <tr><td colspan="2">Loading...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </article>
-    </section>
+    <div class="ad-slot ad-slot-footer" aria-label="Future footer advertisement slot">
+        <span>Footer banner ad slot</span>
+    </div>
 </main>
 
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
