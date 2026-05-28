@@ -8,19 +8,13 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from grid_monitor.services.analytics import history_analytics
 from grid_monitor.services.cache import clear_cache
-<<<<<<< HEAD
-=======
 from grid_monitor.services.distribution import distribution_intelligence
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 from grid_monitor.services.scraper import get_live_grid_payload
 from grid_monitor.services.storage import (
     get_history_points,
     get_latest_snapshot,
     save_analytics_snapshot,
-<<<<<<< HEAD
-=======
     save_distribution_snapshot,
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     save_grid_snapshot,
 )
 from grid_monitor.utils.logging import log_event
@@ -52,11 +46,6 @@ def _record_analytics_snapshots() -> list[dict[str, Any]]:
     points_7d = get_history_points(168, 2016)
     analytics_24h = history_analytics(points_24h, 24, latest)
     analytics_7d = history_analytics(points_7d, 168, latest)
-<<<<<<< HEAD
-    return [
-        save_analytics_snapshot(latest["snapshot_id"], 24, analytics_24h),
-        save_analytics_snapshot(latest["snapshot_id"], 168, analytics_7d),
-=======
     distribution_24h = distribution_intelligence(latest, points_24h, 24)
     distribution_7d = distribution_intelligence(latest, points_7d, 168)
     return [
@@ -64,7 +53,6 @@ def _record_analytics_snapshots() -> list[dict[str, Any]]:
         save_analytics_snapshot(latest["snapshot_id"], 168, analytics_7d),
         save_distribution_snapshot(latest["snapshot_id"], 24, distribution_24h),
         save_distribution_snapshot(latest["snapshot_id"], 168, distribution_7d),
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     ]
 
 

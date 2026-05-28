@@ -46,15 +46,12 @@ class GridSnapshot(db.Model):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-<<<<<<< HEAD
-=======
     distribution_snapshots = db.relationship(
         "DistributionIntelligenceSnapshot",
         back_populates="snapshot",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 
 
 class GencoData(db.Model):
@@ -108,8 +105,6 @@ class AnalyticsSnapshot(db.Model):
     summary_json = db.Column(db.JSON, nullable=False, default=dict)
 
     snapshot = db.relationship("GridSnapshot", back_populates="analytics_snapshots")
-<<<<<<< HEAD
-=======
 
 
 class DistributionIntelligenceSnapshot(db.Model):
@@ -137,4 +132,3 @@ class DistributionIntelligenceSnapshot(db.Model):
     summary_json = db.Column(db.JSON, nullable=False, default=dict)
 
     snapshot = db.relationship("GridSnapshot", back_populates="distribution_snapshots")
->>>>>>> b9a999e (Disable Scheduler for Render deployment)

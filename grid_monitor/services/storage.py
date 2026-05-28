@@ -7,9 +7,6 @@ from flask import current_app
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from grid_monitor.extensions import db
-<<<<<<< HEAD
-from grid_monitor.models import AnalyticsSnapshot, DiscoData, GencoData, GridSnapshot
-=======
 from grid_monitor.models import (
     AnalyticsSnapshot,
     DiscoData,
@@ -17,7 +14,6 @@ from grid_monitor.models import (
     GencoData,
     GridSnapshot,
 )
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 from grid_monitor.services.cache import clear_cache
 from grid_monitor.services.validation import validate_live_payload
 from grid_monitor.utils.logging import log_event
@@ -140,8 +136,6 @@ def save_analytics_snapshot(snapshot_id: int, window_hours: int, analytics: dict
     return {"analytics_snapshot_id": record.id, "window_hours": window_hours}
 
 
-<<<<<<< HEAD
-=======
 def save_distribution_snapshot(
     snapshot_id: int,
     window_hours: int,
@@ -183,7 +177,6 @@ def save_distribution_snapshot(
     return {"distribution_snapshot_id": record.id, "window_hours": window_hours}
 
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 def snapshot_to_payload(snapshot: GridSnapshot) -> dict[str, Any]:
     return {
         "snapshot_id": snapshot.id,
@@ -257,20 +250,14 @@ def storage_status() -> dict[str, Any]:
     try:
         snapshot_count = GridSnapshot.query.count()
         analytics_count = AnalyticsSnapshot.query.count()
-<<<<<<< HEAD
-=======
         distribution_count = DistributionIntelligenceSnapshot.query.count()
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
         latest = get_latest_snapshot_model()
         return {
             "ok": True,
             "database_uri": current_app.config["SAFE_DATABASE_URI"],
             "snapshot_count": snapshot_count,
             "analytics_snapshot_count": analytics_count,
-<<<<<<< HEAD
-=======
             "distribution_snapshot_count": distribution_count,
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
             "latest_timestamp": to_iso(latest.reading_timestamp) if latest else None,
         }
     except Exception as exc:

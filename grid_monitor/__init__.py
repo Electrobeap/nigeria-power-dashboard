@@ -1,27 +1,15 @@
 import atexit
-<<<<<<< HEAD
-import sys
-
-from flask import Flask
-=======
 import logging
 import sys
 
 from flask import Flask
 from flask_migrate import stamp, upgrade
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 
 from grid_monitor.config import Config
 from grid_monitor.extensions import db, migrate
 from grid_monitor.routes.api import api_bp
 from grid_monitor.routes.web import web_bp
 from grid_monitor.services.scheduler import start_scheduler, stop_scheduler
-<<<<<<< HEAD
-from grid_monitor.services.storage import init_database
-from grid_monitor.utils.logging import configure_logging, log_event
-
-
-=======
 from grid_monitor.services.storage import _ensure_sqlite_parent, init_database
 from grid_monitor.utils.logging import configure_logging, log_event
 
@@ -64,7 +52,6 @@ def run_startup_migrations() -> None:
         raise
 
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 def create_app(config_class: type[Config] = Config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -73,16 +60,6 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     db.init_app(app)
     migrate.init_app(app, db)
 
-<<<<<<< HEAD
-    app.register_blueprint(web_bp)
-    app.register_blueprint(api_bp)
-
-    with app.app_context():
-        init_database()
-
-    is_flask_db_command = "db" in sys.argv
-    if app.config["HISTORY_CAPTURE_ENABLED"] and not is_flask_db_command:
-=======
     is_flask_db_command = "db" in sys.argv
     with app.app_context():
         if app.config["RUN_MIGRATIONS_ON_STARTUP"] and not is_flask_db_command:
@@ -92,8 +69,11 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
 
-    if False:
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
+    if (
+        app.config["WEB_SCHEDULER_ENABLED"]
+        and app.config["HISTORY_CAPTURE_ENABLED"]
+        and not is_flask_db_command
+    ):
         start_scheduler(app)
 
     log_event("app_startup", database_uri=app.config["SAFE_DATABASE_URI"])

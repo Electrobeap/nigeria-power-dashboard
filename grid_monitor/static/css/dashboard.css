@@ -1,15 +1,10 @@
 :root {
     color-scheme: light;
     --bg: #eef3f8;
-<<<<<<< HEAD
-    --bg-soft: rgba(255, 255, 255, 0.72);
-    --card: rgba(255, 255, 255, 0.86);
-=======
     --bg-grid: rgba(15, 36, 55, 0.055);
     --bg-soft: rgba(255, 255, 255, 0.72);
     --card: rgba(255, 255, 255, 0.86);
     --card-strong: rgba(255, 255, 255, 0.94);
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     --text: #102033;
     --muted: #667085;
     --line: rgba(125, 145, 170, 0.26);
@@ -23,24 +18,16 @@
     --blue: #206bc4;
     --blue-bg: rgba(32, 107, 196, 0.12);
     --accent: #18a66a;
-<<<<<<< HEAD
-=======
     --gold: #f2b84b;
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 }
 
 [data-theme="dark"] {
     color-scheme: dark;
     --bg: #0d1723;
-<<<<<<< HEAD
-    --bg-soft: rgba(17, 30, 45, 0.72);
-    --card: rgba(18, 32, 48, 0.82);
-=======
     --bg-grid: rgba(255, 255, 255, 0.045);
     --bg-soft: rgba(17, 30, 45, 0.72);
     --card: rgba(18, 32, 48, 0.82);
     --card-strong: rgba(20, 36, 54, 0.94);
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     --text: #edf4fb;
     --muted: #9fb0c3;
     --line: rgba(170, 190, 210, 0.18);
@@ -59,16 +46,10 @@ body {
     min-height: 100vh;
     margin: 0;
     background:
-<<<<<<< HEAD
-        radial-gradient(circle at 15% 8%, rgba(24, 166, 106, 0.12), transparent 28%),
-        radial-gradient(circle at 85% 4%, rgba(32, 107, 196, 0.12), transparent 30%),
-        var(--bg);
-=======
         linear-gradient(var(--bg-grid) 1px, transparent 1px),
         linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px),
         linear-gradient(180deg, color-mix(in srgb, var(--bg), white 14%), var(--bg));
     background-size: 36px 36px, 36px 36px, auto;
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     color: var(--text);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     letter-spacing: 0;
@@ -102,20 +83,12 @@ body.loading .kpi-card strong:not(.mw)::after {
     position: sticky;
     top: 0;
     z-index: 10;
-<<<<<<< HEAD
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-    padding: 14px max(18px, calc((100vw - 1240px) / 2));
-=======
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     justify-content: space-between;
     gap: 18px;
     padding: 12px max(18px, calc((100vw - 1240px) / 2));
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     border-bottom: 1px solid var(--line);
     background: var(--bg-soft);
     backdrop-filter: blur(18px);
@@ -129,14 +102,6 @@ body.loading .kpi-card strong:not(.mw)::after {
     text-decoration: none;
 }
 
-<<<<<<< HEAD
-.brand-mark {
-    display: grid;
-    width: 40px;
-    height: 40px;
-    place-items: center;
-    border-radius: 10px;
-=======
 .brand-logo,
 .brand-mark {
     width: 40px;
@@ -148,7 +113,6 @@ body.loading .kpi-card strong:not(.mw)::after {
 .brand-mark {
     display: grid;
     place-items: center;
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     background: linear-gradient(135deg, var(--accent), var(--blue));
     color: #ffffff;
     font-weight: 900;
@@ -176,8 +140,6 @@ body.loading .kpi-card strong:not(.mw)::after {
     gap: 12px;
 }
 
-<<<<<<< HEAD
-=======
 .nav-links,
 .site-footer nav {
     display: flex;
@@ -203,7 +165,6 @@ body.loading .kpi-card strong:not(.mw)::after {
     color: var(--blue);
 }
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 .theme-toggle {
     min-height: 36px;
     border: 1px solid var(--line);
@@ -230,14 +191,9 @@ body.loading .kpi-card strong:not(.mw)::after {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 18px;
-<<<<<<< HEAD
-    align-items: end;
-    margin-bottom: 18px;
-=======
     align-items: center;
     margin-bottom: 20px;
     padding: 20px 0 6px;
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 }
 
 h1,
@@ -249,11 +205,7 @@ p {
 h1 {
     max-width: 850px;
     font-size: clamp(34px, 5vw, 62px);
-<<<<<<< HEAD
-    line-height: 0.98;
-=======
     line-height: 1;
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     letter-spacing: 0;
 }
 
@@ -271,11 +223,6 @@ h2 {
     text-transform: uppercase;
 }
 
-<<<<<<< HEAD
-.source-box {
-    display: grid;
-    justify-items: end;
-=======
 .eyebrow.compact {
     margin-bottom: 5px;
     font-size: 11px;
@@ -315,7 +262,6 @@ h2 {
     background: var(--card);
     box-shadow: var(--shadow);
     padding: 14px;
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     text-align: right;
 }
 
@@ -384,11 +330,7 @@ h2 {
 .ad-slot {
     border: 1px solid var(--line);
     border-radius: 8px;
-<<<<<<< HEAD
-    background: var(--card);
-=======
     background: linear-gradient(180deg, var(--card-strong), var(--card));
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     box-shadow: var(--shadow);
     backdrop-filter: blur(16px);
 }
@@ -403,8 +345,6 @@ h2 {
     border-color: rgba(32, 107, 196, 0.28);
 }
 
-<<<<<<< HEAD
-=======
 .primary {
     position: relative;
     overflow: hidden;
@@ -418,7 +358,6 @@ h2 {
     background: linear-gradient(90deg, var(--accent), var(--blue), var(--gold));
 }
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 .kpi-card {
     min-height: 170px;
 }
@@ -511,8 +450,6 @@ h2 {
     margin-top: 14px;
 }
 
-<<<<<<< HEAD
-=======
 .distribution-panel {
     margin-top: 14px;
 }
@@ -576,7 +513,6 @@ h2 {
     line-height: 1.5;
 }
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 .chart-wrap {
     position: relative;
     min-height: 340px;
@@ -651,8 +587,6 @@ table {
     font-size: 14px;
 }
 
-<<<<<<< HEAD
-=======
 td small {
     display: block;
     margin-top: 3px;
@@ -661,7 +595,6 @@ td small {
     line-height: 1.3;
 }
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 th,
 td {
     border-bottom: 1px solid var(--line);
@@ -700,8 +633,6 @@ tbody tr:hover {
     display: grid;
     place-items: center;
     min-height: 110px;
-<<<<<<< HEAD
-=======
     background:
         repeating-linear-gradient(
             135deg,
@@ -711,15 +642,12 @@ tbody tr:hover {
             color-mix(in srgb, var(--line), transparent 35%) 11px
         ),
         var(--card);
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     color: var(--muted);
     font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
 }
 
-<<<<<<< HEAD
-=======
 .site-footer {
     display: flex;
     align-items: center;
@@ -741,7 +669,6 @@ tbody tr:hover {
     font-size: 13px;
 }
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 .ad-slot-horizontal,
 .ad-slot-footer {
     margin-top: 14px;
@@ -787,21 +714,6 @@ tbody tr:hover {
     .insight-grid,
     .content-grid,
     .side-column,
-<<<<<<< HEAD
-    .hero-copy {
-        grid-template-columns: 1fr;
-    }
-
-    .source-box {
-        justify-items: start;
-        text-align: left;
-    }
-
-    .topbar {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-=======
     .hero-copy,
     .distribution-kpis,
     .distribution-grid {
@@ -824,7 +736,6 @@ tbody tr:hover {
         min-width: 0;
         text-align: left;
     }
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 }
 
 @media (max-width: 620px) {
@@ -842,8 +753,6 @@ tbody tr:hover {
         justify-content: space-between;
     }
 
-<<<<<<< HEAD
-=======
     .topbar {
         grid-template-columns: 1fr;
     }
@@ -854,7 +763,6 @@ tbody tr:hover {
         height: 36px;
     }
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     .card {
         padding: 16px;
     }
@@ -870,13 +778,10 @@ tbody tr:hover {
     h1 {
         font-size: clamp(32px, 11vw, 46px);
     }
-<<<<<<< HEAD
-=======
 
     .site-footer {
         align-items: flex-start;
         flex-direction: column;
         width: min(100% - 20px, 1240px);
     }
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 }

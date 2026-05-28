@@ -3,34 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<<<<<<< HEAD
-    <meta name="description" content="Nigeria Power Data provides real-time electricity generation, GenCo performance, DisCo allocation, and power-grid health analytics.">
-    <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#102033">
-    <meta property="og:title" content="Nigeria Power Data">
-    <meta property="og:description" content="Real-time Nigeria power grid intelligence, historical trends, and energy analytics.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://nigeriapowerdata.com/">
-    <meta property="og:site_name" content="Nigeria Power Data">
-    <meta name="twitter:card" content="summary">
-    <title>Nigeria Power Data | Real-Time Grid Intelligence</title>
-    <link rel="canonical" href="https://nigeriapowerdata.com/">
-    <link rel="icon" href="{{ url_for('web.favicon') }}" type="image/svg+xml">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-</head>
-<body>
-<header class="topbar">
-    <a class="brand" href="/" aria-label="Nigeria Power Data home">
-        <span class="brand-mark">N</span>
-        <span>
-            <strong>Nigeria Power Data</strong>
-            <small>Real-time grid intelligence</small>
-        </span>
-    </a>
-    <div class="topbar-actions">
-        <span class="refresh-state" id="refresh-state">Starting live refresh...</span>
-=======
     <meta name="description" content="Nigeria Power Data tracks real-time generation, GenCo performance, DisCo allocation, grid health, and transformer loading intelligence for Nigeria's electricity market.">
     <meta name="keywords" content="Nigeria power grid, electricity generation Nigeria, NIGGRID, NISO, DisCo allocation, GenCo performance, transformer loading">
     <meta name="author" content="Nigeria Power Data">
@@ -82,18 +54,11 @@
     </nav>
     <div class="topbar-actions">
         <span class="refresh-state" id="refresh-state" aria-live="polite">Starting live refresh...</span>
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
         <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
     </div>
 </header>
 
 <main class="shell">
-<<<<<<< HEAD
-    <section class="hero-copy">
-        <div>
-            <p class="eyebrow">NISO/NIGGRID public data</p>
-            <h1>Production-grade electricity generation analytics for Nigeria.</h1>
-=======
     <section class="hero-copy" id="overview" aria-labelledby="page-title">
         <div>
             <p class="eyebrow">NISO/NIGGRID public data intelligence</p>
@@ -104,7 +69,6 @@
                 <span>PostgreSQL history</span>
                 <span>Transformer risk model</span>
             </div>
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
         </div>
         <div class="source-box">
             <div id="source">Loading source...</div>
@@ -116,11 +80,7 @@
 
     <div class="layout-grid">
         <section class="main-column">
-<<<<<<< HEAD
-            <section class="kpi-grid">
-=======
             <section class="kpi-grid" aria-label="Grid key performance indicators">
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
                 <article class="card kpi-card primary">
                     <span>Total Generation</span>
                     <strong class="mw skeleton-text" id="mw">...</strong>
@@ -147,17 +107,10 @@
                 </article>
             </section>
 
-<<<<<<< HEAD
-            <section class="card chart-card">
-                <div class="section-head">
-                    <div>
-                        <h2>Generation Trend</h2>
-=======
             <section class="card chart-card" id="generation" aria-labelledby="generation-title">
                 <div class="section-head">
                     <div>
                         <h2 id="generation-title">Generation Trend</h2>
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
                         <p>24-hour generation with moving average and stress signals.</p>
                     </div>
                     <span class="badge blue" id="chart-window">24 hours</span>
@@ -168,8 +121,6 @@
                 </div>
             </section>
 
-<<<<<<< HEAD
-=======
             <section class="card distribution-panel" id="distribution" aria-labelledby="distribution-title">
                 <div class="section-head">
                     <div>
@@ -218,7 +169,6 @@
                 <p class="method-note" id="distribution-method">Distribution model will appear after the first stored allocation reading.</p>
             </section>
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
             <div class="ad-slot ad-slot-horizontal" aria-label="Future advertisement slot">
                 <span>Sponsored</span>
             </div>
@@ -256,11 +206,7 @@
                 </article>
             </section>
 
-<<<<<<< HEAD
-            <section class="content-grid">
-=======
             <section class="content-grid" id="market-data" aria-label="Generation and distribution data tables">
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
                 <article class="card">
                     <div class="section-head">
                         <h2>Daily Grid Performance</h2>
@@ -318,14 +264,11 @@
                 <strong id="trend-7d">...</strong>
                 <p id="trend-7d-note">Awaiting stored data.</p>
             </article>
-<<<<<<< HEAD
-=======
             <article class="card side-card">
                 <span>Transformer Risk</span>
                 <strong id="transformer-risk">...</strong>
                 <p id="transformer-risk-note">Awaiting distribution intelligence.</p>
             </article>
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
         </aside>
     </div>
 
@@ -334,8 +277,6 @@
     </div>
 </main>
 
-<<<<<<< HEAD
-=======
 <footer class="site-footer">
     <div>
         <strong>Nigeria Power Data</strong>
@@ -348,7 +289,6 @@
     </nav>
 </footer>
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 </html>

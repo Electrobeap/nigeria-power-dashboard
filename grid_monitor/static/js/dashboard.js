@@ -2,16 +2,12 @@ const REFRESH_MS = 60000;
 const chartLabels = [];
 const generationReadings = [];
 const movingAverageReadings = [];
-<<<<<<< HEAD
-let chart;
-=======
 const distributionLabels = [];
 const distributionUtilization = [];
 const distributionWarning = [];
 const distributionOverload = [];
 let chart;
 let distributionChart;
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 let previousMW = null;
 
 const ids = [
@@ -23,15 +19,11 @@ const ids = [
     "stability-score", "stability-note", "volatility", "volatility-note",
     "load-concentration", "load-note", "top-genco", "top-genco-note",
     "outage-status", "outage-note", "api-health", "api-health-note",
-<<<<<<< HEAD
-    "trend-7d", "trend-7d-note", "theme-toggle",
-=======
     "trend-7d", "trend-7d-note", "theme-toggle", "distribution-classification",
     "transformer-utilization", "transformer-note", "distribution-regions-risk",
     "distribution-risk-note", "settlement-growth", "settlement-note",
     "distribution-chart", "distribution-chart-empty", "distribution-table",
     "distribution-method", "transformer-risk", "transformer-risk-note",
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
@@ -49,10 +41,7 @@ function toggleTheme() {
     localStorage.setItem("grid-theme", next);
     el["theme-toggle"].textContent = next === "dark" ? "Light" : "Dark";
     if (chart) chart.update();
-<<<<<<< HEAD
-=======
     if (distributionChart) distributionChart.update();
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 }
 
 function formatNumber(value, digits = 2) {
@@ -67,13 +56,10 @@ function formatMW(value, digits = 2) {
     return `${formatNumber(value, digits)} MW`;
 }
 
-<<<<<<< HEAD
-=======
 function labelize(value) {
     return String(value || "unknown").replaceAll("_", " ");
 }
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 function formatTimestamp(value) {
     if (!value) return "...";
     const parsed = new Date(value);
@@ -132,8 +118,6 @@ function renderRows(target, rows, nameKey, valueKey) {
         .join("");
 }
 
-<<<<<<< HEAD
-=======
 function badgeClassForRisk(value) {
     if (["critical", "overload_risk", "elevated", "warning"].includes(value)) return "red";
     if (["watch", "stressed"].includes(value)) return "amber";
@@ -141,7 +125,6 @@ function badgeClassForRisk(value) {
     return "blue";
 }
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 function renderTrendBadge(analytics) {
     const trend = analytics?.last_24h_generation_trend;
     if (!trend) {
@@ -328,8 +311,6 @@ function renderChart(history) {
     }
 }
 
-<<<<<<< HEAD
-=======
 function renderDistribution(payload, errorMessage = "") {
     const summary = payload?.summary;
     const utilization = payload?.transformer_utilization;
@@ -469,7 +450,6 @@ function renderDistributionChart(payload) {
     }
 }
 
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 function renderTables(latest) {
     const profile = latest?.disco_profile || {};
     el["disco-time"].textContent = profile.as_at ? `As at ${profile.as_at}` : formatTimestamp(profile.fetched_at);
@@ -504,13 +484,6 @@ async function refresh() {
         fetchJSON("/api/latest"),
         fetchJSON("/api/history?hours=24&limit=288"),
         fetchJSON("/api/health"),
-<<<<<<< HEAD
-    ]);
-    const results = { latest: settled[0], history: settled[1], health: settled[2] };
-    const latest = resultValue(results, "latest");
-    const history = resultValue(results, "history");
-    const health = resultValue(results, "health");
-=======
         fetchJSON("/api/distribution?hours=168&limit=336"),
     ]);
     const results = { latest: settled[0], history: settled[1], health: settled[2], distribution: settled[3] };
@@ -518,7 +491,6 @@ async function refresh() {
     const history = resultValue(results, "history");
     const health = resultValue(results, "health");
     const distribution = resultValue(results, "distribution");
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     const analytics = history?.analytics || latest?.analytics?.trend_24h;
     const windows = latest?.analytics || history?.windows;
 
@@ -531,10 +503,7 @@ async function refresh() {
         renderTables(latest);
     }
     renderHealth(health);
-<<<<<<< HEAD
-=======
     renderDistribution(distribution, resultError(results, "distribution"));
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
 
     const errors = ["latest", "history", "health"].map((key) => resultError(results, key)).filter(Boolean);
     if (errors.length) setBanner(errors[0]);

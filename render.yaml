@@ -1,16 +1,7 @@
-<<<<<<< HEAD
-services:
-  - type: web
-    name: nigeria-power-grid-monitor
-    env: python
-    buildCommand: python -m pip install -r requirements.txt
-    startCommand: flask --app app.py db upgrade && gunicorn app:app --workers 1 --threads 4 --timeout 75 --max-requests 1000 --max-requests-jitter 100 --bind 0.0.0.0:$PORT
-=======
 services:
   - type: web
     name: nigeria-power-grid-monitor
     env: python
     buildCommand: python -m pip install -r requirements.txt
     startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 75 --max-requests 1000 --max-requests-jitter 100 --bind 0.0.0.0:$PORT
->>>>>>> b9a999e (Disable Scheduler for Render deployment)
     autoDeploy: true
