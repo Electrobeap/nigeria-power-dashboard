@@ -46,6 +46,15 @@ class GridSnapshot(db.Model):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+<<<<<<< HEAD
+=======
+    distribution_snapshots = db.relationship(
+        "DistributionIntelligenceSnapshot",
+        back_populates="snapshot",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 
 
 class GencoData(db.Model):
@@ -99,3 +108,33 @@ class AnalyticsSnapshot(db.Model):
     summary_json = db.Column(db.JSON, nullable=False, default=dict)
 
     snapshot = db.relationship("GridSnapshot", back_populates="analytics_snapshots")
+<<<<<<< HEAD
+=======
+
+
+class DistributionIntelligenceSnapshot(db.Model):
+    __tablename__ = "distribution_intelligence_snapshots"
+    __table_args__ = (
+        UniqueConstraint("snapshot_id", "window_hours", name="uq_distribution_snapshot_window"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    snapshot_id = db.Column(
+        db.Integer,
+        db.ForeignKey("grid_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    calculated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    window_hours = db.Column(db.Integer, nullable=False, index=True)
+    region_count = db.Column(db.Integer, nullable=False, default=0)
+    weighted_utilization_percent = db.Column(db.Float)
+    overload_warning_classification = db.Column(db.String(32), index=True)
+    regional_risk_json = db.Column(db.JSON, nullable=False, default=list)
+    transformer_trend_json = db.Column(db.JSON, nullable=False, default=list)
+    settlement_growth_json = db.Column(db.JSON, nullable=False, default=dict)
+    utilization_json = db.Column(db.JSON, nullable=False, default=dict)
+    summary_json = db.Column(db.JSON, nullable=False, default=dict)
+
+    snapshot = db.relationship("GridSnapshot", back_populates="distribution_snapshots")
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)

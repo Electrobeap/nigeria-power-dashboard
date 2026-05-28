@@ -34,6 +34,14 @@ def sitemap():
     <changefreq>daily</changefreq>
     <priority>0.4</priority>
   </url>
+<<<<<<< HEAD
+=======
+  <url>
+    <loc>{base_url}/api/distribution</loc>
+    <changefreq>hourly</changefreq>
+    <priority>0.5</priority>
+  </url>
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 </urlset>
 """
     return Response(body, mimetype="application/xml")

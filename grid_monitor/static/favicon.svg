@@ -1,5 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Nigeria Power Data">
+<<<<<<< HEAD
   <rect width="64" height="64" rx="14" fill="#102033"/>
   <path d="M36 5 14 36h16l-3 23 23-34H34l2-20Z" fill="#18a66a"/>
   <path d="M14 36h16l-1 8H9l5-8Z" fill="#f6c343"/>
+=======
+  <rect width="64" height="64" rx="14" fill="#0f2437"/>
+  <rect x="10" y="10" width="44" height="44" rx="10" fill="#ffffff"/>
+  <path d="M37 15 20 39h13l-3 15 17-25H35l2-14Z" fill="#16a66a"/>
+  <path d="M16 47h32" stroke="#f2b84b" stroke-width="5" stroke-linecap="round"/>
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 </svg>

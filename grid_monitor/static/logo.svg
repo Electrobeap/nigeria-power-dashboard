@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 96" role="img" aria-labelledby="title desc">
+  <title id="title">Nigeria Power Data</title>
+  <desc id="desc">Energy grid inspired logo for Nigeria Power Data</desc>
+  <rect width="360" height="96" rx="20" fill="#0f2437"/>
+  <g transform="translate(20 18)">
+    <rect width="60" height="60" rx="14" fill="#ffffff"/>
+    <path d="M36 8 16 36h15l-3 18 20-29H33l3-17Z" fill="#16a66a"/>
+    <path d="M14 47h38" stroke="#f2b84b" stroke-width="5" stroke-linecap="round"/>
+    <path d="M11 22h13M44 22h7M11 35h8M47 35h5" stroke="#0f2437" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <text x="96" y="43" fill="#ffffff" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="27" font-weight="800">Nigeria Power</text>
+  <text x="96" y="67" fill="#a8c1d6" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18" font-weight="600">Data</text>
+  <path d="M276 60h14l7-18 10 28 9-46 9 36h18" fill="none" stroke="#16a66a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

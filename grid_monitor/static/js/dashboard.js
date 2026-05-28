@@ -2,7 +2,16 @@ const REFRESH_MS = 60000;
 const chartLabels = [];
 const generationReadings = [];
 const movingAverageReadings = [];
+<<<<<<< HEAD
 let chart;
+=======
+const distributionLabels = [];
+const distributionUtilization = [];
+const distributionWarning = [];
+const distributionOverload = [];
+let chart;
+let distributionChart;
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 let previousMW = null;
 
 const ids = [
@@ -14,7 +23,15 @@ const ids = [
     "stability-score", "stability-note", "volatility", "volatility-note",
     "load-concentration", "load-note", "top-genco", "top-genco-note",
     "outage-status", "outage-note", "api-health", "api-health-note",
+<<<<<<< HEAD
     "trend-7d", "trend-7d-note", "theme-toggle",
+=======
+    "trend-7d", "trend-7d-note", "theme-toggle", "distribution-classification",
+    "transformer-utilization", "transformer-note", "distribution-regions-risk",
+    "distribution-risk-note", "settlement-growth", "settlement-note",
+    "distribution-chart", "distribution-chart-empty", "distribution-table",
+    "distribution-method", "transformer-risk", "transformer-risk-note",
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
@@ -32,6 +49,10 @@ function toggleTheme() {
     localStorage.setItem("grid-theme", next);
     el["theme-toggle"].textContent = next === "dark" ? "Light" : "Dark";
     if (chart) chart.update();
+<<<<<<< HEAD
+=======
+    if (distributionChart) distributionChart.update();
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 }
 
 function formatNumber(value, digits = 2) {
@@ -46,6 +67,13 @@ function formatMW(value, digits = 2) {
     return `${formatNumber(value, digits)} MW`;
 }
 
+<<<<<<< HEAD
+=======
+function labelize(value) {
+    return String(value || "unknown").replaceAll("_", " ");
+}
+
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 function formatTimestamp(value) {
     if (!value) return "...";
     const parsed = new Date(value);
@@ -104,6 +132,16 @@ function renderRows(target, rows, nameKey, valueKey) {
         .join("");
 }
 
+<<<<<<< HEAD
+=======
+function badgeClassForRisk(value) {
+    if (["critical", "overload_risk", "elevated", "warning"].includes(value)) return "red";
+    if (["watch", "stressed"].includes(value)) return "amber";
+    if (["normal", "stable", "strong"].includes(value)) return "green";
+    return "blue";
+}
+
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 function renderTrendBadge(analytics) {
     const trend = analytics?.last_24h_generation_trend;
     if (!trend) {
@@ -290,6 +328,148 @@ function renderChart(history) {
     }
 }
 
+<<<<<<< HEAD
+=======
+function renderDistribution(payload, errorMessage = "") {
+    const summary = payload?.summary;
+    const utilization = payload?.transformer_utilization;
+    const impact = payload?.settlement_expansion_impact;
+    const riskRows = payload?.regional_risk || [];
+    const classification = summary?.overload_warning_classification || "unknown";
+
+    if (!payload) {
+        el["distribution-classification"].textContent = "Pending";
+        el["distribution-classification"].className = "badge blue";
+        el["transformer-utilization"].textContent = "...";
+        el["transformer-note"].textContent = errorMessage || "Awaiting stored DisCo allocation data.";
+        el["distribution-regions-risk"].textContent = "...";
+        el["distribution-risk-note"].textContent = "No transformer risk model available yet.";
+        el["settlement-growth"].textContent = "...";
+        el["settlement-note"].textContent = "Projected settlement impact pending.";
+        el["transformer-risk"].textContent = "...";
+        el["transformer-risk-note"].textContent = "Awaiting distribution intelligence.";
+        el["distribution-method"].textContent = "Distribution model will appear after the first stored allocation reading.";
+        el["distribution-table"].innerHTML = `<tr><td colspan="4">No distribution intelligence available.</td></tr>`;
+        el["distribution-chart-empty"].classList.add("visible");
+        return;
+    }
+
+    const utilizationValue = utilization?.weighted_utilization_percent;
+    const warningCount = summary?.regions_at_warning_or_higher ?? 0;
+    const highestRisk = summary?.highest_risk_region;
+
+    el["distribution-classification"].textContent = labelize(classification);
+    el["distribution-classification"].className = `badge ${badgeClassForRisk(classification)}`;
+    el["transformer-utilization"].textContent = utilizationValue === null || utilizationValue === undefined
+        ? "..."
+        : `${formatNumber(utilizationValue)}%`;
+    el["transformer-note"].textContent =
+        `Warning at ${formatNumber(utilization?.warning_threshold_percent, 0)}%, overload at ${formatNumber(utilization?.overload_threshold_percent, 0)}%.`;
+    el["distribution-regions-risk"].textContent = warningCount;
+    el["distribution-risk-note"].textContent = highestRisk
+        ? `${highestRisk.company}: ${labelize(highestRisk.overload_warning)}`
+        : "No high-risk regions detected.";
+    el["settlement-growth"].textContent = formatMW(impact?.projected_load_growth_12m_mw);
+    el["settlement-note"].textContent =
+        `${impact?.regions_projected_overload_12m ?? 0} region(s) projected above overload threshold in 12 months.`;
+    el["transformer-risk"].textContent = labelize(classification);
+    el["transformer-risk-note"].textContent = highestRisk
+        ? `${highestRisk.company} stress index ${formatNumber(highestRisk.settlement_growth_vs_stress, 1)}.`
+        : "Portfolio risk is normal.";
+    el["distribution-method"].textContent = payload.methodology?.model_type
+        ? `${payload.methodology.model_type}. ${payload.methodology.basis}`
+        : "Planning-grade distribution estimate.";
+
+    renderDistributionTable(riskRows);
+    renderDistributionChart(payload);
+}
+
+function renderDistributionTable(rows) {
+    if (!rows || rows.length === 0) {
+        el["distribution-table"].innerHTML = `<tr><td colspan="4">No regions available.</td></tr>`;
+        return;
+    }
+    el["distribution-table"].innerHTML = rows.slice(0, 8).map((row) => {
+        const riskClass = badgeClassForRisk(row.overload_warning);
+        return `<tr>
+            <td>
+                <strong>${escapeHTML(row.company)}</strong>
+                <small>${escapeHTML(row.planning_region)}</small>
+            </td>
+            <td>${formatNumber(row.estimated_utilization_percent)}%</td>
+            <td>${formatNumber(row.projected_utilization_12m_percent)}%</td>
+            <td><span class="badge ${riskClass}">${escapeHTML(labelize(row.overload_warning))}</span></td>
+        </tr>`;
+    }).join("");
+}
+
+function renderDistributionChart(payload) {
+    const points = payload?.transformer_loading_trend || [];
+    const hasPoints = points.length > 0;
+    el["distribution-chart-empty"].classList.toggle("visible", !hasPoints);
+    if (!window.Chart || !hasPoints) return;
+
+    distributionLabels.splice(0, distributionLabels.length, ...points.map((point) => formatTimestamp(point.timestamp)));
+    distributionUtilization.splice(0, distributionUtilization.length, ...points.map((point) => point.weighted_utilization_percent));
+    distributionWarning.splice(0, distributionWarning.length, ...points.map((point) => point.warning_threshold_percent));
+    distributionOverload.splice(0, distributionOverload.length, ...points.map((point) => point.overload_threshold_percent));
+
+    const gridColor = getComputedStyle(document.documentElement).getPropertyValue("--line").trim();
+    if (!distributionChart) {
+        distributionChart = new Chart(el["distribution-chart"].getContext("2d"), {
+            type: "line",
+            data: {
+                labels: distributionLabels,
+                datasets: [
+                    {
+                        label: "Utilization",
+                        data: distributionUtilization,
+                        borderColor: "#16a66a",
+                        backgroundColor: "rgba(22, 166, 106, 0.12)",
+                        borderWidth: 3,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        fill: true,
+                    },
+                    {
+                        label: "Warning",
+                        data: distributionWarning,
+                        borderColor: "#f2b84b",
+                        borderDash: [6, 4],
+                        borderWidth: 2,
+                        pointRadius: 0,
+                    },
+                    {
+                        label: "Overload",
+                        data: distributionOverload,
+                        borderColor: "#c83532",
+                        borderDash: [3, 4],
+                        borderWidth: 2,
+                        pointRadius: 0,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: "index" },
+                plugins: {
+                    legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
+                    tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${formatNumber(context.parsed.y)}%` } },
+                },
+                scales: {
+                    x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }, grid: { display: false } },
+                    y: { suggestedMin: 40, suggestedMax: 110, ticks: { callback: (value) => `${value}%` }, grid: { color: gridColor } },
+                },
+            },
+        });
+    } else {
+        distributionChart.options.scales.y.grid.color = gridColor;
+        distributionChart.update();
+    }
+}
+
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 function renderTables(latest) {
     const profile = latest?.disco_profile || {};
     el["disco-time"].textContent = profile.as_at ? `As at ${profile.as_at}` : formatTimestamp(profile.fetched_at);
@@ -324,11 +504,21 @@ async function refresh() {
         fetchJSON("/api/latest"),
         fetchJSON("/api/history?hours=24&limit=288"),
         fetchJSON("/api/health"),
+<<<<<<< HEAD
     ]);
     const results = { latest: settled[0], history: settled[1], health: settled[2] };
     const latest = resultValue(results, "latest");
     const history = resultValue(results, "history");
     const health = resultValue(results, "health");
+=======
+        fetchJSON("/api/distribution?hours=168&limit=336"),
+    ]);
+    const results = { latest: settled[0], history: settled[1], health: settled[2], distribution: settled[3] };
+    const latest = resultValue(results, "latest");
+    const history = resultValue(results, "history");
+    const health = resultValue(results, "health");
+    const distribution = resultValue(results, "distribution");
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
     const analytics = history?.analytics || latest?.analytics?.trend_24h;
     const windows = latest?.analytics || history?.windows;
 
@@ -341,6 +531,10 @@ async function refresh() {
         renderTables(latest);
     }
     renderHealth(health);
+<<<<<<< HEAD
+=======
+    renderDistribution(distribution, resultError(results, "distribution"));
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 
     const errors = ["latest", "history", "health"].map((key) => resultError(results, key)).filter(Boolean);
     if (errors.length) setBanner(errors[0]);

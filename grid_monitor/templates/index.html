@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< HEAD
     <meta name="description" content="Nigeria Power Data provides real-time electricity generation, GenCo performance, DisCo allocation, and power-grid health analytics.">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#102033">
@@ -29,15 +30,81 @@
     </a>
     <div class="topbar-actions">
         <span class="refresh-state" id="refresh-state">Starting live refresh...</span>
+=======
+    <meta name="description" content="Nigeria Power Data tracks real-time generation, GenCo performance, DisCo allocation, grid health, and transformer loading intelligence for Nigeria's electricity market.">
+    <meta name="keywords" content="Nigeria power grid, electricity generation Nigeria, NIGGRID, NISO, DisCo allocation, GenCo performance, transformer loading">
+    <meta name="author" content="Nigeria Power Data">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0f2437">
+    <meta name="application-name" content="Nigeria Power Data">
+    <meta property="og:title" content="Nigeria Power Data | Real-Time Grid Intelligence">
+    <meta property="og:description" content="Premium electricity generation, distribution loading, and grid health analytics for Nigeria.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nigeriapowerdata.com/">
+    <meta property="og:site_name" content="Nigeria Power Data">
+    <meta property="og:image" content="{{ config.APP_BASE_URL }}/favicon.svg">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Nigeria Power Data">
+    <meta name="twitter:description" content="Real-time Nigerian electricity generation, distribution, and transformer loading intelligence.">
+    <meta name="twitter:image" content="{{ config.APP_BASE_URL }}/favicon.svg">
+    <title>Nigeria Power Data | Grid and Distribution Intelligence</title>
+    <link rel="canonical" href="https://nigeriapowerdata.com/">
+    <link rel="icon" href="{{ url_for('web.favicon') }}" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Nigeria Power Data",
+        "url": "https://nigeriapowerdata.com/",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "description": "Real-time Nigerian power generation, distribution allocation, and grid health analytics."
+    }
+    </script>
+</head>
+<body class="loading">
+<header class="topbar">
+    <a class="brand" href="/" aria-label="Nigeria Power Data home">
+        <img class="brand-logo" src="{{ url_for('static', filename='logo.svg') }}" alt="" width="42" height="42">
+        <span>
+            <strong>Nigeria Power Data</strong>
+            <small>Grid and distribution intelligence</small>
+        </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#overview">Overview</a>
+        <a href="#generation">Generation</a>
+        <a href="#distribution">Distribution</a>
+        <a href="#market-data">Market Data</a>
+    </nav>
+    <div class="topbar-actions">
+        <span class="refresh-state" id="refresh-state" aria-live="polite">Starting live refresh...</span>
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
         <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
     </div>
 </header>
 
 <main class="shell">
+<<<<<<< HEAD
     <section class="hero-copy">
         <div>
             <p class="eyebrow">NISO/NIGGRID public data</p>
             <h1>Production-grade electricity generation analytics for Nigeria.</h1>
+=======
+    <section class="hero-copy" id="overview" aria-labelledby="page-title">
+        <div>
+            <p class="eyebrow">NISO/NIGGRID public data intelligence</p>
+            <h1 id="page-title">Nigeria's power system, translated into operational signals.</h1>
+            <p class="hero-lede">Live generation, DisCo allocation, GenCo output, grid stress, and distribution planning indicators in one lightweight dashboard.</p>
+            <div class="hero-actions" aria-label="Platform signals">
+                <span>Live API</span>
+                <span>PostgreSQL history</span>
+                <span>Transformer risk model</span>
+            </div>
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
         </div>
         <div class="source-box">
             <div id="source">Loading source...</div>
@@ -49,7 +116,11 @@
 
     <div class="layout-grid">
         <section class="main-column">
+<<<<<<< HEAD
             <section class="kpi-grid">
+=======
+            <section class="kpi-grid" aria-label="Grid key performance indicators">
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
                 <article class="card kpi-card primary">
                     <span>Total Generation</span>
                     <strong class="mw skeleton-text" id="mw">...</strong>
@@ -76,10 +147,17 @@
                 </article>
             </section>
 
+<<<<<<< HEAD
             <section class="card chart-card">
                 <div class="section-head">
                     <div>
                         <h2>Generation Trend</h2>
+=======
+            <section class="card chart-card" id="generation" aria-labelledby="generation-title">
+                <div class="section-head">
+                    <div>
+                        <h2 id="generation-title">Generation Trend</h2>
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
                         <p>24-hour generation with moving average and stress signals.</p>
                     </div>
                     <span class="badge blue" id="chart-window">24 hours</span>
@@ -90,6 +168,57 @@
                 </div>
             </section>
 
+<<<<<<< HEAD
+=======
+            <section class="card distribution-panel" id="distribution" aria-labelledby="distribution-title">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow compact">Distribution Intelligence</p>
+                        <h2 id="distribution-title">Transformer loading and settlement expansion risk</h2>
+                        <p>Engineering estimates based on DisCo allocation, regional growth pressure, and simulated loading trends.</p>
+                    </div>
+                    <span class="badge blue" id="distribution-classification">Calculating</span>
+                </div>
+                <div class="distribution-kpis">
+                    <article>
+                        <span>Weighted Utilization</span>
+                        <strong id="transformer-utilization">...</strong>
+                        <p id="transformer-note">Awaiting DisCo allocation.</p>
+                    </article>
+                    <article>
+                        <span>Regions At Risk</span>
+                        <strong id="distribution-regions-risk">...</strong>
+                        <p id="distribution-risk-note">Transformer loading model pending.</p>
+                    </article>
+                    <article>
+                        <span>Settlement Growth</span>
+                        <strong id="settlement-growth">...</strong>
+                        <p id="settlement-note">Projected 12-month load growth.</p>
+                    </article>
+                </div>
+                <div class="distribution-grid">
+                    <div class="chart-wrap distribution-chart-wrap">
+                        <canvas id="distribution-chart"></canvas>
+                        <div class="empty-state" id="distribution-chart-empty">Collecting distribution trend data.</div>
+                    </div>
+                    <div class="table-wrap distribution-table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>DisCo Region</th>
+                                    <th>Util.</th>
+                                    <th>12m</th>
+                                    <th>Risk</th>
+                                </tr>
+                            </thead>
+                            <tbody id="distribution-table"><tr><td colspan="4"><span class="spinner"></span> Loading...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+                <p class="method-note" id="distribution-method">Distribution model will appear after the first stored allocation reading.</p>
+            </section>
+
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
             <div class="ad-slot ad-slot-horizontal" aria-label="Future advertisement slot">
                 <span>Sponsored</span>
             </div>
@@ -127,7 +256,11 @@
                 </article>
             </section>
 
+<<<<<<< HEAD
             <section class="content-grid">
+=======
+            <section class="content-grid" id="market-data" aria-label="Generation and distribution data tables">
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
                 <article class="card">
                     <div class="section-head">
                         <h2>Daily Grid Performance</h2>
@@ -185,6 +318,14 @@
                 <strong id="trend-7d">...</strong>
                 <p id="trend-7d-note">Awaiting stored data.</p>
             </article>
+<<<<<<< HEAD
+=======
+            <article class="card side-card">
+                <span>Transformer Risk</span>
+                <strong id="transformer-risk">...</strong>
+                <p id="transformer-risk-note">Awaiting distribution intelligence.</p>
+            </article>
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
         </aside>
     </div>
 
@@ -193,6 +334,21 @@
     </div>
 </main>
 
+<<<<<<< HEAD
+=======
+<footer class="site-footer">
+    <div>
+        <strong>Nigeria Power Data</strong>
+        <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
+    </div>
+    <nav aria-label="Footer navigation">
+        <a href="/api/metadata">API</a>
+        <a href="/sitemap.xml">Sitemap</a>
+        <a href="/robots.txt">Robots</a>
+    </nav>
+</footer>
+
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 </html>

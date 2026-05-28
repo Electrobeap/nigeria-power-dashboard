@@ -5,6 +5,10 @@ from flask import Blueprint, current_app, jsonify, request
 
 from grid_monitor.services.analytics import enrich_history_payload, history_analytics, multi_window_analytics
 from grid_monitor.services.cache import get_cached
+<<<<<<< HEAD
+=======
+from grid_monitor.services.distribution import distribution_intelligence
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 from grid_monitor.services.scheduler import scheduler_status
 from grid_monitor.services.scraper import get_dashboard_payload, get_disco_profile, get_live_grid_payload
 from grid_monitor.services.storage import (
@@ -255,6 +259,10 @@ def metadata():
         "latest": "/api/latest",
         "history": "/api/history?hours=24&limit=288",
         "analytics": "/api/analytics",
+<<<<<<< HEAD
+=======
+        "distribution": "/api/distribution?hours=168&limit=336",
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
         "gencos": "/api/gencos",
         "discos": "/api/discos",
         "health": "/api/health",
@@ -279,6 +287,30 @@ def metadata():
     )
 
 
+<<<<<<< HEAD
+=======
+@api_bp.get("/api/distribution")
+def distribution():
+    hours = bounded_float(request.args.get("hours"), 168, 1, 168)
+    limit = bounded_int(request.args.get("limit"), 336, 1, 2000)
+    latest_snapshot = get_latest_snapshot()
+    if not latest_snapshot:
+        return _error("No stored DisCo allocation data available yet", 503, "distribution_unavailable")
+
+    return _json(
+        get_cached(
+            f"distribution:{latest_snapshot['reading_timestamp']}:{hours}:{limit}",
+            current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+            lambda: distribution_intelligence(
+                latest_snapshot,
+                get_history_points(hours, limit),
+                hours,
+            ),
+        )
+    )
+
+
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 @api_bp.get("/api/health")
 def health():
     storage = storage_status()

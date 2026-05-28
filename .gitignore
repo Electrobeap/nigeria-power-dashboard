@@ -21,6 +21,10 @@ logs/
 .env
 .env.*
 !.env.example
+<<<<<<< HEAD
+=======
+.Rhistory
+>>>>>>> b9a999e (Disable Scheduler for Render deployment)
 
 dist/
 build/
