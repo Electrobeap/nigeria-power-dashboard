@@ -29,14 +29,24 @@ def _ensure_sqlite_parent() -> None:
 
 
 def init_database() -> None:
-    _ensure_sqlite_parent()
-    if current_app.config["AUTO_CREATE_TABLES"]:
-        db.create_all()
-    log_event(
-        "database_initialized",
-        database_uri=current_app.config["SAFE_DATABASE_URI"],
-        auto_create_tables=current_app.config["AUTO_CREATE_TABLES"],
-    )
+    try:
+        _ensure_sqlite_parent()
+        if current_app.config["AUTO_CREATE_TABLES"]:
+            db.create_all()
+        log_event(
+            "database_initialized",
+            database_uri=current_app.config["SAFE_DATABASE_URI"],
+            auto_create_tables=current_app.config["AUTO_CREATE_TABLES"],
+        )
+    except SQLAlchemyError as exc:
+        log_event(
+            "database_initialization_failed",
+            level=logging.ERROR,
+            database_uri=current_app.config["SAFE_DATABASE_URI"],
+            error=str(exc),
+        )
+        if current_app.config["REQUIRE_DATABASE_ON_STARTUP"]:
+            raise
 
 
 def save_grid_snapshot(payload: dict[str, Any]) -> dict[str, Any]:

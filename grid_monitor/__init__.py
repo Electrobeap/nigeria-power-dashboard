@@ -2,8 +2,8 @@ import atexit
 import logging
 import sys
 
-from flask import Flask
-from flask_migrate import stamp, upgrade
+from alembic import command
+from flask import Flask, current_app
 
 from grid_monitor.config import Config
 from grid_monitor.extensions import db, migrate
@@ -17,6 +17,27 @@ from grid_monitor.utils.logging import configure_logging, log_event
 _migrations_ran = False
 
 
+def _alembic_config(app: Flask):
+    extension = app.extensions["migrate"]
+    return extension.migrate.get_config(extension.directory)
+
+
+def _is_recoverable_migration_error(error: BaseException) -> bool:
+    message = str(error).lower()
+    return any(
+        marker in message
+        for marker in (
+            "already exists",
+            "can't locate revision",
+            "cannot locate revision",
+            "not a valid head",
+            "duplicate table",
+            "duplicate column",
+            "duplicate key",
+        )
+    )
+
+
 def run_startup_migrations() -> None:
     global _migrations_ran
 
@@ -25,31 +46,23 @@ def run_startup_migrations() -> None:
 
     try:
         _ensure_sqlite_parent()
-        upgrade()
+        command.upgrade(_alembic_config(current_app), "head")
         _migrations_ran = True
         log_event("database_migrations_applied")
-    except Exception as exc:
-        message = str(exc).lower()
-        existing_schema_error = any(
-            marker in message
-            for marker in (
-                "already exists",
-                "duplicate table",
-                "duplicate column",
-                "duplicate key",
-            )
-        )
-        if existing_schema_error:
-            stamp(revision="head")
+    except BaseException as exc:
+        if _is_recoverable_migration_error(exc):
+            command.stamp(_alembic_config(current_app), "head", purge=True)
             _migrations_ran = True
             log_event(
-                "database_migrations_stamped_existing_schema",
+                "database_migrations_stamped_recoverable_state",
                 level=logging.WARNING,
                 error=str(exc),
             )
             return
-        log_event("database_migrations_failed", level=logging.ERROR, error=str(exc))
-        raise
+        if current_app.config["REQUIRE_DATABASE_ON_STARTUP"]:
+            log_event("database_migrations_failed", level=logging.ERROR, error=str(exc))
+            raise
+        log_event("database_migrations_skipped_after_error", level=logging.ERROR, error=str(exc))
 
 
 def create_app(config_class: type[Config] = Config) -> Flask:

@@ -117,7 +117,8 @@ Every JSON response includes `response_timestamp`.
 | `GRID_DATABASE_URL` | unset | Alternate database URI. |
 | `GRID_SQLITE_PATH` | `data/grid_history.sqlite3` | Local SQLite fallback path. |
 | `APP_BASE_URL` | `https://nigeriapowerdata.com` | Canonical domain for SEO URLs. |
-| `RUN_MIGRATIONS_ON_STARTUP` | `1` | Runs `flask_migrate.upgrade()` during app startup. |
+| `RUN_MIGRATIONS_ON_STARTUP` | `1` | Runs Alembic migrations during app startup. |
+| `REQUIRE_DATABASE_ON_STARTUP` | `0` | Set `1` only if Gunicorn should fail when the database is unavailable. |
 | `AUTO_CREATE_TABLES` | `1` | Local fallback table creation. Set `0` in stricter production environments. |
 | `HISTORY_CAPTURE_ENABLED` | `1` | Enables APScheduler collection. |
 | `WEB_SCHEDULER_ENABLED` | `0` | Keeps APScheduler out of the Render web process unless explicitly enabled. |
@@ -181,7 +182,7 @@ $env:FLASK_APP = "app.py"
 flask db upgrade
 ```
 
-The app also runs `upgrade()` safely inside `app.app_context()` at startup when
+The app also runs Alembic upgrade safely inside `app.app_context()` at startup when
 `RUN_MIGRATIONS_ON_STARTUP=1`, which supports Render free-tier deployments
 without shell access.
 
@@ -192,7 +193,8 @@ without shell access.
 3. Set `APP_BASE_URL=https://nigeriapowerdata.com`.
 4. Keep `WEB_SCHEDULER_ENABLED=0` on the web service unless you intentionally run collection inside the web process.
 5. Keep `RUN_MIGRATIONS_ON_STARTUP=1` so migrations apply automatically.
-6. Push to GitHub and redeploy.
+6. Keep `REQUIRE_DATABASE_ON_STARTUP=0` so a transient database problem does not kill the web worker during deploy.
+7. Push to GitHub and redeploy.
 
 The included `Procfile` and `render.yaml` run:
 
@@ -201,8 +203,10 @@ gunicorn app:app --workers 1 --threads 4 --timeout 75 --max-requests 1000 --max-
 ```
 
 `WEB_SCHEDULER_ENABLED=0` prevents duplicate in-process collection on the web
-service. Run collection from a separate Render worker or external cron when you
-are ready to automate ingestion again.
+service. Startup migrations use Alembic directly and stamp recoverable legacy
+states, so a stale `alembic_version` value cannot terminate Gunicorn during
+module import. Run collection from a separate Render worker or external cron
+when you are ready to automate ingestion again.
 
 ## SEO And AdSense Prep
 
