@@ -9,7 +9,7 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("GRID_DATA_DIR", BASE_DIR / "data"))
 POSTGRES_DRIVER = os.environ.get("POSTGRES_DRIVER", "psycopg").strip().lower()
-if POSTGRES_DRIVER not in {"psycopg", "psycopg2"}:
+if POSTGRES_DRIVER != "psycopg":
     POSTGRES_DRIVER = "psycopg"
 
 

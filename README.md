@@ -117,7 +117,7 @@ Every JSON response includes `response_timestamp`.
 | `DATABASE_URL` | unset | Render PostgreSQL connection string. |
 | `SQLALCHEMY_DATABASE_URI` | unset | Explicit SQLAlchemy URI. |
 | `GRID_DATABASE_URL` | unset | Alternate database URI. |
-| `POSTGRES_DRIVER` | `psycopg` | PostgreSQL SQLAlchemy driver for normalized Render URLs. Use `psycopg2` only for legacy environments. |
+| `POSTGRES_DRIVER` | `psycopg` | PostgreSQL SQLAlchemy driver for normalized Render URLs. |
 | `GRID_SQLITE_PATH` | `data/grid_history.sqlite3` | Local SQLite fallback path. |
 | `APP_BASE_URL` | `https://nigeriapowerdata.com` | Canonical domain for SEO URLs. |
 | `RUN_MIGRATIONS_ON_STARTUP` | `1` | Runs Alembic migrations during app startup. |
