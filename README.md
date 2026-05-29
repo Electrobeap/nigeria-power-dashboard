@@ -117,10 +117,12 @@ Every JSON response includes `response_timestamp`.
 | `DATABASE_URL` | unset | Render PostgreSQL connection string. |
 | `SQLALCHEMY_DATABASE_URI` | unset | Explicit SQLAlchemy URI. |
 | `GRID_DATABASE_URL` | unset | Alternate database URI. |
+| `POSTGRES_DRIVER` | `psycopg` | PostgreSQL SQLAlchemy driver for normalized Render URLs. Use `psycopg2` only for legacy environments. |
 | `GRID_SQLITE_PATH` | `data/grid_history.sqlite3` | Local SQLite fallback path. |
 | `APP_BASE_URL` | `https://nigeriapowerdata.com` | Canonical domain for SEO URLs. |
 | `RUN_MIGRATIONS_ON_STARTUP` | `1` | Runs Alembic migrations during app startup. |
 | `REQUIRE_DATABASE_ON_STARTUP` | `0` | Set `1` only if Gunicorn should fail when the database is unavailable. |
+| `STARTUP_ERROR_DEBUG` | `0` | Adds a traceback tail to fallback `/api/health` responses for temporary deployment debugging. |
 | `AUTO_CREATE_TABLES` | `1` | Local fallback table creation. Set `0` in stricter production environments. |
 | `HISTORY_CAPTURE_ENABLED` | `1` | Enables APScheduler collection. |
 | `WEB_SCHEDULER_ENABLED` | `0` | Keeps APScheduler out of the Render web process unless explicitly enabled. |

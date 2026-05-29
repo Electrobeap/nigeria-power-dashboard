@@ -8,6 +8,9 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("GRID_DATA_DIR", BASE_DIR / "data"))
+POSTGRES_DRIVER = os.environ.get("POSTGRES_DRIVER", "psycopg").strip().lower()
+if POSTGRES_DRIVER not in {"psycopg", "psycopg2"}:
+    POSTGRES_DRIVER = "psycopg"
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -35,9 +38,9 @@ def _normalize_database_uri(uri: str | None) -> str:
     if uri:
         uri = uri.strip()
         if uri.startswith("postgres://"):
-            return uri.replace("postgres://", "postgresql+psycopg2://", 1)
-        if uri.startswith("postgresql://") and "+psycopg2" not in uri:
-            return uri.replace("postgresql://", "postgresql+psycopg2://", 1)
+            return uri.replace("postgres://", f"postgresql+{POSTGRES_DRIVER}://", 1)
+        if uri.startswith("postgresql://") and "+" not in uri.split("://", 1)[0]:
+            return uri.replace("postgresql://", f"postgresql+{POSTGRES_DRIVER}://", 1)
         return uri
 
     sqlite_path = os.environ.get("GRID_SQLITE_PATH") or str(DATA_DIR / "grid_history.sqlite3")
@@ -60,6 +63,7 @@ class Config:
     )
     SAFE_DATABASE_URI = _safe_database_uri(SQLALCHEMY_DATABASE_URI)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    POSTGRES_DRIVER = POSTGRES_DRIVER
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,
         "pool_recycle": _env_int("DB_POOL_RECYCLE_SECONDS", 280),
