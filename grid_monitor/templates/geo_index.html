@@ -3,20 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="{{ page.description }}">
+    <meta name="description" content="{{ description }}">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#0f2437">
-    <meta property="og:title" content="{{ page.title }} | Nigeria Power Data">
-    <meta property="og:description" content="{{ page.description }}">
-    <meta property="og:type" content="article">
-    <meta property="og:url" content="{{ config.APP_BASE_URL }}/{{ page_slug }}">
+    <meta property="og:title" content="{{ title }} | Nigeria Power Data">
+    <meta property="og:description" content="{{ description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ config.APP_BASE_URL }}/states">
     <meta property="og:site_name" content="Nigeria Power Data">
     <meta property="og:image" content="{{ config.APP_BASE_URL }}/favicon.svg">
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="{{ page.title }} | Nigeria Power Data">
-    <meta name="twitter:description" content="{{ page.description }}">
-    <title>{{ page.title }} | Nigeria Power Data</title>
-    <link rel="canonical" href="{{ config.APP_BASE_URL }}/{{ page_slug }}">
+    <title>{{ title }} | Nigeria Power Data</title>
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}/states">
     <link rel="icon" href="{{ url_for('web.favicon') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 </head>
@@ -33,32 +30,57 @@
         <a href="/">Dashboard</a>
         <a href="/states">States</a>
         <a href="/regions">Regions</a>
-        <a href="/about">About</a>
         <a href="/methodology">Methodology</a>
-        <a href="/data-sources">Data Sources</a>
-        <a href="/contact">Contact</a>
+        <a href="/data-sources">Sources</a>
     </nav>
     <div class="topbar-actions">
         <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
     </div>
 </header>
 
-<main class="shell content-page">
+<main class="shell content-page geo-index-page">
     <section class="hero-copy content-hero" aria-labelledby="page-title">
         <div>
-            <p class="eyebrow">{{ page.eyebrow }}</p>
-            <h1 id="page-title">{{ page.headline }}</h1>
-            <p class="hero-lede">{{ page.lede }}</p>
+            <p class="eyebrow">Geographic Intelligence</p>
+            <h1 id="page-title">State and regional power intelligence for Nigeria.</h1>
+            <p class="hero-lede">Explore all 36 states and the Federal Capital Territory through responsible DisCos, estimated allocation, demand, infrastructure stress, and reliability indicators.</p>
         </div>
     </section>
 
-    <section class="content-page-grid">
-        {% for section in page.sections %}
-        <article class="card prose-card">
-            <h2>{{ section.heading }}</h2>
-            <p>{{ section.body }}</p>
-        </article>
-        {% endfor %}
+    <section class="card geo-directory-card">
+        <div class="section-head">
+            <div>
+                <h2>States</h2>
+                <p>All Nigerian states plus FCT, mapped to responsible DisCo franchise areas.</p>
+            </div>
+            <span class="badge blue">{{ states|length }} pages</span>
+        </div>
+        <div class="geo-directory-grid">
+            {% for state in states %}
+            <a href="{{ state.url }}">
+                <strong>{{ state.short_name }}</strong>
+                <span>{{ state.region }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="card geo-directory-card">
+        <div class="section-head">
+            <div>
+                <h2>Regions</h2>
+                <p>Six geopolitical region intelligence pages for aggregate state comparison.</p>
+            </div>
+            <span class="badge blue">{{ regions|length }} pages</span>
+        </div>
+        <div class="geo-directory-grid region-grid">
+            {% for region in regions %}
+            <a href="{{ region.url }}">
+                <strong>{{ region.name }}</strong>
+                <span>{{ region.state_count }} states/FCT areas</span>
+            </a>
+            {% endfor %}
+        </div>
     </section>
 </main>
 
@@ -68,10 +90,10 @@
         <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
     </div>
     <nav aria-label="Footer navigation">
+        <a href="/about">About</a>
+        <a href="/methodology">Methodology</a>
         <a href="/privacy-policy">Privacy</a>
         <a href="/terms-of-use">Terms</a>
-        <a href="/sitemap.xml">Sitemap</a>
-        <a href="/robots.txt">Robots</a>
     </nav>
 </footer>
 

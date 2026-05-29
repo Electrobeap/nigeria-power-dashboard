@@ -18,6 +18,8 @@ signals into operational analytics.
 - 24-hour and 7-day generation trends, moving averages, peak tracking, outage signals, volatility, and rolling health score.
 - Distribution Intelligence module for transformer utilization, overload warnings, settlement growth pressure, and simulated loading trends.
 - Clickable DisCo and GenCo drill-down pages with historical trends, forecasts, risk indicators, utilization charts, rankings, and automated analysis summaries.
+- State Intelligence for all 36 Nigerian states plus FCT, including responsible DisCos, estimated allocation, peak demand, settlement growth, infrastructure stress, transformer risk, reliability, and peer ranking.
+- Regional Intelligence across the six geopolitical zones with aggregate state trends and DisCo coverage.
 - Public content pages for About, Contact, Privacy Policy, Terms of Use, Methodology, and Data Sources.
 - Modern responsive dashboard with dark mode, KPI cards, loading states, sticky navigation, polished charts, tables, and footer.
 - SEO and AdSense readiness: meta tags, OpenGraph/Twitter tags, favicon, logo, semantic HTML, `robots.txt`, `sitemap.xml`, and non-intrusive ad placeholders.
@@ -40,6 +42,7 @@ signals into operational analytics.
 |   |   |-- cache.py
 |   |   |-- distribution.py
 |   |   |-- entity_intelligence.py
+|   |   |-- state_intelligence.py
 |   |   |-- scheduler.py
 |   |   |-- scraper.py
 |   |   |-- storage.py
@@ -48,10 +51,13 @@ signals into operational analytics.
 |   |   |-- css/dashboard.css
 |   |   |-- js/dashboard.js
 |   |   |-- js/entity.js
+|   |   |-- js/geo.js
 |   |   |-- favicon.svg
 |   |   `-- logo.svg
 |   |-- templates/
 |   |   |-- entity.html
+|   |   |-- geo.html
+|   |   |-- geo_index.html
 |   |   |-- index.html
 |   |   `-- page.html
 |   `-- utils/
@@ -76,9 +82,10 @@ signals into operational analytics.
 - `services/analytics.py` computes grid health, moving averages, volatility, outage signals, and GenCo/DisCo analytics.
 - `services/distribution.py` computes planning-grade transformer loading estimates from DisCo allocation, regional growth pressure, and historical trend simulation.
 - `services/entity_intelligence.py` resolves DisCo/GenCo slugs and builds entity-level history, forecasts, rankings, risk, utilization, and generated analysis summaries.
+- `services/state_intelligence.py` maps states and regions to responsible DisCos and estimates geography-level allocation, demand, reliability, stress, transformer risk, and peer rankings.
 - `services/scheduler.py` runs APScheduler collection with `max_instances=1` and `replace_existing=True` when `WEB_SCHEDULER_ENABLED=1`.
 - `routes/api.py` exposes compatibility, analytics, distribution, metadata, and health endpoints.
-- `routes/web.py` serves the dashboard, entity drill-down pages, content pages, favicon, robots file, and sitemap.
+- `routes/web.py` serves the dashboard, entity drill-down pages, state and regional intelligence pages, content pages, favicon, robots file, and sitemap.
 
 ## Distribution Intelligence
 
@@ -95,6 +102,25 @@ Outputs include:
 - simulated utilization trend
 - projected 12-month and 36-month settlement growth impact
 - recommended planning actions by risk class
+
+## State And Regional Intelligence
+
+State and regional intelligence is a planning estimate layered on top of DisCo
+allocation readings. It maps each state and FCT to one or more responsible DisCos
+using public franchise-area coverage, then apportions latest and historical
+DisCo allocation into geography-level signals.
+
+Outputs include:
+
+- responsible DisCo or DisCos
+- estimated current allocation
+- historical allocation trend and moving average
+- estimated peak demand and demand growth
+- population served estimate
+- settlement growth indicator
+- infrastructure stress, transformer risk, grid reliability, and availability scores
+- state or regional peer rankings
+- automated planning-grade analysis summary
 
 ## API Endpoints
 
@@ -116,6 +142,10 @@ Platform endpoints:
 - `GET /api/gencos`
 - `GET /api/gencos/{slug}?hours=168&limit=1000`
 - `GET /api/entities`
+- `GET /api/states`
+- `GET /api/states/{slug}?hours=168&limit=1000`
+- `GET /api/regions`
+- `GET /api/regions/{slug}?hours=168&limit=1000`
 - `GET /api/metadata`
 - `GET /api/health`
 
@@ -125,6 +155,10 @@ Web pages:
 
 - `/discos/{slug}`
 - `/gencos/{slug}`
+- `/states`
+- `/state/{slug}`
+- `/regions`
+- `/region/{slug}`
 - `/about`
 - `/contact`
 - `/privacy-policy`

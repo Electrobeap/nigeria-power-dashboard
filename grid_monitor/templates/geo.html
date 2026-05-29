@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ description }}">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0f2437">
+    <meta property="og:title" content="{{ page_title }} | Nigeria Power Data">
+    <meta property="og:description" content="{{ description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ config.APP_BASE_URL }}/{{ scope }}/{{ slug }}">
+    <meta property="og:site_name" content="Nigeria Power Data">
+    <meta property="og:image" content="{{ config.APP_BASE_URL }}/favicon.svg">
+    <meta name="twitter:card" content="summary">
+    <title>{{ page_title }} | Nigeria Power Data</title>
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}/{{ scope }}/{{ slug }}">
+    <link rel="icon" href="{{ url_for('web.favicon') }}" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body class="loading">
+<header class="topbar">
+    <a class="brand" href="/" aria-label="Nigeria Power Data home">
+        <img class="brand-logo" src="{{ url_for('static', filename='logo.svg') }}" alt="" width="42" height="42">
+        <span>
+            <strong>Nigeria Power Data</strong>
+            <small>Grid and distribution intelligence</small>
+        </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary navigation">
+        <a href="/">Dashboard</a>
+        <a href="/states">States</a>
+        <a href="/regions">Regions</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/data-sources">Sources</a>
+    </nav>
+    <div class="topbar-actions">
+        <span class="refresh-state" id="geo-refresh-state" aria-live="polite">Loading geography...</span>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+    </div>
+</header>
+
+<main class="shell entity-shell">
+    <section class="hero-copy entity-hero" aria-labelledby="geo-title">
+        <div>
+            <p class="eyebrow" id="geo-eyebrow">{{ page_title }}</p>
+            <h1 id="geo-title">{{ slug | replace("-", " ") | title }}</h1>
+            <p class="hero-lede" id="geo-lede">Loading allocation, demand, infrastructure stress, transformer risk, and reliability intelligence.</p>
+            <div class="hero-actions" aria-label="Geography signals">
+                <span id="geo-rank-pill">Ranking pending</span>
+                <span id="geo-risk-pill">Risk pending</span>
+                <span id="geo-region-pill">Region pending</span>
+            </div>
+        </div>
+        <div class="source-box">
+            <div id="geo-disco-summary">Resolving responsible DisCos...</div>
+            <div id="geo-generated">Preparing intelligence...</div>
+        </div>
+    </section>
+
+    <div class="banner" id="geo-error-banner"></div>
+
+    <section class="kpi-grid entity-kpis" aria-label="Geography key indicators">
+        <article class="card kpi-card primary">
+            <span>Estimated Allocation</span>
+            <strong class="mw skeleton-text" id="geo-allocation">...</strong>
+            <div class="status-row">
+                <span class="badge blue" id="geo-trend">Trend pending</span>
+                <span class="badge blue" id="geo-risk">Risk pending</span>
+            </div>
+            <p id="geo-allocation-note">Waiting for stored DisCo allocation data.</p>
+        </article>
+        <article class="card kpi-card">
+            <span>Peak Demand</span>
+            <strong id="geo-peak-demand">...</strong>
+            <p id="geo-demand-note">...</p>
+        </article>
+        <article class="card kpi-card">
+            <span>Grid Reliability</span>
+            <strong id="geo-reliability">...</strong>
+            <p id="geo-reliability-note">...</p>
+        </article>
+        <article class="card kpi-card">
+            <span>Transformer Risk</span>
+            <strong id="geo-transformer-risk">...</strong>
+            <p id="geo-transformer-note">...</p>
+        </article>
+    </section>
+
+    <section class="entity-layout">
+        <article class="card chart-card entity-chart-card">
+            <div class="section-head">
+                <div>
+                    <h2>Historical Allocation Trend</h2>
+                    <p>Estimated allocation, moving average, and power availability across stored readings.</p>
+                </div>
+                <span class="badge blue" id="geo-window">168 hours</span>
+            </div>
+            <div class="chart-wrap">
+                <canvas id="geo-chart"></canvas>
+                <div class="empty-state" id="geo-chart-empty">No stored allocation readings yet.</div>
+            </div>
+        </article>
+
+        <aside class="entity-side">
+            <article class="card side-card">
+                <span>Allocation Rank</span>
+                <strong id="geo-allocation-rank">...</strong>
+                <p id="geo-allocation-rank-note">Compared with peers.</p>
+            </article>
+            <article class="card side-card">
+                <span>Stress Rank</span>
+                <strong id="geo-stress-rank">...</strong>
+                <p id="geo-stress-rank-note">Lower is better.</p>
+            </article>
+            <article class="card side-card">
+                <span>Availability</span>
+                <strong id="geo-availability">...</strong>
+                <p id="geo-availability-note">Estimated allocation versus peak demand.</p>
+            </article>
+        </aside>
+    </section>
+
+    <section class="content-grid entity-content-grid">
+        <article class="card entity-summary-card">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow compact">Automated Analysis</p>
+                    <h2>AI-Generated Geography Summary</h2>
+                </div>
+                <span class="badge blue">Planning estimate</span>
+            </div>
+            <p id="geo-summary">Loading analysis summary...</p>
+        </article>
+        <article class="card">
+            <div class="section-head">
+                <h2>Demand And Growth</h2>
+                <span id="geo-forecast-method">...</span>
+            </div>
+            <div class="metric-list">
+                <div><span>24h Forecast</span><strong id="geo-forecast-24h">...</strong></div>
+                <div><span>7-Day Forecast</span><strong id="geo-forecast-7d">...</strong></div>
+                <div><span>Population Served</span><strong id="geo-population">...</strong></div>
+                <div><span>Settlement Growth</span><strong id="geo-settlement">...</strong></div>
+            </div>
+        </article>
+        <article class="card">
+            <div class="section-head">
+                <h2>Infrastructure Signals</h2>
+                <span id="geo-risk-driver">...</span>
+            </div>
+            <div class="metric-list">
+                <div><span>Infrastructure Stress</span><strong id="geo-stress">...</strong></div>
+                <div><span>Demand Growth</span><strong id="geo-demand-growth">...</strong></div>
+                <div><span>Peak In Window</span><strong id="geo-high">...</strong></div>
+                <div><span>Low In Window</span><strong id="geo-low">...</strong></div>
+            </div>
+        </article>
+        <article class="card table-card wide">
+            <div class="section-head">
+                <h2 id="geo-related-title">Related Geography</h2>
+                <span>Click through for peer comparison</span>
+            </div>
+            <div class="entity-link-grid" id="geo-related"></div>
+        </article>
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div>
+        <strong>Nigeria Power Data</strong>
+        <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
+    </div>
+    <nav aria-label="Footer navigation">
+        <a href="/states">States</a>
+        <a href="/regions">Regions</a>
+        <a href="/privacy-policy">Privacy</a>
+        <a href="/terms-of-use">Terms</a>
+    </nav>
+</footer>
+
+<script>
+    window.GEO_PAGE = {
+        scope: "{{ scope }}",
+        collection: "{{ api_collection }}",
+        slug: "{{ slug }}"
+    };
+</script>
+<script src="{{ url_for('static', filename='js/geo.js') }}"></script>
+</body>
+</html>

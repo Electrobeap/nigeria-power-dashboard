@@ -785,6 +785,14 @@ tbody tr:hover {
     transform: translateY(-1px);
 }
 
+.entity-link-grid a span {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
 .content-page {
     max-width: 980px;
 }
@@ -808,6 +816,54 @@ tbody tr:hover {
     color: var(--muted);
     font-size: 16px;
     line-height: 1.75;
+}
+
+.geo-index-page {
+    max-width: 1120px;
+}
+
+.geo-directory-card {
+    margin-top: 14px;
+}
+
+.geo-directory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.geo-directory-grid a {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card), transparent 12%);
+    color: var(--text);
+    padding: 12px;
+    text-decoration: none;
+    transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.geo-directory-grid a:hover {
+    border-color: var(--blue);
+    background: var(--blue-bg);
+    color: var(--blue);
+    transform: translateY(-1px);
+}
+
+.geo-directory-grid strong,
+.geo-directory-grid span {
+    display: block;
+}
+
+.geo-directory-grid strong {
+    font-size: 15px;
+    line-height: 1.3;
+}
+
+.geo-directory-grid span {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 750;
 }
 
 @media (max-width: 1120px) {

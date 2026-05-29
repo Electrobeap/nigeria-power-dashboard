@@ -9,6 +9,13 @@ from grid_monitor.services.distribution import distribution_intelligence
 from grid_monitor.services.entity_intelligence import EntityNotFound, entity_intelligence, list_entities
 from grid_monitor.services.scheduler import scheduler_status
 from grid_monitor.services.scraper import get_dashboard_payload, get_disco_profile, get_live_grid_payload
+from grid_monitor.services.state_intelligence import (
+    GeographyNotFound,
+    list_regions,
+    list_states,
+    region_intelligence,
+    state_intelligence,
+)
 from grid_monitor.services.storage import (
     get_history_points,
     get_latest_snapshot,
@@ -49,6 +56,22 @@ def _entity_response(entity_type: str, slug: str):
         )
     except EntityNotFound as exc:
         return _error(str(exc), 404, "entity_not_found")
+
+
+def _geography_response(scope: str, slug: str):
+    hours = bounded_float(request.args.get("hours"), 168, 1, 720)
+    limit = bounded_int(request.args.get("limit"), 1000, 1, 5000)
+    loader = state_intelligence if scope == "state" else region_intelligence
+    try:
+        return _json(
+            get_cached(
+                f"geography:{scope}:{slug}:{hours}:{limit}",
+                current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+                lambda: loader(slug, hours, limit),
+            )
+        )
+    except GeographyNotFound as exc:
+        return _error(str(exc), 404, "geography_not_found")
 
 
 def _fallback_latest(error: Exception) -> dict[str, Any] | None:
@@ -275,6 +298,10 @@ def metadata():
         "distribution": "/api/distribution?hours=168&limit=336",
         "disco_entity": "/api/discos/{slug}?hours=168&limit=1000",
         "genco_entity": "/api/gencos/{slug}?hours=168&limit=1000",
+        "states": "/api/states",
+        "state": "/api/states/{slug}?hours=168&limit=1000",
+        "regions": "/api/regions",
+        "region": "/api/regions/{slug}?hours=168&limit=1000",
         "gencos": "/api/gencos",
         "discos": "/api/discos",
         "health": "/api/health",
@@ -301,7 +328,34 @@ def metadata():
 
 @api_bp.get("/api/entities")
 def entities():
-    return _json({"discos": list_entities("disco"), "gencos": list_entities("genco")})
+    return _json(
+        {
+            "discos": list_entities("disco"),
+            "gencos": list_entities("genco"),
+            "states": list_states(),
+            "regions": list_regions(),
+        }
+    )
+
+
+@api_bp.get("/api/states")
+def states():
+    return _json({"states": list_states(), "regions": list_regions()})
+
+
+@api_bp.get("/api/states/<slug>")
+def state_detail(slug):
+    return _geography_response("state", slug)
+
+
+@api_bp.get("/api/regions")
+def regions():
+    return _json({"regions": list_regions()})
+
+
+@api_bp.get("/api/regions/<slug>")
+def region_detail(slug):
+    return _geography_response("region", slug)
 
 
 @api_bp.get("/api/discos/<slug>")

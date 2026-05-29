@@ -1,5 +1,7 @@
 from flask import Blueprint, Response, abort, current_app, render_template, send_from_directory
 
+from grid_monitor.services.state_intelligence import list_regions, list_states
+
 
 web_bp = Blueprint("web", __name__)
 
@@ -101,6 +103,10 @@ CONTENT_PAGES = {
                 "body": "Transformer utilization is estimated from DisCo allocation, power factor assumptions, regional growth assumptions, and warning thresholds. It is a planning proxy, not direct transformer telemetry.",
             },
             {
+                "heading": "State And Regional Intelligence",
+                "body": "State and regional pages allocate DisCo load readings into geography-level planning estimates using franchise-area mappings, state demand assumptions, population proxies, settlement growth indicators, and peer rankings. Shared franchise areas are handled with explicit split weights.",
+            },
+            {
                 "heading": "AI-Generated Summaries",
                 "body": "Analysis summaries are generated automatically from deterministic metrics such as rank, trend, volatility, forecast, and risk classification. They do not use private operational data.",
             },
@@ -120,6 +126,10 @@ CONTENT_PAGES = {
             {
                 "heading": "DisCo Load Profile",
                 "body": "The DisCo load profile page is used for distribution allocation readings and related distribution intelligence calculations.",
+            },
+            {
+                "heading": "Franchise-Area Mapping",
+                "body": "State and regional intelligence uses a planning-grade DisCo franchise-area mapping based on public NERC and DisCo franchise descriptions. It is intended for state-level analysis, not feeder-level service-territory precision.",
             },
             {
                 "heading": "Data Freshness",
@@ -161,6 +171,53 @@ def genco_page(slug):
     )
 
 
+@web_bp.get("/states")
+def states_page():
+    return render_template(
+        "geo_index.html",
+        title="State Intelligence",
+        description="State and regional power allocation intelligence for Nigeria.",
+        states=list_states(),
+        regions=list_regions(),
+    )
+
+
+@web_bp.get("/regions")
+def regions_page():
+    return render_template(
+        "geo_index.html",
+        title="Regional Intelligence",
+        description="Regional power allocation, reliability, infrastructure stress, and DisCo coverage intelligence for Nigeria.",
+        states=list_states(),
+        regions=list_regions(),
+        focus="regions",
+    )
+
+
+@web_bp.get("/state/<slug>")
+def state_page(slug):
+    return render_template(
+        "geo.html",
+        scope="state",
+        api_collection="states",
+        slug=slug,
+        page_title="State Intelligence",
+        description="State power allocation, demand, reliability, transformer risk, and regional electricity intelligence.",
+    )
+
+
+@web_bp.get("/region/<slug>")
+def region_page(slug):
+    return render_template(
+        "geo.html",
+        scope="region",
+        api_collection="regions",
+        slug=slug,
+        page_title="Regional Intelligence",
+        description="Regional power allocation, state coverage, infrastructure stress, demand growth, and grid reliability intelligence.",
+    )
+
+
 @web_bp.get("/<page_slug>")
 def content_page(page_slug):
     page = CONTENT_PAGES.get(page_slug)
@@ -191,6 +248,22 @@ def sitemap():
   </url>"""
         for page in pages
     )
+    state_urls = "\n".join(
+        f"""  <url>
+    <loc>{base_url}{state['url']}</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>"""
+        for state in list_states()
+    )
+    region_urls = "\n".join(
+        f"""  <url>
+    <loc>{base_url}{region['url']}</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>"""
+        for region in list_regions()
+    )
     body = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -199,6 +272,18 @@ def sitemap():
     <priority>1.0</priority>
   </url>
 {page_urls}
+  <url>
+    <loc>{base_url}/states</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>{base_url}/regions</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+{state_urls}
+{region_urls}
   <url>
     <loc>{base_url}/api/metadata</loc>
     <changefreq>daily</changefreq>
