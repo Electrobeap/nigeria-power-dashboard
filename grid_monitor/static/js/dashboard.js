@@ -60,6 +60,13 @@ function labelize(value) {
     return String(value || "unknown").replaceAll("_", " ");
 }
 
+function slugifyEntity(value) {
+    return String(value || "unknown")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "unknown";
+}
+
 function formatTimestamp(value) {
     if (!value) return "...";
     const parsed = new Date(value);
@@ -108,13 +115,20 @@ function gridStatus(mw, stale, health) {
     return ["Stable", "green", "Generation is within a stable operating band."];
 }
 
-function renderRows(target, rows, nameKey, valueKey) {
+function renderRows(target, rows, nameKey, valueKey, entityPlural) {
     if (!rows || rows.length === 0) {
         target.innerHTML = `<tr><td colspan="2">No records available.</td></tr>`;
         return;
     }
     target.innerHTML = rows
-        .map((row) => `<tr><td>${escapeHTML(row[nameKey])}</td><td>${formatNumber(row[valueKey])}</td></tr>`)
+        .map((row) => {
+            const name = row[nameKey];
+            const href = `/${entityPlural}/${slugifyEntity(name)}`;
+            return `<tr class="clickable-row">
+                <td><a class="entity-link" href="${href}">${escapeHTML(name)}</a></td>
+                <td><a class="entity-link value" href="${href}">${formatNumber(row[valueKey])}</a></td>
+            </tr>`;
+        })
         .join("");
 }
 
@@ -454,8 +468,8 @@ function renderTables(latest) {
     const profile = latest?.disco_profile || {};
     el["disco-time"].textContent = profile.as_at ? `As at ${profile.as_at}` : formatTimestamp(profile.fetched_at);
     el["genco-time"].textContent = formatTimestamp(latest?.fetched_at || latest?.reading_timestamp);
-    renderRows(el.discos, profile.discos || [], "company", "load_allocation_mw");
-    renderRows(el.gencos, latest?.gencos || [], "plant", "generation_mw");
+    renderRows(el.discos, profile.discos || [], "company", "load_allocation_mw", "discos");
+    renderRows(el.gencos, latest?.gencos || [], "plant", "generation_mw", "gencos");
 }
 
 function renderHealth(payload) {

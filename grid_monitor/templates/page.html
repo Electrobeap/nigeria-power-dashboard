@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ page.description }}">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0f2437">
+    <meta property="og:title" content="{{ page.title }} | Nigeria Power Data">
+    <meta property="og:description" content="{{ page.description }}">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="{{ config.APP_BASE_URL }}/{{ page_slug }}">
+    <meta property="og:site_name" content="Nigeria Power Data">
+    <meta property="og:image" content="{{ config.APP_BASE_URL }}/favicon.svg">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ page.title }} | Nigeria Power Data">
+    <meta name="twitter:description" content="{{ page.description }}">
+    <title>{{ page.title }} | Nigeria Power Data</title>
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}/{{ page_slug }}">
+    <link rel="icon" href="{{ url_for('web.favicon') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="/" aria-label="Nigeria Power Data home">
+        <img class="brand-logo" src="{{ url_for('static', filename='logo.svg') }}" alt="" width="42" height="42">
+        <span>
+            <strong>Nigeria Power Data</strong>
+            <small>Grid and distribution intelligence</small>
+        </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary navigation">
+        <a href="/">Dashboard</a>
+        <a href="/about">About</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/data-sources">Data Sources</a>
+        <a href="/contact">Contact</a>
+    </nav>
+    <div class="topbar-actions">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+    </div>
+</header>
+
+<main class="shell content-page">
+    <section class="hero-copy content-hero" aria-labelledby="page-title">
+        <div>
+            <p class="eyebrow">{{ page.eyebrow }}</p>
+            <h1 id="page-title">{{ page.headline }}</h1>
+            <p class="hero-lede">{{ page.lede }}</p>
+        </div>
+    </section>
+
+    <section class="content-page-grid">
+        {% for section in page.sections %}
+        <article class="card prose-card">
+            <h2>{{ section.heading }}</h2>
+            <p>{{ section.body }}</p>
+        </article>
+        {% endfor %}
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div>
+        <strong>Nigeria Power Data</strong>
+        <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
+    </div>
+    <nav aria-label="Footer navigation">
+        <a href="/privacy-policy">Privacy</a>
+        <a href="/terms-of-use">Terms</a>
+        <a href="/sitemap.xml">Sitemap</a>
+        <a href="/robots.txt">Robots</a>
+    </nav>
+</footer>
+
+<script>
+    const storedTheme = localStorage.getItem("grid-theme");
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = storedTheme || (prefersDark ? "dark" : "light");
+    document.documentElement.dataset.theme = theme;
+    const themeToggle = document.getElementById("theme-toggle");
+    themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
+    themeToggle.addEventListener("click", () => {
+        const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        localStorage.setItem("grid-theme", next);
+        themeToggle.textContent = next === "dark" ? "Light" : "Dark";
+    });
+</script>
+</body>
+</html>

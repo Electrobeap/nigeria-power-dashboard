@@ -625,6 +625,30 @@ tbody tr:hover {
     background: rgba(32, 107, 196, 0.08);
 }
 
+.clickable-row {
+    cursor: pointer;
+}
+
+.entity-link {
+    display: inline-flex;
+    color: var(--text);
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.entity-link.value {
+    justify-content: flex-end;
+    width: 100%;
+    color: var(--blue);
+    font-variant-numeric: tabular-nums;
+}
+
+.entity-link:hover {
+    color: var(--blue);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
 .wide {
     grid-column: 1 / -1;
 }
@@ -694,13 +718,113 @@ tbody tr:hover {
     to { transform: rotate(360deg); }
 }
 
+.entity-shell {
+    margin-top: 18px;
+}
+
+.entity-hero h1 {
+    text-transform: capitalize;
+}
+
+.entity-kpis {
+    margin-bottom: 14px;
+}
+
+.entity-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 14px;
+    align-items: start;
+}
+
+.entity-chart-card {
+    margin-top: 0;
+}
+
+.entity-side {
+    display: grid;
+    gap: 14px;
+}
+
+.entity-content-grid {
+    margin-top: 14px;
+}
+
+.entity-summary-card {
+    grid-column: 1 / -1;
+}
+
+.entity-summary-card p {
+    color: var(--text);
+    font-size: 17px;
+    line-height: 1.7;
+}
+
+.entity-link-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.entity-link-grid a {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card), transparent 12%);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 850;
+    padding: 12px;
+    text-decoration: none;
+    transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.entity-link-grid a:hover {
+    border-color: var(--blue);
+    background: var(--blue-bg);
+    color: var(--blue);
+    transform: translateY(-1px);
+}
+
+.content-page {
+    max-width: 980px;
+}
+
+.content-hero {
+    grid-template-columns: 1fr;
+    padding-top: 34px;
+}
+
+.content-page-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.prose-card h2 {
+    margin-bottom: 10px;
+    font-size: 22px;
+}
+
+.prose-card p {
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.75;
+}
+
 @media (max-width: 1120px) {
     .layout-grid {
         grid-template-columns: 1fr;
     }
 
+    .entity-layout {
+        grid-template-columns: 1fr;
+    }
+
     .side-column {
         position: static;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .entity-side {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
@@ -714,6 +838,7 @@ tbody tr:hover {
     .insight-grid,
     .content-grid,
     .side-column,
+    .entity-side,
     .hero-copy,
     .distribution-kpis,
     .distribution-grid {

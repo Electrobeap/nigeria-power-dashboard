@@ -103,6 +103,7 @@ def save_grid_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
 
     clear_cache("analytics:")
     clear_cache("history:")
+    clear_cache("entity:")
     return {
         "inserted": True,
         "snapshot_id": snapshot.id,
@@ -143,6 +144,7 @@ def save_analytics_snapshot(snapshot_id: int, window_hours: int, analytics: dict
 
     clear_cache("analytics:")
     clear_cache("history:")
+    clear_cache("entity:")
     return {"analytics_snapshot_id": record.id, "window_hours": window_hours}
 
 
@@ -184,6 +186,7 @@ def save_distribution_snapshot(
         raise
 
     clear_cache("distribution:")
+    clear_cache("entity:")
     return {"distribution_snapshot_id": record.id, "window_hours": window_hours}
 
 

@@ -6,6 +6,7 @@ from flask import Blueprint, current_app, jsonify, request
 from grid_monitor.services.analytics import enrich_history_payload, history_analytics, multi_window_analytics
 from grid_monitor.services.cache import get_cached
 from grid_monitor.services.distribution import distribution_intelligence
+from grid_monitor.services.entity_intelligence import EntityNotFound, entity_intelligence, list_entities
 from grid_monitor.services.scheduler import scheduler_status
 from grid_monitor.services.scraper import get_dashboard_payload, get_disco_profile, get_live_grid_payload
 from grid_monitor.services.storage import (
@@ -33,6 +34,21 @@ def _json(payload: dict[str, Any], status: int = 200):
 
 def _error(message: str, status: int = 500, code: str = "internal_error"):
     return _json({"error": message, "code": code, "status": status}, status)
+
+
+def _entity_response(entity_type: str, slug: str):
+    hours = bounded_float(request.args.get("hours"), 168, 1, 720)
+    limit = bounded_int(request.args.get("limit"), 1000, 1, 5000)
+    try:
+        return _json(
+            get_cached(
+                f"entity:{entity_type}:{slug}:{hours}:{limit}",
+                current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+                lambda: entity_intelligence(entity_type, slug, hours, limit),
+            )
+        )
+    except EntityNotFound as exc:
+        return _error(str(exc), 404, "entity_not_found")
 
 
 def _fallback_latest(error: Exception) -> dict[str, Any] | None:
@@ -257,6 +273,8 @@ def metadata():
         "history": "/api/history?hours=24&limit=288",
         "analytics": "/api/analytics",
         "distribution": "/api/distribution?hours=168&limit=336",
+        "disco_entity": "/api/discos/{slug}?hours=168&limit=1000",
+        "genco_entity": "/api/gencos/{slug}?hours=168&limit=1000",
         "gencos": "/api/gencos",
         "discos": "/api/discos",
         "health": "/api/health",
@@ -279,6 +297,21 @@ def metadata():
             "endpoints": endpoints,
         }
     )
+
+
+@api_bp.get("/api/entities")
+def entities():
+    return _json({"discos": list_entities("disco"), "gencos": list_entities("genco")})
+
+
+@api_bp.get("/api/discos/<slug>")
+def disco_detail(slug):
+    return _entity_response("disco", slug)
+
+
+@api_bp.get("/api/gencos/<slug>")
+def genco_detail(slug):
+    return _entity_response("genco", slug)
 
 
 @api_bp.get("/api/distribution")

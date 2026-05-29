@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ description }}">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0f2437">
+    <meta property="og:title" content="{{ page_title }} | Nigeria Power Data">
+    <meta property="og:description" content="{{ description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ config.APP_BASE_URL }}/{{ entity_plural }}/{{ slug }}">
+    <meta property="og:site_name" content="Nigeria Power Data">
+    <meta property="og:image" content="{{ config.APP_BASE_URL }}/favicon.svg">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ page_title }} | Nigeria Power Data">
+    <meta name="twitter:description" content="{{ description }}">
+    <title>{{ page_title }} | Nigeria Power Data</title>
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}/{{ entity_plural }}/{{ slug }}">
+    <link rel="icon" href="{{ url_for('web.favicon') }}" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body class="loading">
+<header class="topbar">
+    <a class="brand" href="/" aria-label="Nigeria Power Data home">
+        <img class="brand-logo" src="{{ url_for('static', filename='logo.svg') }}" alt="" width="42" height="42">
+        <span>
+            <strong>Nigeria Power Data</strong>
+            <small>Grid and distribution intelligence</small>
+        </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary navigation">
+        <a href="/">Dashboard</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/data-sources">Data Sources</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+    </nav>
+    <div class="topbar-actions">
+        <span class="refresh-state" id="entity-refresh-state" aria-live="polite">Loading entity...</span>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+    </div>
+</header>
+
+<main class="shell entity-shell">
+    <section class="hero-copy entity-hero" aria-labelledby="entity-title">
+        <div>
+            <p class="eyebrow" id="entity-eyebrow">{{ page_title }}</p>
+            <h1 id="entity-title">{{ slug | replace("-", " ") | title }}</h1>
+            <p class="hero-lede" id="entity-lede">Loading historical trends, forecast, risk indicators, and automated analysis summary.</p>
+            <div class="hero-actions" aria-label="Entity signals">
+                <span id="entity-rank-pill">Ranking pending</span>
+                <span id="entity-risk-pill">Risk pending</span>
+                <span id="entity-forecast-pill">Forecast pending</span>
+            </div>
+        </div>
+        <div class="source-box">
+            <div id="entity-unit">Loading unit...</div>
+            <div id="entity-generated">Preparing intelligence...</div>
+        </div>
+    </section>
+
+    <div class="banner" id="entity-error-banner"></div>
+
+    <section class="kpi-grid entity-kpis" aria-label="Entity key indicators">
+        <article class="card kpi-card primary">
+            <span>Latest Reading</span>
+            <strong class="mw skeleton-text" id="entity-latest">...</strong>
+            <div class="status-row">
+                <span class="badge blue" id="entity-trend">Trend pending</span>
+                <span class="badge blue" id="entity-risk">Risk pending</span>
+            </div>
+            <p id="entity-latest-note">Waiting for stored history.</p>
+        </article>
+        <article class="card kpi-card">
+            <span>Performance Score</span>
+            <strong id="entity-score">...</strong>
+            <p id="entity-score-note">...</p>
+        </article>
+        <article class="card kpi-card">
+            <span>Forecast 24h</span>
+            <strong id="entity-forecast-24h">...</strong>
+            <p id="entity-forecast-note">...</p>
+        </article>
+        <article class="card kpi-card">
+            <span>Utilization</span>
+            <strong id="entity-utilization">...</strong>
+            <p id="entity-utilization-note">...</p>
+        </article>
+    </section>
+
+    <section class="entity-layout">
+        <article class="card chart-card entity-chart-card">
+            <div class="section-head">
+                <div>
+                    <h2>Historical Trend</h2>
+                    <p id="entity-chart-copy">Observed value and moving average across the stored window.</p>
+                </div>
+                <span class="badge blue" id="entity-window">168 hours</span>
+            </div>
+            <div class="chart-wrap">
+                <canvas id="entity-chart"></canvas>
+                <div class="empty-state" id="entity-chart-empty">No stored readings for this entity yet.</div>
+            </div>
+        </article>
+
+        <aside class="entity-side">
+            <article class="card side-card">
+                <span>Latest Rank</span>
+                <strong id="entity-rank">...</strong>
+                <p id="entity-rank-note">...</p>
+            </article>
+            <article class="card side-card">
+                <span>Average Rank</span>
+                <strong id="entity-average-rank">...</strong>
+                <p id="entity-average-rank-note">...</p>
+            </article>
+            <article class="card side-card">
+                <span>Volatility</span>
+                <strong id="entity-volatility">...</strong>
+                <p id="entity-volatility-note">...</p>
+            </article>
+        </aside>
+    </section>
+
+    <section class="content-grid entity-content-grid">
+        <article class="card entity-summary-card">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow compact">Automated Analysis</p>
+                    <h2>AI-Generated Summary</h2>
+                </div>
+                <span class="badge blue">Generated from metrics</span>
+            </div>
+            <p id="entity-summary">Loading analysis summary...</p>
+        </article>
+        <article class="card">
+            <div class="section-head">
+                <h2>Forecast And Risk</h2>
+                <span id="entity-method">...</span>
+            </div>
+            <div class="metric-list">
+                <div><span>7-Day Forecast</span><strong id="entity-forecast-7d">...</strong></div>
+                <div><span>Risk Driver</span><strong id="entity-risk-driver">...</strong></div>
+                <div><span>Peak In Window</span><strong id="entity-high">...</strong></div>
+                <div><span>Low In Window</span><strong id="entity-low">...</strong></div>
+            </div>
+        </article>
+        <article class="card table-card wide">
+            <div class="section-head">
+                <h2>Related {{ entity_label }} Entities</h2>
+                <span>Click through to compare performance</span>
+            </div>
+            <div class="entity-link-grid" id="entity-related"></div>
+        </article>
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div>
+        <strong>Nigeria Power Data</strong>
+        <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
+    </div>
+    <nav aria-label="Footer navigation">
+        <a href="/privacy-policy">Privacy</a>
+        <a href="/terms-of-use">Terms</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/data-sources">Sources</a>
+    </nav>
+</footer>
+
+<script>
+    window.ENTITY_PAGE = {
+        type: "{{ entity_type }}",
+        plural: "{{ entity_plural }}",
+        slug: "{{ slug }}"
+    };
+</script>
+<script src="{{ url_for('static', filename='js/entity.js') }}"></script>
+</body>
+</html>

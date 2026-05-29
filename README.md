@@ -17,6 +17,8 @@ signals into operational analytics.
 - Historical generation, DisCo allocation, GenCo performance, analytics snapshots, and distribution intelligence snapshots.
 - 24-hour and 7-day generation trends, moving averages, peak tracking, outage signals, volatility, and rolling health score.
 - Distribution Intelligence module for transformer utilization, overload warnings, settlement growth pressure, and simulated loading trends.
+- Clickable DisCo and GenCo drill-down pages with historical trends, forecasts, risk indicators, utilization charts, rankings, and automated analysis summaries.
+- Public content pages for About, Contact, Privacy Policy, Terms of Use, Methodology, and Data Sources.
 - Modern responsive dashboard with dark mode, KPI cards, loading states, sticky navigation, polished charts, tables, and footer.
 - SEO and AdSense readiness: meta tags, OpenGraph/Twitter tags, favicon, logo, semantic HTML, `robots.txt`, `sitemap.xml`, and non-intrusive ad placeholders.
 
@@ -37,6 +39,7 @@ signals into operational analytics.
 |   |   |-- analytics.py
 |   |   |-- cache.py
 |   |   |-- distribution.py
+|   |   |-- entity_intelligence.py
 |   |   |-- scheduler.py
 |   |   |-- scraper.py
 |   |   |-- storage.py
@@ -44,9 +47,13 @@ signals into operational analytics.
 |   |-- static/
 |   |   |-- css/dashboard.css
 |   |   |-- js/dashboard.js
+|   |   |-- js/entity.js
 |   |   |-- favicon.svg
 |   |   `-- logo.svg
-|   |-- templates/index.html
+|   |-- templates/
+|   |   |-- entity.html
+|   |   |-- index.html
+|   |   `-- page.html
 |   `-- utils/
 |       |-- logging.py
 |       `-- time.py
@@ -68,9 +75,10 @@ signals into operational analytics.
 - `services/storage.py` persists live readings plus analytics and distribution snapshots.
 - `services/analytics.py` computes grid health, moving averages, volatility, outage signals, and GenCo/DisCo analytics.
 - `services/distribution.py` computes planning-grade transformer loading estimates from DisCo allocation, regional growth pressure, and historical trend simulation.
+- `services/entity_intelligence.py` resolves DisCo/GenCo slugs and builds entity-level history, forecasts, rankings, risk, utilization, and generated analysis summaries.
 - `services/scheduler.py` runs APScheduler collection with `max_instances=1` and `replace_existing=True` when `WEB_SCHEDULER_ENABLED=1`.
 - `routes/api.py` exposes compatibility, analytics, distribution, metadata, and health endpoints.
-- `routes/web.py` serves the dashboard, favicon, robots file, and sitemap.
+- `routes/web.py` serves the dashboard, entity drill-down pages, content pages, favicon, robots file, and sitemap.
 
 ## Distribution Intelligence
 
@@ -104,11 +112,25 @@ Platform endpoints:
 - `GET /api/analytics?hours=24&limit=288`
 - `GET /api/distribution?hours=168&limit=336`
 - `GET /api/discos`
+- `GET /api/discos/{slug}?hours=168&limit=1000`
 - `GET /api/gencos`
+- `GET /api/gencos/{slug}?hours=168&limit=1000`
+- `GET /api/entities`
 - `GET /api/metadata`
 - `GET /api/health`
 
 Every JSON response includes `response_timestamp`.
+
+Web pages:
+
+- `/discos/{slug}`
+- `/gencos/{slug}`
+- `/about`
+- `/contact`
+- `/privacy-policy`
+- `/terms-of-use`
+- `/methodology`
+- `/data-sources`
 
 ## Environment Variables
 
