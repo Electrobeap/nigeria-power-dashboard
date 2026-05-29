@@ -53,6 +53,7 @@ signals into operational analytics.
 |-- migrations/
 |   `-- versions/
 |-- Procfile
+|-- gunicorn.conf.py
 |-- render.yaml
 |-- requirements.txt
 `-- runtime.txt
@@ -61,6 +62,7 @@ signals into operational analytics.
 ## Architecture
 
 - `grid_monitor/__init__.py` creates the Flask app, configures logging, initializes SQLAlchemy and migrations, runs safe startup migrations, registers routes, and can start the scheduler when explicitly enabled.
+- `app.py` exposes `app` for Gunicorn and falls back to a minimal health app if a production-only startup exception occurs.
 - `models.py` defines `grid_snapshots`, `genco_data`, `disco_data`, `analytics_snapshots`, and `distribution_intelligence_snapshots`.
 - `services/scraper.py` handles NISO/NIGGRID fetches, parsing, retry logic, timeouts, and source-cache fallback.
 - `services/storage.py` persists live readings plus analytics and distribution snapshots.
@@ -199,9 +201,11 @@ without shell access.
 The included `Procfile` and `render.yaml` run:
 
 ```text
-gunicorn app:app --workers 1 --threads 4 --timeout 75 --max-requests 1000 --max-requests-jitter 100 --bind 0.0.0.0:$PORT
+gunicorn app:app
 ```
 
+Gunicorn reads `gunicorn.conf.py`, which binds to `0.0.0.0:$PORT`, keeps one
+worker by default, and sets thread/timeout/restart limits safely for Render.
 `WEB_SCHEDULER_ENABLED=0` prevents duplicate in-process collection on the web
 service. Startup migrations use Alembic directly and stamp recoverable legacy
 states, so a stale `alembic_version` value cannot terminate Gunicorn during
