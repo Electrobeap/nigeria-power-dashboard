@@ -1,5 +1,8 @@
+from copy import deepcopy
+
 from flask import Blueprint, Response, abort, current_app, render_template, send_from_directory
 
+from grid_monitor.services.geographic_hierarchy import hierarchy_counts
 from grid_monitor.services.state_intelligence import list_regions, list_states
 
 
@@ -22,6 +25,10 @@ CONTENT_PAGES = {
                 "heading": "Why It Exists",
                 "body": "Nigeria's power sector data is easier to understand when live readings are connected to history, risk indicators, rankings, and plain-language interpretation. This platform makes those signals easier to scan and revisit.",
             },
+            {
+                "heading": "Research And Data Contact",
+                "body": "For methodology questions, data corrections, and research collaboration, email {RESEARCH_EMAIL}. For platform, partnership, or general enquiries, email {CONTACT_EMAIL}.",
+            },
         ],
     },
     "contact": {
@@ -33,11 +40,15 @@ CONTENT_PAGES = {
         "sections": [
             {
                 "heading": "General Contact",
-                "body": "Email: hello@nigeriapowerdata.com. Include the page URL, timestamp, and source reading if you are reporting a data issue.",
+                "body": "General enquiries: {CONTACT_EMAIL}. Include the page URL, timestamp, and source reading if you are reporting a data issue.",
             },
             {
-                "heading": "Data Corrections",
-                "body": "Because the dashboard depends on public source data, corrections should reference the original NISO/NIGGRID publication where possible.",
+                "heading": "Research And Data Corrections",
+                "body": "Research collaboration and source-data corrections: {RESEARCH_EMAIL}. Because the dashboard depends on public source data, corrections should reference the original NISO/NIGGRID publication where possible.",
+            },
+            {
+                "heading": "Advertising And Sponsorship",
+                "body": "Advertising, sponsorship, and future placement enquiries: {ADS_EMAIL}.",
             },
         ],
     },
@@ -107,6 +118,10 @@ CONTENT_PAGES = {
                 "body": "State and regional pages allocate DisCo load readings into geography-level planning estimates using franchise-area mappings, state demand assumptions, population proxies, settlement growth indicators, and peer rankings. Shared franchise areas are handled with explicit split weights.",
             },
             {
+                "heading": "Hierarchical Geographic Intelligence",
+                "body": "The interactive map uses a replaceable hierarchy from State to LGA to Town/City to Community to Settlement. Current lower-level records are planning-grade seed estimates derived from state profiles, population shares, DisCo coverage, settlement intensity, and transformer loading assumptions.",
+            },
+            {
                 "heading": "AI-Generated Summaries",
                 "body": "Analysis summaries are generated automatically from deterministic metrics such as rank, trend, volatility, forecast, and risk classification. They do not use private operational data.",
             },
@@ -132,12 +147,35 @@ CONTENT_PAGES = {
                 "body": "State and regional intelligence uses a planning-grade DisCo franchise-area mapping based on public NERC and DisCo franchise descriptions. It is intended for state-level analysis, not feeder-level service-territory precision.",
             },
             {
+                "heading": "Geographic Hierarchy Dataset",
+                "body": "The State to Settlement map is designed around replaceable JSON nodes. The built-in hierarchy uses representative planning areas and placeholder estimates until official LGA, community, feeder, transformer, and customer datasets are supplied.",
+            },
+            {
                 "heading": "Data Freshness",
                 "body": "Stored readings are collected on the configured scheduler interval. Public source downtime, layout changes, or deployment sleep can affect freshness.",
             },
         ],
     },
 }
+
+
+def _configured_content_page(page_slug):
+    page = deepcopy(CONTENT_PAGES.get(page_slug))
+    if not page:
+        return None
+    values = {
+        "CONTACT_EMAIL": current_app.config["CONTACT_EMAIL"],
+        "RESEARCH_EMAIL": current_app.config["RESEARCH_EMAIL"],
+        "ADS_EMAIL": current_app.config["ADS_EMAIL"],
+    }
+    for key in ("title", "description", "eyebrow", "headline", "lede"):
+        if isinstance(page.get(key), str):
+            page[key] = page[key].format(**values)
+    for section in page.get("sections", []):
+        for key in ("heading", "body"):
+            if isinstance(section.get(key), str):
+                section[key] = section[key].format(**values)
+    return page
 
 
 @web_bp.get("/")
@@ -194,6 +232,27 @@ def regions_page():
     )
 
 
+@web_bp.get("/geography")
+def hierarchy_page():
+    return render_template(
+        "hierarchy_index.html",
+        title="Nigeria Geographic Power Intelligence Map",
+        description="Interactive Nigeria map with state, LGA, town, community, and settlement-level electricity demand intelligence.",
+        counts=hierarchy_counts(),
+    )
+
+
+@web_bp.get("/geography/<level>/<slug>")
+def hierarchy_detail_page(level, slug):
+    return render_template(
+        "hierarchy_detail.html",
+        level=level,
+        slug=slug,
+        page_title="Geographic Drill-Down Intelligence",
+        description="Hierarchical power demand, transformer loading, DisCo coverage, grid health, and infrastructure upgrade intelligence.",
+    )
+
+
 @web_bp.get("/state/<slug>")
 def state_page(slug):
     return render_template(
@@ -220,7 +279,7 @@ def region_page(slug):
 
 @web_bp.get("/<page_slug>")
 def content_page(page_slug):
-    page = CONTENT_PAGES.get(page_slug)
+    page = _configured_content_page(page_slug)
     if not page:
         abort(404)
     return render_template("page.html", page=page, page_slug=page_slug)
@@ -264,6 +323,14 @@ def sitemap():
   </url>"""
         for region in list_regions()
     )
+    hierarchy_state_urls = "\n".join(
+        f"""  <url>
+    <loc>{base_url}/geography/state/{state['slug']}</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>"""
+        for state in list_states()
+    )
     body = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -282,8 +349,14 @@ def sitemap():
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>{base_url}/geography</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
 {state_urls}
 {region_urls}
+{hierarchy_state_urls}
   <url>
     <loc>{base_url}/api/metadata</loc>
     <changefreq>daily</changefreq>

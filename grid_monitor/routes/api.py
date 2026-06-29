@@ -7,6 +7,13 @@ from grid_monitor.services.analytics import enrich_history_payload, history_anal
 from grid_monitor.services.cache import get_cached
 from grid_monitor.services.distribution import distribution_intelligence
 from grid_monitor.services.entity_intelligence import EntityNotFound, entity_intelligence, list_entities
+from grid_monitor.services.geographic_hierarchy import (
+    HierarchyNotFound,
+    hierarchy_counts,
+    hierarchy_detail,
+    hierarchy_overview,
+    search_hierarchy,
+)
 from grid_monitor.services.scheduler import scheduler_status
 from grid_monitor.services.scraper import get_dashboard_payload, get_disco_profile, get_live_grid_payload
 from grid_monitor.services.state_intelligence import (
@@ -72,6 +79,19 @@ def _geography_response(scope: str, slug: str):
         )
     except GeographyNotFound as exc:
         return _error(str(exc), 404, "geography_not_found")
+
+
+def _hierarchy_response(level: str, slug: str):
+    try:
+        return _json(
+            get_cached(
+                f"hierarchy:{level}:{slug}",
+                current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+                lambda: hierarchy_detail(level, slug),
+            )
+        )
+    except HierarchyNotFound as exc:
+        return _error(str(exc), 404, "hierarchy_not_found")
 
 
 def _fallback_latest(error: Exception) -> dict[str, Any] | None:
@@ -302,6 +322,9 @@ def metadata():
         "state": "/api/states/{slug}?hours=168&limit=1000",
         "regions": "/api/regions",
         "region": "/api/regions/{slug}?hours=168&limit=1000",
+        "geography_map": "/api/geography/map",
+        "geography_search": "/api/geography/search?q=lagos",
+        "geography_hierarchy": "/api/geography/{level}/{slug}",
         "gencos": "/api/gencos",
         "discos": "/api/discos",
         "health": "/api/health",
@@ -321,6 +344,11 @@ def metadata():
                 "capture_interval_seconds": current_app.config["HISTORY_CAPTURE_INTERVAL_SECONDS"],
                 "analytics_cache_ttl_seconds": current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
             },
+            "geography_hierarchy": {
+                "levels": ["state", "lga", "town", "community", "settlement"],
+                "counts": hierarchy_counts(),
+                "dataset_path": current_app.config.get("GEOGRAPHY_DATASET_PATH"),
+            },
             "endpoints": endpoints,
         }
     )
@@ -336,6 +364,28 @@ def entities():
             "regions": list_regions(),
         }
     )
+
+
+@api_bp.get("/api/geography/map")
+def geography_map():
+    return _json(
+        get_cached(
+            "hierarchy:map",
+            current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+            hierarchy_overview,
+        )
+    )
+
+
+@api_bp.get("/api/geography/search")
+def geography_search():
+    limit = bounded_int(request.args.get("limit"), 20, 1, 50)
+    return _json(search_hierarchy(request.args.get("q", ""), request.args.get("level"), limit))
+
+
+@api_bp.get("/api/geography/<level>/<slug>")
+def geography_hierarchy_detail(level, slug):
+    return _hierarchy_response(level, slug)
 
 
 @api_bp.get("/api/states")

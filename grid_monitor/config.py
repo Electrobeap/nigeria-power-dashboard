@@ -110,6 +110,10 @@ class Config:
     API_NAME = "Nigeria Power Grid Monitor API"
     API_VERSION = os.environ.get("API_VERSION", "2.0.0")
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "https://nigeriapowerdata.com").rstrip("/")
+    CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "hello@nigeriapowerdata.com")
+    RESEARCH_EMAIL = os.environ.get("RESEARCH_EMAIL", CONTACT_EMAIL)
+    ADS_EMAIL = os.environ.get("ADS_EMAIL", CONTACT_EMAIL)
+    GEOGRAPHY_DATASET_PATH = os.environ.get("GEOGRAPHY_DATASET_PATH")
 
     GRID_STRESS_CRITICAL_MW = _env_float("GRID_STRESS_CRITICAL_MW", 3000.0)
     GRID_STRESS_STRESSED_MW = _env_float("GRID_STRESS_STRESSED_MW", 4500.0)

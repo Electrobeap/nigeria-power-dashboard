@@ -20,6 +20,7 @@ signals into operational analytics.
 - Clickable DisCo and GenCo drill-down pages with historical trends, forecasts, risk indicators, utilization charts, rankings, and automated analysis summaries.
 - State Intelligence for all 36 Nigerian states plus FCT, including responsible DisCos, estimated allocation, peak demand, settlement growth, infrastructure stress, transformer risk, reliability, and peer ranking.
 - Regional Intelligence across the six geopolitical zones with aggregate state trends and DisCo coverage.
+- Hierarchical Geographic Intelligence map with State to LGA to Town/City to Community to Settlement drill-down, direct search, demand estimates, transformer loading, grid health, and upgrade recommendations.
 - Public content pages for About, Contact, Privacy Policy, Terms of Use, Methodology, and Data Sources.
 - Modern responsive dashboard with dark mode, KPI cards, loading states, sticky navigation, polished charts, tables, and footer.
 - SEO and AdSense readiness: meta tags, OpenGraph/Twitter tags, favicon, logo, semantic HTML, `robots.txt`, `sitemap.xml`, and non-intrusive ad placeholders.
@@ -42,6 +43,7 @@ signals into operational analytics.
 |   |   |-- cache.py
 |   |   |-- distribution.py
 |   |   |-- entity_intelligence.py
+|   |   |-- geographic_hierarchy.py
 |   |   |-- state_intelligence.py
 |   |   |-- scheduler.py
 |   |   |-- scraper.py
@@ -52,12 +54,15 @@ signals into operational analytics.
 |   |   |-- js/dashboard.js
 |   |   |-- js/entity.js
 |   |   |-- js/geo.js
+|   |   |-- js/hierarchy.js
 |   |   |-- favicon.svg
 |   |   `-- logo.svg
 |   |-- templates/
 |   |   |-- entity.html
 |   |   |-- geo.html
 |   |   |-- geo_index.html
+|   |   |-- hierarchy_detail.html
+|   |   |-- hierarchy_index.html
 |   |   |-- index.html
 |   |   `-- page.html
 |   `-- utils/
@@ -83,9 +88,10 @@ signals into operational analytics.
 - `services/distribution.py` computes planning-grade transformer loading estimates from DisCo allocation, regional growth pressure, and historical trend simulation.
 - `services/entity_intelligence.py` resolves DisCo/GenCo slugs and builds entity-level history, forecasts, rankings, risk, utilization, and generated analysis summaries.
 - `services/state_intelligence.py` maps states and regions to responsible DisCos and estimates geography-level allocation, demand, reliability, stress, transformer risk, and peer rankings.
+- `services/geographic_hierarchy.py` builds the replaceable State/LGA/Town/Community/Settlement hierarchy, search index, map payload, demand estimates, transformer loading, grid health, and infrastructure upgrade recommendations.
 - `services/scheduler.py` runs APScheduler collection with `max_instances=1` and `replace_existing=True` when `WEB_SCHEDULER_ENABLED=1`.
 - `routes/api.py` exposes compatibility, analytics, distribution, metadata, and health endpoints.
-- `routes/web.py` serves the dashboard, entity drill-down pages, state and regional intelligence pages, content pages, favicon, robots file, and sitemap.
+- `routes/web.py` serves the dashboard, entity drill-down pages, state and regional intelligence pages, hierarchical map pages, content pages, favicon, robots file, and sitemap.
 
 ## Distribution Intelligence
 
@@ -122,6 +128,25 @@ Outputs include:
 - state or regional peer rankings
 - automated planning-grade analysis summary
 
+## Hierarchical Geographic Intelligence
+
+The Geographic Intelligence map is data-driven and uses planning-grade seed
+records by default. It currently generates a consistent hierarchy from state
+profiles and representative LGA, town/city, community, and settlement planning
+areas. Future official datasets can replace these placeholders by providing a
+JSON node list through `GEOGRAPHY_DATASET_PATH`; the API payloads and UI remain
+the same.
+
+Outputs include:
+
+- interactive Nigeria state map
+- direct search across state, LGA, town/city, community, and settlement nodes
+- estimated population, current demand, and peak demand
+- projected 12-month and 36-month demand
+- transformer loading and grid health classification
+- DisCo coverage inherited from state franchise-area mapping
+- recommended infrastructure upgrades based on loading, growth, and data quality
+
 ## API Endpoints
 
 Compatibility endpoints:
@@ -146,6 +171,9 @@ Platform endpoints:
 - `GET /api/states/{slug}?hours=168&limit=1000`
 - `GET /api/regions`
 - `GET /api/regions/{slug}?hours=168&limit=1000`
+- `GET /api/geography/map`
+- `GET /api/geography/search?q=lagos`
+- `GET /api/geography/{level}/{slug}`
 - `GET /api/metadata`
 - `GET /api/health`
 
@@ -159,6 +187,8 @@ Web pages:
 - `/state/{slug}`
 - `/regions`
 - `/region/{slug}`
+- `/geography`
+- `/geography/{level}/{slug}`
 - `/about`
 - `/contact`
 - `/privacy-policy`
@@ -176,6 +206,10 @@ Web pages:
 | `POSTGRES_DRIVER` | `psycopg` | PostgreSQL SQLAlchemy driver for normalized Render URLs. |
 | `GRID_SQLITE_PATH` | `data/grid_history.sqlite3` | Local SQLite fallback path. |
 | `APP_BASE_URL` | `https://nigeriapowerdata.com` | Canonical domain for SEO URLs. |
+| `CONTACT_EMAIL` | `hello@nigeriapowerdata.com` | Public general contact email shown on About and Contact pages. |
+| `RESEARCH_EMAIL` | `CONTACT_EMAIL` | Research collaboration and data-correction email. |
+| `ADS_EMAIL` | `CONTACT_EMAIL` | Advertising and sponsorship enquiry email. |
+| `GEOGRAPHY_DATASET_PATH` | unset | Optional JSON node dataset for replacing built-in hierarchy planning seeds. |
 | `RUN_MIGRATIONS_ON_STARTUP` | `1` | Runs Alembic migrations during app startup. |
 | `REQUIRE_DATABASE_ON_STARTUP` | `0` | Set `1` only if Gunicorn should fail when the database is unavailable. |
 | `STARTUP_ERROR_DEBUG` | `0` | Adds a traceback tail to fallback `/api/health` responses for temporary deployment debugging. |

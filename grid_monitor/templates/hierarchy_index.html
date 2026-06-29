@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ description }}">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0f2437">
+    <meta property="og:title" content="{{ title }} | Nigeria Power Data">
+    <meta property="og:description" content="{{ description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ config.APP_BASE_URL }}/geography">
+    <meta property="og:site_name" content="Nigeria Power Data">
+    <meta property="og:image" content="{{ config.APP_BASE_URL }}/favicon.svg">
+    <meta name="twitter:card" content="summary">
+    <title>{{ title }} | Nigeria Power Data</title>
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}/geography">
+    <link rel="icon" href="{{ url_for('web.favicon') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body class="loading">
+<header class="topbar">
+    <a class="brand" href="/" aria-label="Nigeria Power Data home">
+        <img class="brand-logo" src="{{ url_for('static', filename='logo.svg') }}" alt="" width="42" height="42">
+        <span>
+            <strong>Nigeria Power Data</strong>
+            <small>Grid and distribution intelligence</small>
+        </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary navigation">
+        <a href="/">Dashboard</a>
+        <a href="/geography">Map</a>
+        <a href="/states">States</a>
+        <a href="/regions">Regions</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/data-sources">Sources</a>
+    </nav>
+    <div class="topbar-actions">
+        <span class="refresh-state" id="hierarchy-refresh-state" aria-live="polite">Loading map...</span>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+    </div>
+</header>
+
+<main class="shell hierarchy-shell">
+    <section class="hero-copy hierarchy-hero" aria-labelledby="page-title">
+        <div>
+            <p class="eyebrow">Hierarchical Geographic Intelligence</p>
+            <h1 id="page-title">Drill from Nigeria to settlement-level power planning signals.</h1>
+            <p class="hero-lede">Explore state, LGA, town, community, and settlement estimates for population, demand, transformer loading, DisCo coverage, grid health, and infrastructure upgrades.</p>
+            <div class="hero-actions" aria-label="Hierarchy coverage">
+                <span>{{ counts.state }} states/FCT</span>
+                <span>{{ counts.lga }} LGA planning areas</span>
+                <span>{{ counts.settlement }} settlement zones</span>
+            </div>
+        </div>
+        <div class="source-box">
+            <div>Planning-grade hierarchy</div>
+            <div>Replaceable dataset architecture</div>
+        </div>
+    </section>
+
+    <div class="banner" id="hierarchy-error-banner"></div>
+
+    <section class="card hierarchy-search-card" aria-label="Geography search">
+        <div class="search-shell">
+            <label for="hierarchy-search">Search geography</label>
+            <input id="hierarchy-search" type="search" autocomplete="off" placeholder="Search state, LGA, town, community, settlement">
+        </div>
+        <div class="search-results" id="hierarchy-search-results"></div>
+    </section>
+
+    <section class="hierarchy-layout">
+        <article class="card map-card">
+            <div class="section-head">
+                <div>
+                    <h2>Interactive Nigeria Map</h2>
+                    <p>Click a state marker to begin the State to LGA to Town/City to Community to Settlement drill-down.</p>
+                </div>
+                <span class="badge blue" id="map-count">Loading</span>
+            </div>
+            <div class="map-canvas" aria-label="Nigeria state intelligence map">
+                <svg class="nigeria-outline" viewBox="0 0 110 110" role="img" aria-label="Stylized Nigeria map outline">
+                    <path d="M26 8 L68 8 L92 26 L96 56 L84 82 L75 102 L45 100 L26 91 L12 66 L16 34 Z"></path>
+                    <path d="M42 12 L40 40 L20 57 M66 10 L66 36 L91 48 M31 76 L53 66 L76 88 M45 40 L66 55 L60 84"></path>
+                </svg>
+                <div class="state-marker-layer" id="state-marker-layer"></div>
+            </div>
+        </article>
+
+        <aside class="hierarchy-side">
+            <article class="card side-card">
+                <span>Dataset</span>
+                <strong id="hierarchy-dataset">...</strong>
+                <p id="hierarchy-dataset-note">Loading lineage.</p>
+            </article>
+            <article class="card side-card">
+                <span>Transformer Watch</span>
+                <strong id="hierarchy-watch-count">...</strong>
+                <p>States with elevated or critical loading estimates.</p>
+            </article>
+            <article class="card side-card">
+                <span>Search Index</span>
+                <strong id="hierarchy-search-count">...</strong>
+                <p>Indexed planning nodes across all hierarchy levels.</p>
+            </article>
+        </aside>
+    </section>
+
+    <section class="card geo-directory-card">
+        <div class="section-head">
+            <div>
+                <h2>State Entry Points</h2>
+                <p>Every state and FCT opens into the hierarchy drill-down workspace.</p>
+            </div>
+            <span class="badge blue">{{ counts.state }} pages</span>
+        </div>
+        <div class="geo-directory-grid" id="hierarchy-state-grid"></div>
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div>
+        <strong>Nigeria Power Data</strong>
+        <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
+    </div>
+    <nav aria-label="Footer navigation">
+        <a href="/states">States</a>
+        <a href="/regions">Regions</a>
+        <a href="/privacy-policy">Privacy</a>
+        <a href="/terms-of-use">Terms</a>
+    </nav>
+</footer>
+
+<script>
+    window.HIERARCHY_PAGE = { mode: "index" };
+</script>
+<script src="{{ url_for('static', filename='js/hierarchy.js') }}"></script>
+</body>
+</html>

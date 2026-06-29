@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ description }}">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0f2437">
+    <meta property="og:title" content="{{ page_title }} | Nigeria Power Data">
+    <meta property="og:description" content="{{ description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ config.APP_BASE_URL }}/geography/{{ level }}/{{ slug }}">
+    <meta property="og:site_name" content="Nigeria Power Data">
+    <meta property="og:image" content="{{ config.APP_BASE_URL }}/favicon.svg">
+    <meta name="twitter:card" content="summary">
+    <title>{{ page_title }} | Nigeria Power Data</title>
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}/geography/{{ level }}/{{ slug }}">
+    <link rel="icon" href="{{ url_for('web.favicon') }}" type="image/svg+xml">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body class="loading">
+<header class="topbar">
+    <a class="brand" href="/" aria-label="Nigeria Power Data home">
+        <img class="brand-logo" src="{{ url_for('static', filename='logo.svg') }}" alt="" width="42" height="42">
+        <span>
+            <strong>Nigeria Power Data</strong>
+            <small>Grid and distribution intelligence</small>
+        </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary navigation">
+        <a href="/">Dashboard</a>
+        <a href="/geography">Map</a>
+        <a href="/states">States</a>
+        <a href="/regions">Regions</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/data-sources">Sources</a>
+    </nav>
+    <div class="topbar-actions">
+        <span class="refresh-state" id="hierarchy-refresh-state" aria-live="polite">Loading geography...</span>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+    </div>
+</header>
+
+<main class="shell entity-shell hierarchy-detail-shell">
+    <nav class="breadcrumb-row" id="hierarchy-breadcrumbs" aria-label="Breadcrumb"></nav>
+
+    <section class="hero-copy entity-hero" aria-labelledby="hierarchy-title">
+        <div>
+            <p class="eyebrow" id="hierarchy-eyebrow">Geographic Intelligence</p>
+            <h1 id="hierarchy-title">{{ slug | replace("-", " ") | title }}</h1>
+            <p class="hero-lede" id="hierarchy-lede">Loading population, demand, transformer loading, DisCo coverage, grid health, and upgrade intelligence.</p>
+            <div class="hero-actions" aria-label="Geography signals">
+                <span id="hierarchy-level-pill">Level pending</span>
+                <span id="hierarchy-health-pill">Health pending</span>
+                <span id="hierarchy-disco-pill">DisCo pending</span>
+            </div>
+        </div>
+        <div class="source-box">
+            <div id="hierarchy-path">Resolving hierarchy...</div>
+            <div id="hierarchy-generated">Preparing intelligence...</div>
+        </div>
+    </section>
+
+    <div class="banner" id="hierarchy-error-banner"></div>
+
+    <section class="card hierarchy-search-card" aria-label="Geography search">
+        <div class="search-shell">
+            <label for="hierarchy-search">Search geography</label>
+            <input id="hierarchy-search" type="search" autocomplete="off" placeholder="Search state, LGA, town, community, settlement">
+        </div>
+        <div class="search-results" id="hierarchy-search-results"></div>
+    </section>
+
+    <section class="kpi-grid entity-kpis" aria-label="Geography key indicators">
+        <article class="card kpi-card primary">
+            <span>Estimated Demand</span>
+            <strong class="mw skeleton-text" id="hierarchy-demand">...</strong>
+            <div class="status-row">
+                <span class="badge blue" id="hierarchy-growth">Growth pending</span>
+                <span class="badge blue" id="hierarchy-source">Source pending</span>
+            </div>
+            <p id="hierarchy-demand-note">Waiting for hierarchy model.</p>
+        </article>
+        <article class="card kpi-card">
+            <span>Population</span>
+            <strong id="hierarchy-population">...</strong>
+            <p id="hierarchy-population-note">...</p>
+        </article>
+        <article class="card kpi-card">
+            <span>Transformer Loading</span>
+            <strong id="hierarchy-transformer">...</strong>
+            <p id="hierarchy-transformer-note">...</p>
+        </article>
+        <article class="card kpi-card">
+            <span>Grid Health</span>
+            <strong id="hierarchy-health">...</strong>
+            <p id="hierarchy-health-note">...</p>
+        </article>
+    </section>
+
+    <section class="entity-layout">
+        <article class="card chart-card entity-chart-card">
+            <div class="section-head">
+                <div>
+                    <h2>Demand Projection</h2>
+                    <p>Current estimate, 12-month projection, and 36-month projection.</p>
+                </div>
+                <span class="badge blue" id="hierarchy-classification">Calculating</span>
+            </div>
+            <div class="chart-wrap">
+                <canvas id="hierarchy-demand-chart"></canvas>
+                <div class="empty-state" id="hierarchy-chart-empty">No projection data available.</div>
+            </div>
+        </article>
+
+        <aside class="entity-side">
+            <article class="card side-card">
+                <span>Peak Demand</span>
+                <strong id="hierarchy-peak">...</strong>
+                <p>Estimated planning peak.</p>
+            </article>
+            <article class="card side-card">
+                <span>Availability</span>
+                <strong id="hierarchy-availability">...</strong>
+                <p>Allocation versus peak demand.</p>
+            </article>
+            <article class="card side-card">
+                <span>Stress</span>
+                <strong id="hierarchy-stress">...</strong>
+                <p>Infrastructure stress score.</p>
+            </article>
+        </aside>
+    </section>
+
+    <section class="content-grid entity-content-grid hierarchy-content-grid">
+        <article class="card entity-summary-card">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow compact">Automated Analysis</p>
+                    <h2>Planning Summary</h2>
+                </div>
+                <span class="badge blue">Replaceable dataset</span>
+            </div>
+            <p id="hierarchy-summary">Loading analysis summary...</p>
+        </article>
+
+        <article class="card">
+            <div class="section-head">
+                <h2>Distribution Coverage</h2>
+                <span id="hierarchy-primary-disco">...</span>
+            </div>
+            <div class="entity-link-grid compact-links" id="hierarchy-coverage"></div>
+        </article>
+
+        <article class="card">
+            <div class="section-head">
+                <h2>Recommended Infrastructure Upgrades</h2>
+                <span id="hierarchy-upgrade-count">...</span>
+            </div>
+            <div class="upgrade-list" id="hierarchy-upgrades"></div>
+        </article>
+
+        <article class="card table-card wide">
+            <div class="section-head">
+                <h2 id="hierarchy-children-title">Drill-Down Areas</h2>
+                <span>Click through for the next level</span>
+            </div>
+            <div class="entity-link-grid" id="hierarchy-children"></div>
+        </article>
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div>
+        <strong>Nigeria Power Data</strong>
+        <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
+    </div>
+    <nav aria-label="Footer navigation">
+        <a href="/geography">Map</a>
+        <a href="/states">States</a>
+        <a href="/regions">Regions</a>
+        <a href="/privacy-policy">Privacy</a>
+        <a href="/terms-of-use">Terms</a>
+    </nav>
+</footer>
+
+<script>
+    window.HIERARCHY_PAGE = {
+        mode: "detail",
+        level: "{{ level }}",
+        slug: "{{ slug }}"
+    };
+</script>
+<script src="{{ url_for('static', filename='js/hierarchy.js') }}"></script>
+</body>
+</html>

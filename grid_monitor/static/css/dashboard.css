@@ -866,12 +866,277 @@ tbody tr:hover {
     font-weight: 750;
 }
 
+.geo-directory-grid small {
+    display: inline-flex;
+    width: fit-content;
+    margin-top: 8px;
+}
+
+.hierarchy-shell {
+    max-width: 1180px;
+}
+
+.hierarchy-search-card {
+    position: relative;
+    z-index: 3;
+    margin-bottom: 14px;
+    padding: 14px;
+}
+
+.search-shell {
+    display: grid;
+    gap: 8px;
+}
+
+.search-shell label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.search-shell input {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card-strong), transparent 4%);
+    color: var(--text);
+    font: inherit;
+    font-weight: 750;
+    padding: 0 14px;
+    outline: none;
+}
+
+.search-shell input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px var(--blue-bg);
+}
+
+.search-results {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.search-results.visible {
+    display: grid;
+}
+
+.search-result-item,
+.search-empty,
+.empty-inline {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card), transparent 12%);
+    color: var(--text);
+    padding: 12px;
+    text-decoration: none;
+}
+
+.search-result-item {
+    display: grid;
+    gap: 4px;
+    transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.search-result-item:hover {
+    border-color: var(--blue);
+    background: var(--blue-bg);
+    transform: translateY(-1px);
+}
+
+.search-result-item strong,
+.search-result-item span,
+.search-result-item small {
+    display: block;
+}
+
+.search-result-item span,
+.search-result-item small,
+.search-empty,
+.empty-inline {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.search-result-item .badge {
+    width: fit-content;
+    margin-top: 4px;
+}
+
+.hierarchy-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 14px;
+    align-items: start;
+}
+
+.map-card {
+    min-width: 0;
+}
+
+.map-canvas {
+    position: relative;
+    min-height: 620px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background:
+        radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--blue-bg), transparent 20%), transparent 48%),
+        color-mix(in srgb, var(--card), transparent 8%);
+}
+
+.nigeria-outline {
+    position: absolute;
+    inset: 6%;
+    width: 88%;
+    height: 88%;
+    opacity: 0.95;
+}
+
+.nigeria-outline path:first-child {
+    fill: color-mix(in srgb, var(--accent), transparent 84%);
+    stroke: color-mix(in srgb, var(--accent), var(--blue) 35%);
+    stroke-width: 1.5;
+}
+
+.nigeria-outline path:last-child {
+    fill: none;
+    stroke: var(--line);
+    stroke-width: 0.9;
+}
+
+.state-marker-layer {
+    position: absolute;
+    inset: 0;
+}
+
+.state-marker {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card-strong);
+    color: var(--text);
+    font-size: 10px;
+    font-weight: 950;
+    text-decoration: none;
+    transform: translate(-50%, -50%);
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.state-marker:hover {
+    z-index: 2;
+    border-color: var(--blue);
+    box-shadow: 0 12px 28px rgba(16, 32, 51, 0.16);
+    transform: translate(-50%, -50%) scale(1.08);
+}
+
+.state-marker.green {
+    background: var(--green-bg);
+    color: var(--green);
+}
+
+.state-marker.amber {
+    background: var(--amber-bg);
+    color: var(--amber);
+}
+
+.state-marker.red {
+    background: var(--red-bg);
+    color: var(--red);
+}
+
+.hierarchy-side {
+    position: sticky;
+    top: 86px;
+    display: grid;
+    gap: 14px;
+}
+
+.breadcrumb-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 12px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.breadcrumb-row a {
+    color: var(--blue);
+    text-decoration: none;
+}
+
+.breadcrumb-row a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.breadcrumb-separator {
+    color: var(--muted);
+}
+
+.compact-links {
+    grid-template-columns: 1fr;
+}
+
+.entity-link-grid a small {
+    display: block;
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.entity-link-grid a small.badge {
+    width: fit-content;
+    color: inherit;
+}
+
+.upgrade-list {
+    display: grid;
+    gap: 10px;
+}
+
+.upgrade-item {
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+}
+
+.upgrade-item:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.upgrade-item strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 16px;
+}
+
+.upgrade-item p {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 @media (max-width: 1120px) {
     .layout-grid {
         grid-template-columns: 1fr;
     }
 
-    .entity-layout {
+    .entity-layout,
+    .hierarchy-layout {
         grid-template-columns: 1fr;
     }
 
@@ -880,8 +1145,13 @@ tbody tr:hover {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    .entity-side {
+    .entity-side,
+    .hierarchy-side {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .hierarchy-side {
+        position: static;
     }
 
     .ad-slot-sidebar {
@@ -897,7 +1167,8 @@ tbody tr:hover {
     .entity-side,
     .hero-copy,
     .distribution-kpis,
-    .distribution-grid {
+    .distribution-grid,
+    .hierarchy-side {
         grid-template-columns: 1fr;
     }
 
@@ -964,5 +1235,15 @@ tbody tr:hover {
         align-items: flex-start;
         flex-direction: column;
         width: min(100% - 20px, 1240px);
+    }
+
+    .map-canvas {
+        min-height: 460px;
+    }
+
+    .state-marker {
+        width: 34px;
+        height: 30px;
+        font-size: 9px;
     }
 }
