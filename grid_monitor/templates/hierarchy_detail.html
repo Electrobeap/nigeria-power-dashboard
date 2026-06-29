@@ -5,29 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{{ description }}">
     <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#0f2437">
+    <meta name="theme-color" content="#0B1F3A">
     <meta property="og:title" content="{{ page_title }} | Nigeria Power Data">
     <meta property="og:description" content="{{ description }}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ config.APP_BASE_URL }}/geography/{{ level }}/{{ slug }}">
     <meta property="og:site_name" content="Nigeria Power Data">
-    <meta property="og:image" content="{{ config.APP_BASE_URL }}/favicon.svg">
-    <meta name="twitter:card" content="summary">
+    <meta property="og:image" content="{{ config.APP_BASE_URL }}/static/images/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="{{ config.APP_BASE_URL }}/static/images/og-image.png">
     <title>{{ page_title }} | Nigeria Power Data</title>
     <link rel="canonical" href="{{ config.APP_BASE_URL }}/geography/{{ level }}/{{ slug }}">
-    <link rel="icon" href="{{ url_for('web.favicon') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=brand-20260629">
 </head>
 <body class="loading">
+<div class="loading-screen" role="status" aria-live="polite">
+    <div class="loading-brand">
+        <img src="{{ url_for('static', filename='images/logo-horizontal.svg') }}" alt="Nigeria Power Data" width="300" height="80">
+        <span>Loading Grid Intelligence...</span>
+    </div>
+</div>
 <header class="topbar">
     <a class="brand" href="/" aria-label="Nigeria Power Data home">
-        <img class="brand-logo" src="{{ url_for('static', filename='logo.svg') }}" alt="" width="42" height="42">
-        <span>
-            <strong>Nigeria Power Data</strong>
-            <small>Grid and distribution intelligence</small>
-        </span>
+        <img class="brand-logo" src="{{ url_for('static', filename='images/logo-horizontal.svg') }}" alt="Nigeria Power Data" width="210" height="56">
     </a>
     <nav class="nav-links" aria-label="Primary navigation">
         <a href="/">Dashboard</a>
@@ -174,7 +180,9 @@
 
 <footer class="site-footer">
     <div>
-        <strong>Nigeria Power Data</strong>
+        <a class="footer-brand" href="/" aria-label="Nigeria Power Data home">
+            <img class="footer-logo" src="{{ url_for('static', filename='images/logo-horizontal.svg') }}" alt="Nigeria Power Data" loading="lazy" width="230" height="62">
+        </a>
         <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
     </div>
     <nav aria-label="Footer navigation">
@@ -193,6 +201,6 @@
         slug: "{{ slug }}"
     };
 </script>
-<script src="{{ url_for('static', filename='js/hierarchy.js') }}"></script>
+<script src="{{ url_for('static', filename='js/hierarchy.js') }}?v=brand-20260629"></script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 const REFRESH_MS = 60000;
+window.setTimeout(() => document.body.classList.add("brand-loaded"), 1400);
 const chartLabels = [];
 const generationReadings = [];
 const movingAverageReadings = [];
@@ -324,8 +325,8 @@ function renderChart(history) {
                     {
                         label: "Generation MW",
                         data: generationReadings,
-                        borderColor: "#206bc4",
-                        backgroundColor: "rgba(32, 107, 196, 0.13)",
+                        borderColor: "#2563EB",
+                        backgroundColor: "rgba(37, 99, 235, 0.13)",
                         borderWidth: 3,
                         tension: 0.32,
                         pointRadius: 2,
@@ -334,7 +335,7 @@ function renderChart(history) {
                     {
                         label: "Moving average",
                         data: movingAverageReadings,
-                        borderColor: "#18a66a",
+                        borderColor: "#008751",
                         borderDash: [6, 4],
                         borderWidth: 2,
                         tension: 0.28,
@@ -545,7 +546,7 @@ function renderDistributionChart(payload, activeDisco = null) {
                     {
                         label: "Warning",
                         data: distributionWarning,
-                        borderColor: "#f2b84b",
+                        borderColor: "#F59E0B",
                         borderDash: [6, 4],
                         borderWidth: 2,
                         pointRadius: 2,
@@ -553,7 +554,7 @@ function renderDistributionChart(payload, activeDisco = null) {
                     {
                         label: "Overload",
                         data: distributionOverload,
-                        borderColor: "#c83532",
+                        borderColor: "#DC2626",
                         borderDash: [3, 4],
                         borderWidth: 2,
                         pointRadius: 2,
@@ -634,8 +635,8 @@ function renderSettlementChart(payload, activeDisco = null) {
                         type: "bar",
                         label: activeDisco ? `${activeDisco.company} load growth` : "Projected load growth",
                         data: settlementGrowth,
-                        backgroundColor: "rgba(32, 107, 196, 0.22)",
-                        borderColor: "#206bc4",
+                        backgroundColor: "rgba(37, 99, 235, 0.22)",
+                        borderColor: "#2563EB",
                         borderWidth: 1,
                         borderRadius: 4,
                         yAxisID: "mw",
@@ -644,8 +645,8 @@ function renderSettlementChart(payload, activeDisco = null) {
                         type: "line",
                         label: activeDisco ? `${activeDisco.company} stress` : "Settlement stress",
                         data: settlementStress,
-                        borderColor: "#f2b84b",
-                        backgroundColor: "rgba(242, 184, 75, 0.16)",
+                        borderColor: "#F59E0B",
+                        backgroundColor: "rgba(245, 158, 11, 0.16)",
                         borderWidth: 3,
                         pointRadius: 4,
                         pointHoverRadius: 6,

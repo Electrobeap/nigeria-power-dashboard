@@ -1,4 +1,5 @@
 const GEO_REFRESH_MS = 120000;
+window.setTimeout(() => document.body.classList.add("brand-loaded"), 1400);
 let geoChart;
 
 const geoIds = [
@@ -111,8 +112,8 @@ function renderGeoChart(payload) {
                     {
                         label: "Estimated allocation",
                         data: allocation,
-                        borderColor: "#206bc4",
-                        backgroundColor: "rgba(32, 107, 196, 0.13)",
+                        borderColor: "#2563EB",
+                        backgroundColor: "rgba(37, 99, 235, 0.13)",
                         borderWidth: 3,
                         tension: 0.32,
                         pointRadius: 2,
@@ -122,7 +123,7 @@ function renderGeoChart(payload) {
                     {
                         label: "Moving average",
                         data: movingAverage,
-                        borderColor: "#18a66a",
+                        borderColor: "#008751",
                         borderDash: [6, 4],
                         borderWidth: 2,
                         tension: 0.28,
@@ -132,7 +133,7 @@ function renderGeoChart(payload) {
                     {
                         label: "Availability estimate",
                         data: availability,
-                        borderColor: "#f2b84b",
+                        borderColor: "#F59E0B",
                         borderWidth: 2,
                         tension: 0.25,
                         pointRadius: 0,

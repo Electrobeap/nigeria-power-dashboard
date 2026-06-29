@@ -1,29 +1,35 @@
 :root {
     color-scheme: light;
-    --bg: #eef3f8;
-    --bg-grid: rgba(15, 36, 55, 0.055);
+    --brand-green: #008751;
+    --brand-navy: #0B1F3A;
+    --brand-blue: #2563EB;
+    --brand-amber: #F59E0B;
+    --brand-red: #DC2626;
+    --brand-bg: #F8FAFC;
+    --bg: #F8FAFC;
+    --bg-grid: rgba(11, 31, 58, 0.052);
     --bg-soft: rgba(255, 255, 255, 0.72);
     --card: rgba(255, 255, 255, 0.86);
     --card-strong: rgba(255, 255, 255, 0.94);
-    --text: #102033;
+    --text: #0B1F3A;
     --muted: #667085;
     --line: rgba(125, 145, 170, 0.26);
     --shadow: 0 18px 50px rgba(16, 32, 51, 0.08);
-    --green: #11845b;
+    --green: #008751;
     --green-bg: #e8f7ef;
-    --amber: #b76e00;
+    --amber: #F59E0B;
     --amber-bg: #fff4dc;
-    --red: #c83532;
+    --red: #DC2626;
     --red-bg: #ffeceb;
-    --blue: #206bc4;
+    --blue: #2563EB;
     --blue-bg: rgba(32, 107, 196, 0.12);
-    --accent: #18a66a;
-    --gold: #f2b84b;
+    --accent: #008751;
+    --gold: #F59E0B;
 }
 
 [data-theme="dark"] {
     color-scheme: dark;
-    --bg: #0d1723;
+    --bg: #071426;
     --bg-grid: rgba(255, 255, 255, 0.045);
     --bg-soft: rgba(17, 30, 45, 0.72);
     --card: rgba(18, 32, 48, 0.82);
@@ -51,8 +57,65 @@ body {
         linear-gradient(180deg, color-mix(in srgb, var(--bg), white 14%), var(--bg));
     background-size: 36px 36px, 36px 36px, auto;
     color: var(--text);
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    font-family: Inter, system-ui, sans-serif;
     letter-spacing: 0;
+}
+
+.loading-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--brand-bg), white 18%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 260ms ease, visibility 260ms ease;
+    visibility: hidden;
+}
+
+body.loading:not(.brand-loaded) .loading-screen {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+}
+
+body.brand-loaded .loading-screen {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+.loading-brand {
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    animation: brandFade 1200ms ease-in-out infinite alternate;
+}
+
+.loading-brand img {
+    width: min(300px, 78vw);
+    height: auto;
+}
+
+.loading-brand span {
+    color: var(--brand-navy);
+    font-size: 14px;
+    font-weight: 850;
+    letter-spacing: 0;
+}
+
+[data-theme="dark"] .loading-screen {
+    background: var(--brand-navy);
+}
+
+[data-theme="dark"] .loading-brand span {
+    color: #E2E8F0;
+}
+
+@keyframes brandFade {
+    from { transform: translateY(0); opacity: 0.78; }
+    to { transform: translateY(-3px); opacity: 1; }
 }
 
 body.loading .skeleton-text,
@@ -104,13 +167,21 @@ body.loading .kpi-card strong:not(.mw)::after {
 
 .brand-logo,
 .brand-mark {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    box-shadow: 0 10px 24px rgba(16, 32, 51, 0.18);
+    width: auto;
+    height: 48px;
+    border-radius: 0;
+}
+
+.brand-logo {
+    display: block;
+    max-width: 210px;
+    object-fit: contain;
 }
 
 .brand-mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     display: grid;
     place-items: center;
     background: linear-gradient(135deg, var(--accent), var(--blue));
@@ -750,8 +821,16 @@ tbody tr:hover {
     padding-top: 18px;
 }
 
-.site-footer strong {
+.footer-brand {
+    display: inline-flex;
+    align-items: center;
     color: var(--text);
+    text-decoration: none;
+}
+
+.footer-logo {
+    width: min(230px, 68vw);
+    height: auto;
 }
 
 .site-footer p {
@@ -1277,8 +1356,11 @@ tbody tr:hover {
 
     .brand-logo,
     .brand-mark {
-        width: 36px;
-        height: 36px;
+        height: 40px;
+    }
+
+    .brand-logo {
+        max-width: 178px;
     }
 
     .card {

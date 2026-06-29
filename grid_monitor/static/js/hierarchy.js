@@ -1,5 +1,6 @@
 let hierarchyChart;
 let searchTimer;
+window.setTimeout(() => document.body.classList.add("brand-loaded"), 1400);
 
 const hierarchyIds = [
     "theme-toggle", "hierarchy-refresh-state", "hierarchy-error-banner",
@@ -266,8 +267,8 @@ function renderProjectionChart(metrics) {
                 datasets: [{
                     label: "Demand estimate",
                     data: values,
-                    borderColor: "#206bc4",
-                    backgroundColor: "rgba(32, 107, 196, 0.14)",
+                    borderColor: "#2563EB",
+                    backgroundColor: "rgba(37, 99, 235, 0.14)",
                     borderWidth: 3,
                     pointRadius: 4,
                     tension: 0.28,
