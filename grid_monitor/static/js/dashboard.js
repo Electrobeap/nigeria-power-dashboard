@@ -13,6 +13,8 @@ let chart;
 let distributionChart;
 let settlementChart;
 let previousMW = null;
+let latestDistributionPayload = null;
+let selectedDiscoSlug = null;
 
 const ids = [
     "source", "refresh-state", "error-banner", "time", "mw", "status", "trend",
@@ -24,10 +26,13 @@ const ids = [
     "load-concentration", "load-note", "top-genco", "top-genco-note",
     "outage-status", "outage-note", "api-health", "api-health-note",
     "trend-7d", "trend-7d-note", "theme-toggle", "distribution-classification",
-    "transformer-utilization", "transformer-note", "distribution-regions-risk",
-    "distribution-risk-note", "settlement-growth", "settlement-note",
+    "distribution-back", "transformer-utilization", "transformer-note",
+    "transformer-forecast", "transformer-forecast-note", "distribution-risk-level",
+    "distribution-risk-level-note", "capacity-margin", "capacity-margin-note",
+    "settlement-growth", "settlement-note",
     "distribution-chart", "distribution-chart-empty", "distribution-table",
-    "settlement-chart", "settlement-chart-empty",
+    "settlement-chart", "settlement-chart-empty", "distribution-chart-title",
+    "settlement-chart-title",
     "distribution-method", "transformer-risk", "transformer-risk-note",
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
@@ -154,6 +159,29 @@ function badgeClassForRisk(value) {
     if (["watch", "stressed"].includes(value)) return "amber";
     if (["normal", "stable", "strong"].includes(value)) return "green";
     return "blue";
+}
+
+function formatPercent(value, digits = 2) {
+    return value === null || value === undefined ? "..." : `${formatNumber(value, digits)}%`;
+}
+
+function discoDrilldownUrl(slug) {
+    return `/discos/${encodeURIComponent(slug)}`;
+}
+
+function selectedDisco(payload) {
+    if (!selectedDiscoSlug) return null;
+    return payload?.disco_drilldowns?.[selectedDiscoSlug] || null;
+}
+
+function selectDisco(slug) {
+    selectedDiscoSlug = slug;
+    if (latestDistributionPayload) renderDistribution(latestDistributionPayload);
+}
+
+function clearDiscoSelection() {
+    selectedDiscoSlug = null;
+    if (latestDistributionPayload) renderDistribution(latestDistributionPayload);
 }
 
 function renderTrendBadge(analytics) {
@@ -343,19 +371,27 @@ function renderChart(history) {
 }
 
 function renderDistribution(payload, errorMessage = "") {
+    latestDistributionPayload = payload || null;
     const summary = payload?.summary;
     const utilization = payload?.transformer_utilization;
     const impact = payload?.settlement_expansion_impact;
     const riskRows = payload?.regional_risk || [];
-    const classification = summary?.overload_warning_classification || "unknown";
 
     if (!payload) {
+        selectedDiscoSlug = null;
         el["distribution-classification"].textContent = "Pending";
         el["distribution-classification"].className = "badge blue";
+        el["distribution-back"].classList.add("hidden");
+        el["distribution-chart-title"].textContent = "Transformer Loading Trend";
+        el["settlement-chart-title"].textContent = "Settlement Expansion Risk";
         el["transformer-utilization"].textContent = "...";
         el["transformer-note"].textContent = errorMessage || "Awaiting stored DisCo allocation data.";
-        el["distribution-regions-risk"].textContent = "...";
-        el["distribution-risk-note"].textContent = "No transformer risk model available yet.";
+        el["transformer-forecast"].textContent = "...";
+        el["transformer-forecast-note"].textContent = "Projected loading pending.";
+        el["distribution-risk-level"].textContent = "...";
+        el["distribution-risk-level-note"].textContent = "No transformer risk model available yet.";
+        el["capacity-margin"].textContent = "...";
+        el["capacity-margin-note"].textContent = "Margin to overload threshold.";
         el["settlement-growth"].textContent = "...";
         el["settlement-note"].textContent = "Projected settlement impact pending.";
         el["transformer-risk"].textContent = "...";
@@ -367,35 +403,76 @@ function renderDistribution(payload, errorMessage = "") {
         return;
     }
 
-    const utilizationValue = utilization?.weighted_utilization_percent;
+    if (selectedDiscoSlug && !selectedDisco(payload)) selectedDiscoSlug = null;
+    const activeDisco = selectedDisco(payload);
+    const hasSelection = Boolean(activeDisco);
+    const classification = hasSelection
+        ? activeDisco.overload_warning || "unknown"
+        : summary?.overload_warning_classification || "unknown";
+    const utilizationValue = hasSelection
+        ? activeDisco.current_utilization_percent ?? activeDisco.estimated_utilization_percent
+        : utilization?.weighted_utilization_percent;
+    const forecastValue = hasSelection
+        ? activeDisco.projected_utilization_12m_percent
+        : utilization?.projected_utilization_12m_percent ?? summary?.projected_utilization_12m_percent;
+    const capacityMargin = hasSelection
+        ? activeDisco.capacity_margin_percent
+        : utilization?.capacity_margin_percent ?? summary?.capacity_margin_percent;
+    const projectedMargin = hasSelection
+        ? activeDisco.projected_capacity_margin_12m_percent
+        : utilization?.projected_capacity_margin_12m_percent ?? summary?.projected_capacity_margin_12m_percent;
     const warningCount = summary?.regions_at_warning_or_higher ?? 0;
     const highestRisk = summary?.highest_risk_region;
+    const selectedGrowthPoint = activeDisco?.settlement_expansion_trend?.find((point) => point.label === "12 months");
 
-    el["distribution-classification"].textContent = labelize(classification);
+    el["distribution-back"].classList.toggle("hidden", !hasSelection);
+    el["distribution-chart-title"].textContent = hasSelection
+        ? `${activeDisco.company} Transformer Loading Trend`
+        : "Transformer Loading Trend";
+    el["settlement-chart-title"].textContent = hasSelection
+        ? `${activeDisco.company} Settlement Expansion Risk`
+        : "Settlement Expansion Risk";
+    el["distribution-classification"].textContent = hasSelection
+        ? `${activeDisco.company}: ${labelize(classification)}`
+        : labelize(classification);
     el["distribution-classification"].className = `badge ${badgeClassForRisk(classification)}`;
     el["transformer-utilization"].textContent = utilizationValue === null || utilizationValue === undefined
         ? "..."
         : `${formatNumber(utilizationValue)}%`;
-    el["transformer-note"].textContent =
-        `Warning at ${formatNumber(utilization?.warning_threshold_percent, 0)}%, overload at ${formatNumber(utilization?.overload_threshold_percent, 0)}%.`;
-    el["distribution-regions-risk"].textContent = warningCount;
-    el["distribution-risk-note"].textContent = highestRisk
-        ? `${highestRisk.company}: ${labelize(highestRisk.overload_warning)}`
-        : "No high-risk regions detected.";
-    el["settlement-growth"].textContent = formatMW(impact?.projected_load_growth_12m_mw);
-    el["settlement-note"].textContent =
-        `${impact?.regions_projected_overload_12m ?? 0} region(s) projected above overload threshold in 12 months.`;
+    el["transformer-note"].textContent = hasSelection
+        ? `${formatMW(activeDisco.load_allocation_mw)} allocation, ${formatPercent(activeDisco.load_share_percent)} load share.`
+        : `Warning at ${formatNumber(utilization?.warning_threshold_percent, 0)}%, overload at ${formatNumber(utilization?.overload_threshold_percent, 0)}%.`;
+    el["transformer-forecast"].textContent = formatPercent(forecastValue);
+    el["transformer-forecast-note"].textContent = hasSelection
+        ? `36-month projection ${formatPercent(activeDisco.projected_utilization_36m_percent)}.`
+        : `Portfolio 36-month projection ${formatPercent(summary?.projected_utilization_36m_percent)}.`;
+    el["distribution-risk-level"].textContent = labelize(classification);
+    el["distribution-risk-level-note"].textContent = hasSelection
+        ? activeDisco.recommended_action || "Monitor allocation and regional loading trend."
+        : highestRisk
+            ? `${warningCount} region(s) at warning or higher; highest risk is ${highestRisk.company}.`
+            : "No high-risk regions detected.";
+    el["capacity-margin"].textContent = formatPercent(capacityMargin);
+    el["capacity-margin-note"].textContent = `12-month margin ${formatPercent(projectedMargin)} to overload threshold.`;
+    el["settlement-growth"].textContent = hasSelection
+        ? formatPercent(activeDisco.settlement_growth_percent, 1)
+        : formatMW(impact?.projected_load_growth_12m_mw);
+    el["settlement-note"].textContent = hasSelection
+        ? `${formatMW(selectedGrowthPoint?.projected_load_growth_mw)} projected load growth; stress ${formatNumber(activeDisco.settlement_growth_vs_stress, 1)}/100.`
+        : `${impact?.regions_projected_overload_12m ?? 0} region(s) projected above overload threshold in 12 months.`;
     el["transformer-risk"].textContent = labelize(classification);
-    el["transformer-risk-note"].textContent = highestRisk
-        ? `${highestRisk.company} stress index ${formatNumber(highestRisk.settlement_growth_vs_stress, 1)}.`
-        : "Portfolio risk is normal.";
+    el["transformer-risk-note"].textContent = hasSelection
+        ? `${activeDisco.company} stress index ${formatNumber(activeDisco.settlement_growth_vs_stress, 1)}.`
+        : highestRisk
+            ? `${highestRisk.company} stress index ${formatNumber(highestRisk.settlement_growth_vs_stress, 1)}.`
+            : "Portfolio risk is normal.";
     el["distribution-method"].textContent = payload.methodology?.model_type
-        ? `${payload.methodology.model_type}. ${payload.methodology.basis}`
+        ? `${hasSelection ? `Selected DisCo: ${activeDisco.company}. ` : ""}${payload.methodology.model_type}. ${payload.methodology.basis}`
         : "Planning-grade distribution estimate.";
 
     renderDistributionTable(riskRows);
-    renderDistributionChart(payload);
-    renderSettlementChart(payload);
+    renderDistributionChart(payload, activeDisco);
+    renderSettlementChart(payload, activeDisco);
 }
 
 function renderDistributionTable(rows) {
@@ -403,9 +480,11 @@ function renderDistributionTable(rows) {
         el["distribution-table"].innerHTML = `<tr><td colspan="4">No regions available.</td></tr>`;
         return;
     }
-    el["distribution-table"].innerHTML = rows.slice(0, 8).map((row) => {
+    el["distribution-table"].innerHTML = rows.map((row) => {
+        const slug = row.slug || slugifyEntity(row.company);
         const riskClass = badgeClassForRisk(row.overload_warning);
-        return `<tr>
+        const selectedClass = selectedDiscoSlug === slug ? " selected" : "";
+        return `<tr class="clickable-row distribution-row${selectedClass}" data-disco-slug="${escapeHTML(slug)}" data-detail-url="${escapeHTML(discoDrilldownUrl(slug))}" tabindex="0" role="button" aria-pressed="${selectedDiscoSlug === slug ? "true" : "false"}">
             <td>
                 <strong>${escapeHTML(row.company)}</strong>
                 <small>${escapeHTML(row.planning_region)}</small>
@@ -415,21 +494,37 @@ function renderDistributionTable(rows) {
             <td><span class="badge ${riskClass}">${escapeHTML(labelize(row.overload_warning))}</span></td>
         </tr>`;
     }).join("");
+
+    el["distribution-table"].querySelectorAll("[data-disco-slug]").forEach((row) => {
+        row.addEventListener("click", () => selectDisco(row.dataset.discoSlug));
+        row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                selectDisco(row.dataset.discoSlug);
+            }
+        });
+    });
 }
 
-function renderDistributionChart(payload) {
-    const points = payload?.transformer_loading_trend || [];
-    const hasPoints = points.some((point) => numericOrNull(point.weighted_utilization_percent) !== null);
+function renderDistributionChart(payload, activeDisco = null) {
+    const points = activeDisco?.transformer_loading_trend || payload?.transformer_loading_trend || [];
+    const utilizationValue = (point) => numericOrNull(
+        activeDisco
+            ? point.estimated_utilization_percent ?? point.weighted_utilization_percent
+            : point.weighted_utilization_percent,
+    );
+    const hasPoints = points.some((point) => utilizationValue(point) !== null);
     el["distribution-chart-empty"].classList.toggle("visible", !hasPoints);
     if (!window.Chart || !hasPoints) return;
 
     distributionLabels.splice(0, distributionLabels.length, ...points.map(pointLabel));
-    distributionUtilization.splice(0, distributionUtilization.length, ...points.map((point) => numericOrNull(point.weighted_utilization_percent)));
+    distributionUtilization.splice(0, distributionUtilization.length, ...points.map(utilizationValue));
     distributionWarning.splice(0, distributionWarning.length, ...points.map((point) => numericOrNull(point.warning_threshold_percent)));
     distributionOverload.splice(0, distributionOverload.length, ...points.map((point) => numericOrNull(point.overload_threshold_percent)));
 
     const gridColor = getComputedStyle(document.documentElement).getPropertyValue("--line").trim();
     const pointRadius = distributionUtilization.length <= 2 ? 5 : 3;
+    const utilizationLabel = activeDisco ? `${activeDisco.company} utilization` : "Portfolio utilization";
     if (!distributionChart) {
         distributionChart = new Chart(el["distribution-chart"].getContext("2d"), {
             type: "line",
@@ -437,7 +532,7 @@ function renderDistributionChart(payload) {
                 labels: distributionLabels,
                 datasets: [
                     {
-                        label: "Utilization",
+                        label: utilizationLabel,
                         data: distributionUtilization,
                         borderColor: "#16a66a",
                         backgroundColor: "rgba(22, 166, 106, 0.12)",
@@ -481,6 +576,7 @@ function renderDistributionChart(payload) {
         });
     } else {
         distributionChart.data.labels = distributionLabels;
+        distributionChart.data.datasets[0].label = utilizationLabel;
         distributionChart.data.datasets[0].data = distributionUtilization;
         distributionChart.data.datasets[1].data = distributionWarning;
         distributionChart.data.datasets[2].data = distributionOverload;
@@ -490,27 +586,35 @@ function renderDistributionChart(payload) {
     }
 }
 
-function renderSettlementChart(payload) {
+function renderSettlementChart(payload, activeDisco = null) {
     const impact = payload?.settlement_expansion_impact || {};
     const fallbackPoints = [
         {
             label: "Current",
             projected_load_growth_mw: 0,
-            settlement_stress_index: payload?.summary?.highest_risk_region?.settlement_growth_vs_stress,
+            settlement_stress_index: activeDisco?.settlement_growth_vs_stress
+                ?? payload?.summary?.highest_risk_region?.settlement_growth_vs_stress,
         },
         {
             label: "12 months",
-            projected_load_growth_mw: impact.projected_load_growth_12m_mw,
-            settlement_stress_index: payload?.summary?.highest_risk_region?.settlement_growth_vs_stress,
+            projected_load_growth_mw: activeDisco
+                ? (activeDisco.load_allocation_mw || 0) * ((activeDisco.settlement_growth_percent || 0) / 100)
+                : impact.projected_load_growth_12m_mw,
+            settlement_stress_index: activeDisco?.settlement_growth_vs_stress
+                ?? payload?.summary?.highest_risk_region?.settlement_growth_vs_stress,
         },
         {
             label: "36 months",
-            projected_load_growth_mw: impact.projected_load_growth_36m_mw,
-            settlement_stress_index: payload?.summary?.highest_risk_region?.settlement_growth_vs_stress,
+            projected_load_growth_mw: activeDisco
+                ? (activeDisco.load_allocation_mw || 0) * (((1 + ((activeDisco.settlement_growth_percent || 0) / 100)) ** 3) - 1)
+                : impact.projected_load_growth_36m_mw,
+            settlement_stress_index: activeDisco?.settlement_growth_vs_stress
+                ?? payload?.summary?.highest_risk_region?.settlement_growth_vs_stress,
         },
     ];
-    const points = (payload?.settlement_expansion_trend || []).length
-        ? payload.settlement_expansion_trend
+    const sourcePoints = activeDisco?.settlement_expansion_trend || payload?.settlement_expansion_trend || [];
+    const points = sourcePoints.length
+        ? sourcePoints
         : fallbackPoints;
     const hasPoints = points.some((point) => numericOrNull(point.projected_load_growth_mw) !== null);
     el["settlement-chart-empty"].classList.toggle("visible", !hasPoints);
@@ -528,7 +632,7 @@ function renderSettlementChart(payload) {
                 datasets: [
                     {
                         type: "bar",
-                        label: "Projected load growth",
+                        label: activeDisco ? `${activeDisco.company} load growth` : "Projected load growth",
                         data: settlementGrowth,
                         backgroundColor: "rgba(32, 107, 196, 0.22)",
                         borderColor: "#206bc4",
@@ -538,7 +642,7 @@ function renderSettlementChart(payload) {
                     },
                     {
                         type: "line",
-                        label: "Settlement stress",
+                        label: activeDisco ? `${activeDisco.company} stress` : "Settlement stress",
                         data: settlementStress,
                         borderColor: "#f2b84b",
                         backgroundColor: "rgba(242, 184, 75, 0.16)",
@@ -583,6 +687,8 @@ function renderSettlementChart(payload) {
         });
     } else {
         settlementChart.data.labels = settlementLabels;
+        settlementChart.data.datasets[0].label = activeDisco ? `${activeDisco.company} load growth` : "Projected load growth";
+        settlementChart.data.datasets[1].label = activeDisco ? `${activeDisco.company} stress` : "Settlement stress";
         settlementChart.data.datasets[0].data = settlementGrowth;
         settlementChart.data.datasets[1].data = settlementStress;
         settlementChart.options.scales.mw.grid.color = gridColor;
@@ -660,6 +766,7 @@ async function refresh() {
 
 initTheme();
 el["theme-toggle"].addEventListener("click", toggleTheme);
+el["distribution-back"].addEventListener("click", clearDiscoSelection);
 refresh().catch((error) => {
     setBanner(error.message);
     el.status.textContent = "Source unavailable";

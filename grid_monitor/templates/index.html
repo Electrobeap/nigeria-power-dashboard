@@ -132,18 +132,31 @@
                         <h2 id="distribution-title">Transformer loading and settlement expansion risk</h2>
                         <p>Engineering estimates based on DisCo allocation, regional growth pressure, and simulated loading trends.</p>
                     </div>
-                    <span class="badge blue" id="distribution-classification">Calculating</span>
+                    <div class="section-actions">
+                        <button class="ghost-action hidden" id="distribution-back" type="button">Back to All DISCOs</button>
+                        <span class="badge blue" id="distribution-classification">Calculating</span>
+                    </div>
                 </div>
                 <div class="distribution-kpis">
                     <article>
-                        <span>Weighted Utilization</span>
+                        <span>Current Utilization</span>
                         <strong id="transformer-utilization">...</strong>
                         <p id="transformer-note">Awaiting DisCo allocation.</p>
                     </article>
                     <article>
-                        <span>Regions At Risk</span>
-                        <strong id="distribution-regions-risk">...</strong>
-                        <p id="distribution-risk-note">Transformer loading model pending.</p>
+                        <span>12-Month Forecast</span>
+                        <strong id="transformer-forecast">...</strong>
+                        <p id="transformer-forecast-note">Projected loading pending.</p>
+                    </article>
+                    <article>
+                        <span>Risk</span>
+                        <strong id="distribution-risk-level">...</strong>
+                        <p id="distribution-risk-level-note">Transformer loading model pending.</p>
+                    </article>
+                    <article>
+                        <span>Capacity Margin</span>
+                        <strong id="capacity-margin">...</strong>
+                        <p id="capacity-margin-note">Margin to overload threshold.</p>
                     </article>
                     <article>
                         <span>Settlement Growth</span>
@@ -154,14 +167,14 @@
                 <div class="distribution-grid">
                     <div class="distribution-chart-stack">
                         <div class="distribution-chart-block">
-                            <div class="mini-chart-title">Transformer Loading Trend</div>
+                            <div class="mini-chart-title" id="distribution-chart-title">Transformer Loading Trend</div>
                             <div class="chart-wrap distribution-chart-wrap">
                                 <canvas id="distribution-chart"></canvas>
                                 <div class="empty-state" id="distribution-chart-empty">Collecting transformer loading data.</div>
                             </div>
                         </div>
                         <div class="distribution-chart-block">
-                            <div class="mini-chart-title">Settlement Expansion Risk</div>
+                            <div class="mini-chart-title" id="settlement-chart-title">Settlement Expansion Risk</div>
                             <div class="chart-wrap distribution-chart-wrap">
                                 <canvas id="settlement-chart"></canvas>
                                 <div class="empty-state" id="settlement-chart-empty">Collecting settlement expansion data.</div>

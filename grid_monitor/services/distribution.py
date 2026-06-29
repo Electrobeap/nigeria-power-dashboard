@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from flask import current_app
@@ -24,6 +25,17 @@ def _round(value: float | None, digits: int = 2) -> float | None:
     if value is None:
         return None
     return round(value, digits)
+
+
+def _slugify_entity(value: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", "-", value.lower())
+    return cleaned.strip("-") or "unknown"
+
+
+def _capacity_margin(utilization_percent: float | None, overload_threshold: float) -> float | None:
+    if utilization_percent is None:
+        return None
+    return _round(overload_threshold - utilization_percent)
 
 
 def _profile_for(company: str) -> dict[str, Any]:
@@ -82,6 +94,110 @@ def _weighted_average(rows: list[dict[str, Any]], value_key: str, weight_key: st
     return sum((row.get(value_key) or 0) * (row.get(weight_key) or 0) for row in rows) / total_weight
 
 
+def _disco_transformer_trend(
+    item: dict[str, Any],
+    history_points: list[dict[str, Any]],
+    latest_generation: float,
+    latest_snapshot: dict[str, Any] | None,
+    warning: float,
+    overload: float,
+) -> list[dict[str, Any]]:
+    current_utilization = item.get("estimated_utilization_percent") or 0
+    projected_12m = item.get("projected_utilization_12m_percent") or 0
+    projected_36m = item.get("projected_utilization_36m_percent") or 0
+    trend = []
+
+    for point in history_points:
+        generation = float(point.get("total_generation_mw") or 0)
+        scale = generation / latest_generation if latest_generation else 1
+        scaled_current = min(160, current_utilization * scale)
+        scaled_projected = min(180, projected_12m * scale)
+        trend.append(
+            {
+                "timestamp": point.get("timestamp"),
+                "label": point.get("timestamp"),
+                "estimated_utilization_percent": _round(scaled_current),
+                "weighted_utilization_percent": _round(scaled_current),
+                "projected_utilization_12m_percent": _round(scaled_projected),
+                "capacity_margin_percent": _capacity_margin(scaled_current, overload),
+                "warning_threshold_percent": warning,
+                "overload_threshold_percent": overload,
+            }
+        )
+
+    if len(trend) < 2:
+        trend = [
+            {
+                "label": "Current",
+                "timestamp": (latest_snapshot or {}).get("reading_timestamp"),
+                "estimated_utilization_percent": _round(current_utilization),
+                "weighted_utilization_percent": _round(current_utilization),
+                "projected_utilization_12m_percent": _round(projected_12m),
+                "capacity_margin_percent": _capacity_margin(current_utilization, overload),
+                "warning_threshold_percent": warning,
+                "overload_threshold_percent": overload,
+            },
+            {
+                "label": "12 months",
+                "timestamp": None,
+                "estimated_utilization_percent": _round(projected_12m),
+                "weighted_utilization_percent": _round(projected_12m),
+                "projected_utilization_12m_percent": _round(projected_12m),
+                "capacity_margin_percent": _capacity_margin(projected_12m, overload),
+                "warning_threshold_percent": warning,
+                "overload_threshold_percent": overload,
+            },
+            {
+                "label": "36 months",
+                "timestamp": None,
+                "estimated_utilization_percent": _round(projected_36m),
+                "weighted_utilization_percent": _round(projected_36m),
+                "projected_utilization_12m_percent": _round(projected_12m),
+                "capacity_margin_percent": _capacity_margin(projected_36m, overload),
+                "warning_threshold_percent": warning,
+                "overload_threshold_percent": overload,
+            },
+        ]
+
+    return trend
+
+
+def _disco_settlement_trend(item: dict[str, Any], latest_snapshot: dict[str, Any] | None, overload: float) -> list[dict[str, Any]]:
+    load_mw = item.get("load_allocation_mw") or 0
+    growth_percent = item.get("settlement_growth_percent") or 0
+    stress = item.get("settlement_growth_vs_stress") or 0
+    projected_12m = item.get("projected_utilization_12m_percent") or 0
+    projected_36m = item.get("projected_utilization_36m_percent") or 0
+    growth_12m = load_mw * (growth_percent / 100)
+    growth_36m = load_mw * (((1 + (growth_percent / 100)) ** 3) - 1)
+    return [
+        {
+            "label": "Current",
+            "timestamp": (latest_snapshot or {}).get("reading_timestamp"),
+            "projected_load_growth_mw": 0,
+            "settlement_stress_index": _round(stress),
+            "regions_projected_overload": 0,
+            "capacity_margin_percent": item.get("capacity_margin_percent"),
+        },
+        {
+            "label": "12 months",
+            "timestamp": None,
+            "projected_load_growth_mw": _round(growth_12m),
+            "settlement_stress_index": _round(min(100, stress * 1.08)),
+            "regions_projected_overload": 1 if projected_12m >= overload else 0,
+            "capacity_margin_percent": item.get("projected_capacity_margin_12m_percent"),
+        },
+        {
+            "label": "36 months",
+            "timestamp": None,
+            "projected_load_growth_mw": _round(growth_36m),
+            "settlement_stress_index": _round(min(100, stress * 1.18)),
+            "regions_projected_overload": 1 if projected_36m >= overload else 0,
+            "capacity_margin_percent": _capacity_margin(projected_36m, overload),
+        },
+    ]
+
+
 def distribution_intelligence(
     latest_snapshot: dict[str, Any] | None,
     history_points: list[dict[str, Any]],
@@ -123,13 +239,17 @@ def distribution_intelligence(
         regional_risk.append(
             {
                 "company": company,
+                "slug": _slugify_entity(company),
                 "planning_region": disco_profile["region"],
                 "load_allocation_mw": _round(load_mw),
                 "load_share_percent": _round((load_mw / total_load) * 100 if total_load else None),
                 "estimated_transformer_capacity_mva": _round(transformer_capacity_mva),
+                "current_utilization_percent": _round(utilization),
                 "estimated_utilization_percent": _round(utilization),
                 "projected_utilization_12m_percent": _round(projected_12m),
                 "projected_utilization_36m_percent": _round(projected_36m),
+                "capacity_margin_percent": _capacity_margin(utilization, overload),
+                "projected_capacity_margin_12m_percent": _capacity_margin(projected_12m, overload),
                 "settlement_growth_percent": _round(growth_percent, 1),
                 "settlement_growth_vs_stress": _round(stress_index, 1),
                 "overload_warning": classification,
@@ -168,6 +288,8 @@ def distribution_intelligence(
     projected_utilization_12m = _weighted_average(regional_risk, "projected_utilization_12m_percent") or 0
     projected_utilization_36m = _weighted_average(regional_risk, "projected_utilization_36m_percent") or 0
     weighted_stress = _weighted_average(regional_risk, "settlement_growth_vs_stress") or 0
+    portfolio_capacity_margin = _capacity_margin(weighted_utilization, overload)
+    portfolio_projected_capacity_margin_12m = _capacity_margin(projected_utilization_12m, overload)
 
     trend = []
     base_weighted = weighted_utilization or 0
@@ -242,6 +364,37 @@ def distribution_intelligence(
         },
     ] if regional_risk else []
 
+    disco_drilldowns = {
+        item["slug"]: {
+            "company": item["company"],
+            "slug": item["slug"],
+            "planning_region": item.get("planning_region"),
+            "load_allocation_mw": item.get("load_allocation_mw"),
+            "load_share_percent": item.get("load_share_percent"),
+            "current_utilization_percent": item.get("estimated_utilization_percent"),
+            "estimated_utilization_percent": item.get("estimated_utilization_percent"),
+            "projected_utilization_12m_percent": item.get("projected_utilization_12m_percent"),
+            "projected_utilization_36m_percent": item.get("projected_utilization_36m_percent"),
+            "capacity_margin_percent": item.get("capacity_margin_percent"),
+            "projected_capacity_margin_12m_percent": item.get("projected_capacity_margin_12m_percent"),
+            "settlement_growth_percent": item.get("settlement_growth_percent"),
+            "settlement_growth_vs_stress": item.get("settlement_growth_vs_stress"),
+            "overload_warning": item.get("overload_warning"),
+            "recommended_action": item.get("recommended_action"),
+            "transformer_loading_trend": _disco_transformer_trend(
+                item,
+                history_points,
+                latest_generation,
+                latest_snapshot,
+                warning,
+                overload,
+            ),
+            "settlement_expansion_trend": _disco_settlement_trend(item, latest_snapshot, overload),
+            "detail_url": f"/discos/{item['slug']}",
+        }
+        for item in regional_risk
+    }
+
     return {
         "window_hours": hours,
         "generated_at": utc_now_iso(),
@@ -256,6 +409,11 @@ def distribution_intelligence(
             "region_count": len(regional_risk),
             "total_load_allocation_mw": _round(total_load),
             "weighted_utilization_percent": _round(weighted_utilization),
+            "projected_utilization_12m_percent": _round(projected_utilization_12m),
+            "projected_utilization_36m_percent": _round(projected_utilization_36m),
+            "capacity_margin_percent": portfolio_capacity_margin,
+            "projected_capacity_margin_12m_percent": portfolio_projected_capacity_margin_12m,
+            "weighted_settlement_stress_index": _round(weighted_stress),
             "overload_warning_classification": portfolio,
             "regions_at_warning_or_higher": sum(
                 1 for item in regional_risk
@@ -265,12 +423,17 @@ def distribution_intelligence(
         },
         "transformer_utilization": {
             "weighted_utilization_percent": _round(weighted_utilization),
+            "projected_utilization_12m_percent": _round(projected_utilization_12m),
+            "projected_utilization_36m_percent": _round(projected_utilization_36m),
+            "capacity_margin_percent": portfolio_capacity_margin,
+            "projected_capacity_margin_12m_percent": portfolio_projected_capacity_margin_12m,
             "warning_threshold_percent": warning,
             "overload_threshold_percent": overload,
             "classification": portfolio,
         },
         "overloaded_transformer_risk": regional_risk[:5],
         "regional_risk": regional_risk,
+        "disco_drilldowns": disco_drilldowns,
         "transformer_loading_trend": trend,
         "settlement_expansion_trend": settlement_trend,
         "settlement_expansion_impact": {

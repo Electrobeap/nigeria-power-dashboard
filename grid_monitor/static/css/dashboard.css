@@ -456,7 +456,7 @@ h2 {
 
 .distribution-kpis {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 12px;
     margin-bottom: 14px;
 }
@@ -521,7 +521,7 @@ h2 {
 }
 
 .distribution-table-wrap {
-    max-height: 330px;
+    max-height: 390px;
     border: 1px solid var(--line);
     border-radius: 8px;
 }
@@ -565,6 +565,39 @@ canvas {
     justify-content: space-between;
     gap: 14px;
     margin-bottom: 14px;
+}
+
+.section-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.ghost-action {
+    min-height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card-strong), transparent 10%);
+    color: var(--blue);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    padding: 5px 10px;
+    transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.ghost-action:hover,
+.ghost-action:focus-visible {
+    border-color: var(--blue);
+    background: var(--blue-bg);
+    outline: none;
+    transform: translateY(-1px);
+}
+
+.hidden {
+    display: none !important;
 }
 
 .section-head p {
@@ -645,6 +678,21 @@ tbody tr:hover {
 
 .clickable-row {
     cursor: pointer;
+}
+
+.distribution-row:focus-visible {
+    outline: 3px solid var(--blue-bg);
+    outline-offset: -3px;
+}
+
+.distribution-row.selected,
+.distribution-row.selected:hover {
+    background: linear-gradient(90deg, var(--blue-bg), transparent);
+}
+
+.distribution-row.selected td:first-child {
+    border-left: 3px solid var(--blue);
+    padding-left: 8px;
 }
 
 .entity-link {
@@ -1243,6 +1291,15 @@ tbody tr:hover {
 
     .section-head {
         flex-direction: column;
+    }
+
+    .section-actions {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .ghost-action {
+        width: 100%;
     }
 
     h1 {
