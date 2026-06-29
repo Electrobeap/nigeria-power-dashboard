@@ -1324,6 +1324,8 @@ tbody tr:hover {
     .nav-links {
         grid-column: 1 / -1;
         justify-content: flex-start;
+        max-width: 100%;
+        min-width: 0;
         overflow-x: auto;
         padding-bottom: 2px;
     }
@@ -1363,6 +1365,12 @@ tbody tr:hover {
         max-width: 178px;
     }
 
+    .nav-links,
+    .site-footer nav {
+        flex-wrap: wrap;
+        overflow-x: visible;
+    }
+
     .card {
         padding: 16px;
     }
@@ -1392,6 +1400,14 @@ tbody tr:hover {
         align-items: flex-start;
         flex-direction: column;
         width: min(100% - 20px, 1240px);
+    }
+
+    .site-footer nav {
+        justify-content: flex-start;
+        max-width: 100%;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        width: 100%;
     }
 
     .map-canvas {

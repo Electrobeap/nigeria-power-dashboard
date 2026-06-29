@@ -1,27 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Nigeria Power Data social preview">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Nigeria Power Data</title>
+  <desc id="desc">Real-time generation, distribution loading, and grid health analytics for Nigeria.</desc>
   <rect width="1200" height="630" fill="#F8FAFC"/>
-  <rect x="58" y="58" width="1084" height="514" rx="34" fill="#FFFFFF" stroke="#CBD5E1"/>
-  <path d="M58 572c280-96 579-92 1084-276v276Z" fill="#2563EB" opacity=".08"/>
-  <path d="M58 572c240-74 549-90 1084-225" fill="none" stroke="#2563EB" stroke-width="9" stroke-linecap="round" opacity=".45"/>
-  <svg x="105" y="110" width="990" height="265" viewBox="0 0 860 230">
-    <defs>
-      <linearGradient id="green" x1="18" x2="212" y1="30" y2="218" gradientUnits="userSpaceOnUse"><stop stop-color="#008751"/><stop offset="1" stop-color="#00A86B"/></linearGradient>
-      <linearGradient id="blue" x1="70" x2="236" y1="218" y2="134" gradientUnits="userSpaceOnUse"><stop stop-color="#0B5BE7"/><stop offset="1" stop-color="#38BDF8"/></linearGradient>
-    </defs>
-    <g transform="scale(.86)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M86 34c9-10 23 0 34-3 11-2 12 12 25 13 10 1 12 8 20 13 12-4 22-2 29 8 8 10 21 3 26 17 5 12-5 23-1 35 3 10-7 17-10 27-4 12-13 19-17 31-6 16-26 19-38 30-11 10-27 4-41 8-13 4-25-3-36-4-12-2-15-13-28-15-15-2-13-18-23-26-8-8-1-20-5-31-4-12 6-21 9-32 4-12 1-26 13-32 13-7 7-28 23-34 7-3 12 0 20-5Z" stroke="url(#green)" stroke-width="9"/>
-      <path d="M2 128c38 7 70-4 103-25m-103 49c39 6 73-2 112-25M3 177c40 5 77-4 117-31" stroke="#008751" stroke-width="5"/>
-      <path d="M105 88h62M96 122h82M90 207 136 68l48 139M136 68v138M112 158l49-36M161 158l-49-36M103 190l64-68M170 190l-67-68M119 88l17-20 17 20" stroke="#0B1F3A" stroke-width="6"/>
-      <circle cx="170" cy="53" r="14" fill="#008751" stroke="#F8FAFC" stroke-width="4"/><circle cx="170" cy="53" r="24" stroke="#008751" stroke-opacity=".38" stroke-width="4"/><circle cx="170" cy="53" r="35" stroke="#008751" stroke-opacity=".24" stroke-width="4"/>
-      <path d="M146 174h17v36h-17zM174 155h17v55h-17zM202 132h17v78h-17z" fill="#008751" stroke="none"/><path d="M76 218c58 20 125 1 163-55-18 55-78 86-163 55Z" fill="url(#blue)" stroke="none"/>
-    </g>
-    <g font-family="Inter,system-ui,sans-serif" letter-spacing="5">
-      <text x="252" y="95" fill="#0B1F3A" font-size="68" font-weight="900">NIGERIA</text>
-      <text x="252" y="155" fill="#008751" font-size="48" font-weight="900">POWER DATA</text>
-      <path d="M254 180h214m74 0h256" stroke="#0B1F3A" stroke-width="3" stroke-linecap="round"/><circle cx="505" cy="180" r="10" fill="#008751"/>
-      <text x="254" y="212" fill="#475569" font-size="19" font-weight="700" letter-spacing="9">GRID &amp; DISTRIBUTION INTELLIGENCE</text>
-    </g>
-  </svg>
-  <text x="105" y="465" fill="#0B1F3A" font-family="Inter,system-ui,sans-serif" font-size="34" font-weight="800">Real-time generation, distribution loading, and grid health analytics.</text>
-  <text x="105" y="514" fill="#475569" font-family="Inter,system-ui,sans-serif" font-size="24" font-weight="600">NigeriaPowerData.com</text>
+  <path d="M0 540c240-22 424-11 641-30 205-18 344-52 559-63v183H0Z" fill="#E8F0FF"/>
+  <rect x="58" y="58" width="1084" height="514" rx="34" fill="white" stroke="#CBD5E1"/>
+  <defs>
+    <linearGradient id="og-green" x1="24" x2="222" y1="28" y2="218" gradientUnits="userSpaceOnUse"><stop stop-color="#008751"/><stop offset="1" stop-color="#00A86B"/></linearGradient>
+    <linearGradient id="og-blue" x1="76" x2="232" y1="218" y2="156" gradientUnits="userSpaceOnUse"><stop stop-color="#0B5BE7"/><stop offset="1" stop-color="#38BDF8"/></linearGradient>
+    <radialGradient id="og-node" cx="0" cy="0" r="1" gradientTransform="matrix(18 0 0 18 173 55)" gradientUnits="userSpaceOnUse"><stop stop-color="#F8FAFC"/><stop offset=".42" stop-color="#28C76F"/><stop offset="1" stop-color="#008751"/></radialGradient>
+  </defs>
+  <g transform="translate(92 132) scale(.82)">
+  <g class="npd-mark" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M82 33c14-10 28-2 42-5 14-3 21 10 34 14 14 3 20 14 35 17 16 3 28 14 31 30 4 17-10 28-6 44 4 17-11 25-17 39-7 16-24 18-37 27-15 10-31 4-47 11-16 7-30-5-46-5-16 0-23-13-38-16-15-3-18-17-29-27-11-10-3-25-7-39-4-15 9-25 14-39 6-17 22-23 33-35 12-13 6-31 22-37Z" fill="#EAF7F1" stroke="none"/>
+    <path d="M82 33c14-10 28-2 42-5 14-3 21 10 34 14 14 3 20 14 35 17 16 3 28 14 31 30 4 17-10 28-6 44 4 17-11 25-17 39-7 16-24 18-37 27-15 10-31 4-47 11-16 7-30-5-46-5-16 0-23-13-38-16-15-3-18-17-29-27-11-10-3-25-7-39-4-15 9-25 14-39 6-17 22-23 33-35 12-13 6-31 22-37Z" stroke="url(#og-green)" stroke-width="8.5"/>
+    <path d="M34 121c29 1 58-8 89-31M34 145c34 2 68-8 101-29M35 169c37 1 72-7 105-27" stroke="#008751" stroke-width="4.2"/>
+    <circle cx="34" cy="121" r="5.4" fill="#F8FAFC" stroke="#008751" stroke-width="3.5"/>
+    <circle cx="34" cy="145" r="5.4" fill="#F8FAFC" stroke="#008751" stroke-width="3.5"/>
+    <circle cx="35" cy="169" r="5.4" fill="#F8FAFC" stroke="#008751" stroke-width="3.5"/>
+    <path d="M88 136c31-8 64-30 85-81m-61 96c31-7 60-23 79-51" stroke="#008751" stroke-width="2.8" opacity=".8"/>
+    <path d="M151 168h15v35h-15zM176 149h15v54h-15zM201 128h15v75h-15z" fill="#008751" stroke="none"/>
+    <path d="M76 214c55 17 116 1 157-50-18 51-78 81-157 50Z" fill="url(#og-blue)" stroke="none"/>
+    <path d="M104 92h60M97 124h75M91 201 132 73l48 128M132 73v128M113 157l48-33M160 157l-47-33M104 188l58-64M166 188l-62-64M116 92l16-19 16 19" stroke="#0B1F3A" stroke-width="5.7"/>
+    <circle cx="96" cy="117" r="5" fill="#F8FAFC" stroke="#008751" stroke-width="3.4"/>
+    <circle cx="160" cy="117" r="5" fill="#F8FAFC" stroke="#008751" stroke-width="3.4"/>
+    <circle cx="173" cy="55" r="12.5" fill="url(#og-node)" stroke="#F8FAFC" stroke-width="4"/>
+    <circle cx="173" cy="55" r="23" stroke="#008751" stroke-opacity=".34" stroke-width="3.4"/>
+    <circle cx="173" cy="55" r="33" stroke="#008751" stroke-opacity=".2" stroke-width="3.4"/>
+  </g>
+  </g>
+  <g font-family="Inter,system-ui,sans-serif" letter-spacing="6">
+    <text x="365" y="230" fill="#0B1F3A" font-size="75" font-weight="900">NIGERIA</text>
+    <text x="365" y="288" fill="#008751" font-size="56" font-weight="900">POWER DATA</text>
+    <path d="M368 304h235m75 0h334" stroke="#0B1F3A" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="640" cy="304" r="11" fill="#008751"/>
+    <text x="366" y="370" fill="#475569" font-size="29" font-weight="800" letter-spacing="1">GRID &amp; DISTRIBUTION INTELLIGENCE</text>
+  </g>
+  <text x="106" y="474" fill="#0B1F3A" font-family="Inter,system-ui,sans-serif" font-size="30" font-weight="800">Real-time generation, distribution loading, and grid health analytics.</text>
+  <text x="106" y="516" fill="#475569" font-family="Inter,system-ui,sans-serif" font-size="26">NigeriaPowerData.com</text>
 </svg>
