@@ -495,8 +495,26 @@ h2 {
     gap: 14px;
 }
 
+.distribution-chart-stack {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+
+.distribution-chart-block {
+    min-width: 0;
+}
+
+.mini-chart-title {
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
 .distribution-chart-wrap {
-    min-height: 300px;
+    min-height: 250px;
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 10px;

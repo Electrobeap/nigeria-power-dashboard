@@ -6,8 +6,12 @@ const distributionLabels = [];
 const distributionUtilization = [];
 const distributionWarning = [];
 const distributionOverload = [];
+const settlementLabels = [];
+const settlementGrowth = [];
+const settlementStress = [];
 let chart;
 let distributionChart;
+let settlementChart;
 let previousMW = null;
 
 const ids = [
@@ -23,6 +27,7 @@ const ids = [
     "transformer-utilization", "transformer-note", "distribution-regions-risk",
     "distribution-risk-note", "settlement-growth", "settlement-note",
     "distribution-chart", "distribution-chart-empty", "distribution-table",
+    "settlement-chart", "settlement-chart-empty",
     "distribution-method", "transformer-risk", "transformer-risk-note",
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
@@ -42,6 +47,7 @@ function toggleTheme() {
     el["theme-toggle"].textContent = next === "dark" ? "Light" : "Dark";
     if (chart) chart.update();
     if (distributionChart) distributionChart.update();
+    if (settlementChart) settlementChart.update();
 }
 
 function formatNumber(value, digits = 2) {
@@ -54,6 +60,17 @@ function formatNumber(value, digits = 2) {
 
 function formatMW(value, digits = 2) {
     return `${formatNumber(value, digits)} MW`;
+}
+
+function numericOrNull(value) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return null;
+    return Number(value);
+}
+
+function pointLabel(point) {
+    return point?.label && !String(point.label).includes("T")
+        ? point.label
+        : formatTimestamp(point?.timestamp || point?.label);
 }
 
 function labelize(value) {
@@ -346,6 +363,7 @@ function renderDistribution(payload, errorMessage = "") {
         el["distribution-method"].textContent = "Distribution model will appear after the first stored allocation reading.";
         el["distribution-table"].innerHTML = `<tr><td colspan="4">No distribution intelligence available.</td></tr>`;
         el["distribution-chart-empty"].classList.add("visible");
+        el["settlement-chart-empty"].classList.add("visible");
         return;
     }
 
@@ -377,6 +395,7 @@ function renderDistribution(payload, errorMessage = "") {
 
     renderDistributionTable(riskRows);
     renderDistributionChart(payload);
+    renderSettlementChart(payload);
 }
 
 function renderDistributionTable(rows) {
@@ -400,16 +419,17 @@ function renderDistributionTable(rows) {
 
 function renderDistributionChart(payload) {
     const points = payload?.transformer_loading_trend || [];
-    const hasPoints = points.length > 0;
+    const hasPoints = points.some((point) => numericOrNull(point.weighted_utilization_percent) !== null);
     el["distribution-chart-empty"].classList.toggle("visible", !hasPoints);
     if (!window.Chart || !hasPoints) return;
 
-    distributionLabels.splice(0, distributionLabels.length, ...points.map((point) => formatTimestamp(point.timestamp)));
-    distributionUtilization.splice(0, distributionUtilization.length, ...points.map((point) => point.weighted_utilization_percent));
-    distributionWarning.splice(0, distributionWarning.length, ...points.map((point) => point.warning_threshold_percent));
-    distributionOverload.splice(0, distributionOverload.length, ...points.map((point) => point.overload_threshold_percent));
+    distributionLabels.splice(0, distributionLabels.length, ...points.map(pointLabel));
+    distributionUtilization.splice(0, distributionUtilization.length, ...points.map((point) => numericOrNull(point.weighted_utilization_percent)));
+    distributionWarning.splice(0, distributionWarning.length, ...points.map((point) => numericOrNull(point.warning_threshold_percent)));
+    distributionOverload.splice(0, distributionOverload.length, ...points.map((point) => numericOrNull(point.overload_threshold_percent)));
 
     const gridColor = getComputedStyle(document.documentElement).getPropertyValue("--line").trim();
+    const pointRadius = distributionUtilization.length <= 2 ? 5 : 3;
     if (!distributionChart) {
         distributionChart = new Chart(el["distribution-chart"].getContext("2d"), {
             type: "line",
@@ -423,7 +443,8 @@ function renderDistributionChart(payload) {
                         backgroundColor: "rgba(22, 166, 106, 0.12)",
                         borderWidth: 3,
                         tension: 0.3,
-                        pointRadius: 0,
+                        pointRadius,
+                        pointHoverRadius: 6,
                         fill: true,
                     },
                     {
@@ -432,7 +453,7 @@ function renderDistributionChart(payload) {
                         borderColor: "#f2b84b",
                         borderDash: [6, 4],
                         borderWidth: 2,
-                        pointRadius: 0,
+                        pointRadius: 2,
                     },
                     {
                         label: "Overload",
@@ -440,7 +461,7 @@ function renderDistributionChart(payload) {
                         borderColor: "#c83532",
                         borderDash: [3, 4],
                         borderWidth: 2,
-                        pointRadius: 0,
+                        pointRadius: 2,
                     },
                 ],
             },
@@ -459,8 +480,113 @@ function renderDistributionChart(payload) {
             },
         });
     } else {
+        distributionChart.data.labels = distributionLabels;
+        distributionChart.data.datasets[0].data = distributionUtilization;
+        distributionChart.data.datasets[1].data = distributionWarning;
+        distributionChart.data.datasets[2].data = distributionOverload;
+        distributionChart.data.datasets[0].pointRadius = pointRadius;
         distributionChart.options.scales.y.grid.color = gridColor;
         distributionChart.update();
+    }
+}
+
+function renderSettlementChart(payload) {
+    const impact = payload?.settlement_expansion_impact || {};
+    const fallbackPoints = [
+        {
+            label: "Current",
+            projected_load_growth_mw: 0,
+            settlement_stress_index: payload?.summary?.highest_risk_region?.settlement_growth_vs_stress,
+        },
+        {
+            label: "12 months",
+            projected_load_growth_mw: impact.projected_load_growth_12m_mw,
+            settlement_stress_index: payload?.summary?.highest_risk_region?.settlement_growth_vs_stress,
+        },
+        {
+            label: "36 months",
+            projected_load_growth_mw: impact.projected_load_growth_36m_mw,
+            settlement_stress_index: payload?.summary?.highest_risk_region?.settlement_growth_vs_stress,
+        },
+    ];
+    const points = (payload?.settlement_expansion_trend || []).length
+        ? payload.settlement_expansion_trend
+        : fallbackPoints;
+    const hasPoints = points.some((point) => numericOrNull(point.projected_load_growth_mw) !== null);
+    el["settlement-chart-empty"].classList.toggle("visible", !hasPoints);
+    if (!window.Chart || !hasPoints) return;
+
+    settlementLabels.splice(0, settlementLabels.length, ...points.map(pointLabel));
+    settlementGrowth.splice(0, settlementGrowth.length, ...points.map((point) => numericOrNull(point.projected_load_growth_mw)));
+    settlementStress.splice(0, settlementStress.length, ...points.map((point) => numericOrNull(point.settlement_stress_index)));
+
+    const gridColor = getComputedStyle(document.documentElement).getPropertyValue("--line").trim();
+    if (!settlementChart) {
+        settlementChart = new Chart(el["settlement-chart"].getContext("2d"), {
+            data: {
+                labels: settlementLabels,
+                datasets: [
+                    {
+                        type: "bar",
+                        label: "Projected load growth",
+                        data: settlementGrowth,
+                        backgroundColor: "rgba(32, 107, 196, 0.22)",
+                        borderColor: "#206bc4",
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        yAxisID: "mw",
+                    },
+                    {
+                        type: "line",
+                        label: "Settlement stress",
+                        data: settlementStress,
+                        borderColor: "#f2b84b",
+                        backgroundColor: "rgba(242, 184, 75, 0.16)",
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.25,
+                        yAxisID: "stress",
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: "index" },
+                plugins: {
+                    legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => context.dataset.yAxisID === "stress"
+                                ? `${context.dataset.label}: ${formatNumber(context.parsed.y, 1)}/100`
+                                : `${context.dataset.label}: ${formatMW(context.parsed.y)}`,
+                        },
+                    },
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    mw: {
+                        beginAtZero: true,
+                        ticks: { callback: (value) => formatNumber(value, 0) },
+                        grid: { color: gridColor },
+                    },
+                    stress: {
+                        position: "right",
+                        beginAtZero: true,
+                        suggestedMax: 100,
+                        ticks: { callback: (value) => `${value}` },
+                        grid: { drawOnChartArea: false },
+                    },
+                },
+            },
+        });
+    } else {
+        settlementChart.data.labels = settlementLabels;
+        settlementChart.data.datasets[0].data = settlementGrowth;
+        settlementChart.data.datasets[1].data = settlementStress;
+        settlementChart.options.scales.mw.grid.color = gridColor;
+        settlementChart.update();
     }
 }
 

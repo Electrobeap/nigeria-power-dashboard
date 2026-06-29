@@ -75,6 +75,13 @@ def _portfolio_classification(regions: list[dict[str, Any]]) -> str:
     return "normal"
 
 
+def _weighted_average(rows: list[dict[str, Any]], value_key: str, weight_key: str = "load_allocation_mw") -> float | None:
+    total_weight = sum((row.get(weight_key) or 0) for row in rows)
+    if not total_weight:
+        return None
+    return sum((row.get(value_key) or 0) * (row.get(weight_key) or 0) for row in rows) / total_weight
+
+
 def distribution_intelligence(
     latest_snapshot: dict[str, Any] | None,
     history_points: list[dict[str, Any]],
@@ -158,6 +165,9 @@ def distribution_intelligence(
         for item in regional_risk
     )
     portfolio = _portfolio_classification(regional_risk)
+    projected_utilization_12m = _weighted_average(regional_risk, "projected_utilization_12m_percent") or 0
+    projected_utilization_36m = _weighted_average(regional_risk, "projected_utilization_36m_percent") or 0
+    weighted_stress = _weighted_average(regional_risk, "settlement_growth_vs_stress") or 0
 
     trend = []
     base_weighted = weighted_utilization or 0
@@ -167,11 +177,70 @@ def distribution_intelligence(
         trend.append(
             {
                 "timestamp": point.get("timestamp"),
+                "label": point.get("timestamp"),
                 "weighted_utilization_percent": _round(min(160, base_weighted * scale)),
+                "projected_utilization_12m_percent": _round(min(180, projected_utilization_12m * scale)),
                 "warning_threshold_percent": warning,
                 "overload_threshold_percent": overload,
             }
         )
+    if len(trend) < 2 and regional_risk:
+        trend = [
+            {
+                "label": "Current",
+                "timestamp": (latest_snapshot or {}).get("reading_timestamp"),
+                "weighted_utilization_percent": _round(base_weighted),
+                "projected_utilization_12m_percent": _round(projected_utilization_12m),
+                "warning_threshold_percent": warning,
+                "overload_threshold_percent": overload,
+            },
+            {
+                "label": "12 months",
+                "timestamp": None,
+                "weighted_utilization_percent": _round(projected_utilization_12m),
+                "projected_utilization_12m_percent": _round(projected_utilization_12m),
+                "warning_threshold_percent": warning,
+                "overload_threshold_percent": overload,
+            },
+            {
+                "label": "36 months",
+                "timestamp": None,
+                "weighted_utilization_percent": _round(projected_utilization_36m),
+                "projected_utilization_12m_percent": _round(projected_utilization_12m),
+                "warning_threshold_percent": warning,
+                "overload_threshold_percent": overload,
+            },
+        ]
+
+    settlement_trend = [
+        {
+            "label": "Current",
+            "timestamp": (latest_snapshot or {}).get("reading_timestamp"),
+            "projected_load_growth_mw": 0,
+            "settlement_stress_index": _round(weighted_stress),
+            "regions_projected_overload": 0,
+        },
+        {
+            "label": "12 months",
+            "timestamp": None,
+            "projected_load_growth_mw": _round(projected_growth_mw_12m),
+            "settlement_stress_index": _round(min(100, weighted_stress * 1.08)),
+            "regions_projected_overload": sum(
+                1 for item in regional_risk
+                if (item["projected_utilization_12m_percent"] or 0) >= overload
+            ),
+        },
+        {
+            "label": "36 months",
+            "timestamp": None,
+            "projected_load_growth_mw": _round(projected_growth_mw_36m),
+            "settlement_stress_index": _round(min(100, weighted_stress * 1.18)),
+            "regions_projected_overload": sum(
+                1 for item in regional_risk
+                if (item["projected_utilization_36m_percent"] or 0) >= overload
+            ),
+        },
+    ] if regional_risk else []
 
     return {
         "window_hours": hours,
@@ -203,6 +272,7 @@ def distribution_intelligence(
         "overloaded_transformer_risk": regional_risk[:5],
         "regional_risk": regional_risk,
         "transformer_loading_trend": trend,
+        "settlement_expansion_trend": settlement_trend,
         "settlement_expansion_impact": {
             "projected_load_growth_12m_mw": _round(projected_growth_mw_12m),
             "projected_load_growth_36m_mw": _round(projected_growth_mw_36m),
