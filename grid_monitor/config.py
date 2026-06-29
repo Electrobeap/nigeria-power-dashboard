@@ -34,6 +34,21 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _running_on_render() -> bool:
+    return _env_bool("RENDER", False) or any(
+        os.environ.get(name)
+        for name in ("RENDER_SERVICE_ID", "RENDER_EXTERNAL_URL", "RENDER_INSTANCE_ID")
+    )
+
+
+def _web_scheduler_default() -> bool:
+    return _running_on_render() or bool(
+        os.environ.get("DATABASE_URL")
+        or os.environ.get("GRID_DATABASE_URL")
+        or os.environ.get("SQLALCHEMY_DATABASE_URI")
+    )
+
+
 def _normalize_database_uri(uri: str | None) -> str:
     if uri:
         uri = uri.strip()
@@ -83,7 +98,7 @@ class Config:
     GRID_SCRAPER_BACKOFF_SECONDS = _env_float("GRID_SCRAPER_BACKOFF_SECONDS", 1.5)
     GRID_CACHE_TTL_SECONDS = _env_int("GRID_CACHE_TTL_SECONDS", 60)
 
-    WEB_SCHEDULER_ENABLED = _env_bool("WEB_SCHEDULER_ENABLED", False)
+    WEB_SCHEDULER_ENABLED = _env_bool("WEB_SCHEDULER_ENABLED", _web_scheduler_default())
     HISTORY_CAPTURE_ENABLED = _env_bool("HISTORY_CAPTURE_ENABLED", True)
     HISTORY_CAPTURE_INTERVAL_SECONDS = max(
         60, _env_int("HISTORY_CAPTURE_INTERVAL_SECONDS", 1800)

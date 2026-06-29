@@ -26,6 +26,7 @@ _status: dict[str, Any] = {
     "started": False,
     "running": False,
     "job_id": JOB_ID,
+    "disabled_reason": None,
     "last_run_at": None,
     "last_success_at": None,
     "last_error": None,
@@ -87,9 +88,18 @@ def capture_once(app) -> dict[str, Any]:
 
 def _should_start(app) -> bool:
     if not app.config["HISTORY_CAPTURE_ENABLED"]:
+        _status["disabled_reason"] = "history_capture_disabled"
+        log_event("apscheduler_not_started", reason=_status["disabled_reason"])
+        return False
+    if not app.config["WEB_SCHEDULER_ENABLED"]:
+        _status["disabled_reason"] = "web_scheduler_disabled"
+        log_event("apscheduler_not_started", reason=_status["disabled_reason"])
         return False
     if app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        _status["disabled_reason"] = "flask_debug_parent_process"
+        log_event("apscheduler_not_started", reason=_status["disabled_reason"])
         return False
+    _status["disabled_reason"] = None
     return True
 
 
@@ -110,6 +120,9 @@ def start_scheduler(app) -> None:
                 coalesce=True,
                 misfire_grace_time=120,
             )
+            log_event("apscheduler_job_registered", job_id=JOB_ID)
+        _status["started"] = True
+        _status["disabled_reason"] = None
         return
 
     _scheduler = BackgroundScheduler(timezone="UTC", daemon=True)
@@ -125,6 +138,7 @@ def start_scheduler(app) -> None:
     )
     _scheduler.start()
     _status["started"] = True
+    _status["disabled_reason"] = None
     log_event(
         "apscheduler_started",
         job_id=JOB_ID,

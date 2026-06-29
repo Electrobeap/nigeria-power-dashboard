@@ -221,6 +221,74 @@ def latest():
         return _error(str(exc), 503, "source_unavailable")
 
 
+@api_bp.get("/api/generation")
+def generation():
+    hours = bounded_float(request.args.get("hours"), 24, 1, 168)
+    limit = bounded_int(request.args.get("limit"), 288, 1, 2000)
+
+    def load_payload():
+        latest_snapshot = get_latest_snapshot()
+        points = get_history_points(hours, limit)
+        history_payload = enrich_history_payload(points, hours, limit, latest_snapshot)
+        return {
+            "hours": hours,
+            "limit": limit,
+            "latest": {
+                "snapshot_id": latest_snapshot.get("snapshot_id"),
+                "reading_timestamp": latest_snapshot.get("reading_timestamp"),
+                "total_generation_mw": latest_snapshot.get("total_generation_mw"),
+                "reporting_gencos": latest_snapshot.get("reporting_gencos"),
+                "source": latest_snapshot.get("source"),
+                "source_url": latest_snapshot.get("source_url"),
+                "fetched_at": latest_snapshot.get("fetched_at"),
+            }
+            if latest_snapshot
+            else None,
+            "generation": history_payload,
+        }
+
+    return _json(
+        get_cached(
+            f"generation:{hours}:{limit}",
+            current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+            load_payload,
+        )
+    )
+
+
+@api_bp.get("/api/market-data")
+def market_data():
+    snapshot = get_latest_snapshot()
+    if not snapshot:
+        try:
+            live = get_live_grid_payload()
+            save_grid_snapshot(live)
+            snapshot = get_latest_snapshot()
+        except Exception as exc:
+            return _error(str(exc), 503, "source_unavailable")
+
+    points_24h = get_history_points(24, 288)
+    points_7d = get_history_points(168, 2016)
+    analytics = multi_window_analytics(points_24h, points_7d, snapshot)
+    return _json(
+        {
+            "latest": snapshot,
+            "generation": enrich_history_payload(points_24h, 24, 288, snapshot),
+            "analytics": analytics,
+            "daily": snapshot.get("daily") or {},
+            "gencos": snapshot.get("gencos") or [],
+            "discos": (snapshot.get("disco_profile") or {}).get("discos") or [],
+            "disco_profile": snapshot.get("disco_profile") or {},
+            "source": {
+                "name": snapshot.get("source"),
+                "url": snapshot.get("source_url"),
+                "fetched_at": snapshot.get("fetched_at"),
+                "reading_timestamp": snapshot.get("reading_timestamp"),
+            },
+        }
+    )
+
+
 @api_bp.get("/api/history")
 def history():
     hours = bounded_float(request.args.get("hours"), 24, 1, 168)
@@ -314,6 +382,8 @@ def metadata():
         "live": "/api/grid/live",
         "latest": "/api/latest",
         "history": "/api/history?hours=24&limit=288",
+        "generation": "/api/generation?hours=24&limit=288",
+        "market_data": "/api/market-data",
         "analytics": "/api/analytics",
         "distribution": "/api/distribution?hours=168&limit=336",
         "disco_entity": "/api/discos/{slug}?hours=168&limit=1000",
@@ -448,6 +518,8 @@ def health():
         "capture": {
             **scheduler_status(),
             "enabled": current_app.config["HISTORY_CAPTURE_ENABLED"],
+            "web_scheduler_enabled": current_app.config["WEB_SCHEDULER_ENABLED"],
+            "capture_on_startup": current_app.config["HISTORY_CAPTURE_ON_STARTUP"],
             "interval_seconds": current_app.config["HISTORY_CAPTURE_INTERVAL_SECONDS"],
         },
         "source": {

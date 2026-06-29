@@ -159,6 +159,8 @@ Compatibility endpoints:
 Platform endpoints:
 
 - `GET /api/latest`
+- `GET /api/market-data`
+- `GET /api/generation?hours=24&limit=288`
 - `GET /api/history?hours=24&limit=288`
 - `GET /api/analytics?hours=24&limit=288`
 - `GET /api/distribution?hours=168&limit=336`
@@ -215,7 +217,7 @@ Web pages:
 | `STARTUP_ERROR_DEBUG` | `0` | Adds a traceback tail to fallback `/api/health` responses for temporary deployment debugging. |
 | `AUTO_CREATE_TABLES` | `1` | Local fallback table creation. Set `0` in stricter production environments. |
 | `HISTORY_CAPTURE_ENABLED` | `1` | Enables APScheduler collection. |
-| `WEB_SCHEDULER_ENABLED` | `0` | Keeps APScheduler out of the Render web process unless explicitly enabled. |
+| `WEB_SCHEDULER_ENABLED` | auto on Render/PostgreSQL | Starts APScheduler inside the web process. Set `0` only for local development or external scheduler setups. |
 | `HISTORY_CAPTURE_INTERVAL_SECONDS` | `1800` | 30-minute collection interval. |
 | `HISTORY_CAPTURE_ON_STARTUP` | `1` | Captures once when the worker starts. |
 | `ANALYTICS_CACHE_TTL_SECONDS` | `120` | API analytics cache TTL. |

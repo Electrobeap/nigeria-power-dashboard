@@ -82,11 +82,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
 
-    if (
-        app.config["WEB_SCHEDULER_ENABLED"]
-        and app.config["HISTORY_CAPTURE_ENABLED"]
-        and not is_flask_db_command
-    ):
+    if app.config["HISTORY_CAPTURE_ENABLED"] and not is_flask_db_command:
         start_scheduler(app)
 
     log_event("app_startup", database_uri=app.config["SAFE_DATABASE_URI"])
