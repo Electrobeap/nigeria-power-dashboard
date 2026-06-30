@@ -20,12 +20,15 @@
     <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=brand-20260629">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=brand-20260630">
 </head>
 <body>
 <header class="topbar">
     <a class="brand" href="/" aria-label="Nigeria Power Data home">
-        <img class="brand-logo" src="{{ url_for('static', filename='images/logo-horizontal.svg') }}" alt="Nigeria Power Data" width="210" height="56">
+        <picture>
+            <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+            <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76">
+        </picture>
     </a>
     <nav class="nav-links" aria-label="Primary navigation">
         <a href="/">Dashboard</a>
@@ -89,7 +92,10 @@
 <footer class="site-footer">
     <div>
         <a class="footer-brand" href="/" aria-label="Nigeria Power Data home">
-            <img class="footer-logo" src="{{ url_for('static', filename='images/logo-horizontal.svg') }}" alt="Nigeria Power Data" loading="lazy" width="230" height="62">
+            <picture>
+                <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+                <img class="footer-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" loading="lazy" width="230" height="83">
+            </picture>
         </a>
         <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
     </div>

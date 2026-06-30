@@ -93,9 +93,19 @@ body.brand-loaded .loading-screen {
     animation: brandFade 1200ms ease-in-out infinite alternate;
 }
 
+.loading-brand picture,
+.brand picture,
+.footer-brand picture {
+    display: inline-flex;
+    align-items: center;
+    line-height: 0;
+}
+
 .loading-brand img {
     width: min(300px, 78vw);
     height: auto;
+    max-height: 112px;
+    object-fit: contain;
 }
 
 .loading-brand span {
@@ -174,7 +184,7 @@ body.loading .kpi-card strong:not(.mw)::after {
 
 .brand-logo {
     display: block;
-    max-width: 210px;
+    max-width: min(240px, 44vw);
     object-fit: contain;
 }
 
@@ -1328,6 +1338,17 @@ tbody tr:hover {
         min-width: 0;
         overflow-x: auto;
         padding-bottom: 2px;
+    }
+
+    .site-footer {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .site-footer nav {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        max-width: 100%;
     }
 
     .source-box {

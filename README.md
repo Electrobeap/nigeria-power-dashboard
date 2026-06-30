@@ -56,6 +56,11 @@ signals into operational analytics.
 |   |   |-- js/geo.js
 |   |   |-- js/hierarchy.js
 |   |   |-- favicon.svg
+|   |   |-- images/logo.svg
+|   |   |-- images/logo.png
+|   |   |-- images/favicon.svg
+|   |   |-- images/pwa-192.png
+|   |   |-- images/pwa-512.png
 |   |   `-- logo.svg
 |   |-- templates/
 |   |   |-- entity.html

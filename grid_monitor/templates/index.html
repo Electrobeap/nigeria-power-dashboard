@@ -27,7 +27,7 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=brand-20260629">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=brand-20260630">
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -43,13 +43,19 @@
 <body class="loading">
 <div class="loading-screen" role="status" aria-live="polite">
     <div class="loading-brand">
-        <img src="{{ url_for('static', filename='images/logo-horizontal.svg') }}" alt="Nigeria Power Data" width="300" height="80">
+        <picture>
+            <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="300" height="108">
+        </picture>
         <span>Loading Grid Intelligence...</span>
     </div>
 </div>
 <header class="topbar">
     <a class="brand" href="/" aria-label="Nigeria Power Data home">
-        <img class="brand-logo" src="{{ url_for('static', filename='images/logo-horizontal.svg') }}" alt="Nigeria Power Data" width="210" height="56">
+        <picture>
+            <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+            <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76">
+        </picture>
     </a>
     <nav class="nav-links" aria-label="Primary navigation">
         <a href="#overview">Overview</a>
@@ -314,7 +320,10 @@
 <footer class="site-footer">
     <div>
         <a class="footer-brand" href="/" aria-label="Nigeria Power Data home">
-            <img class="footer-logo" src="{{ url_for('static', filename='images/logo-horizontal.svg') }}" alt="Nigeria Power Data" loading="lazy" width="230" height="62">
+            <picture>
+                <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+                <img class="footer-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" loading="lazy" width="230" height="83">
+            </picture>
         </a>
         <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
     </div>
@@ -330,6 +339,6 @@
     </nav>
 </footer>
 
-<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=brand-20260629"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=brand-20260630"></script>
 </body>
 </html>
