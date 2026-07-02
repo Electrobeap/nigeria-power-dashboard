@@ -469,10 +469,54 @@ def content_page(page_slug):
 
 @web_bp.get("/robots.txt")
 def robots():
-    body = (
-        "User-agent: *\n"
-        "Allow: /\n"
-        f"Sitemap: {current_app.config['APP_BASE_URL']}/sitemap.xml\n"
+    sitemap_url = f"{current_app.config['APP_BASE_URL']}/sitemap.xml"
+    body = "\n".join(
+        [
+            "# Nigeria Power Data robots.txt",
+            "# Public dashboards, content pages, static assets, sitemap, and IndexNow key files are crawlable by default.",
+            "# Do not use robots.txt for security; private systems must still require authentication.",
+            "# Major search engines and default compliant crawlers share one crawl policy.",
+            "# Only private, administrative, health, and internal JSON endpoints are disallowed.",
+            "User-agent: Googlebot",
+            "User-agent: Googlebot-Image",
+            "User-agent: Bingbot",
+            "User-agent: DuckDuckBot",
+            "User-agent: Applebot",
+            "User-agent: YandexBot",
+            "User-agent: Baiduspider",
+            "User-agent: *",
+            "Disallow: /admin",
+            "Disallow: /admin/",
+            "Disallow: /internal",
+            "Disallow: /internal/",
+            "Disallow: /private",
+            "Disallow: /private/",
+            "Disallow: /login",
+            "Disallow: /logout",
+            "Disallow: /api/health",
+            "Disallow: /api/indexnow",
+            "Disallow: /api/grid/",
+            "Disallow: /api/latest",
+            "Disallow: /api/history",
+            "Disallow: /api/analytics",
+            "Disallow: /api/market-data",
+            "Disallow: /api/generation",
+            "Disallow: /api/entities",
+            "Disallow: /api/discos",
+            "Disallow: /api/gencos",
+            "Disallow: /api/states",
+            "Disallow: /api/regions",
+            "Disallow: /api/geography",
+            "Allow: /static/",
+            "Allow: /sitemap.xml",
+            "Allow: /robots.txt",
+            "Allow: /api/metadata",
+            "Allow: /api/distribution",
+            "",
+            "# Sitemap location for Google Search Console, Bing Webmaster Tools, and other crawlers.",
+            f"Sitemap: {sitemap_url}",
+            "",
+        ]
     )
     return Response(body, mimetype="text/plain")
 

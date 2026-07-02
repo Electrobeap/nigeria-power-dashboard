@@ -339,7 +339,7 @@ when you are ready to automate ingestion again.
 - Canonical URL points to `https://nigeriapowerdata.com/`.
 - Page-specific Open Graph and Twitter Card metadata are included with a 1200x630 default preview image.
 - Schema.org JSON-LD is emitted as a single page-specific `@graph` and includes Organization, WebSite, SearchAction, WebPage, Breadcrumb, Dataset, Article, and FAQPage markup where page content supports it.
-- `robots.txt` and `sitemap.xml` are served by Flask.
+- `robots.txt` and `sitemap.xml` are served by Flask. Robots rules keep public pages, static assets, social preview images, public metadata, and IndexNow key files crawlable while excluding admin/private/system JSON endpoints from search crawling.
 - IndexNow is enabled with a root key file and automatic production startup notification of the public URL inventory when the published version changes or the submission interval expires.
 - The dashboard uses semantic sections, accessible labels, responsive cards, and lightweight assets.
 - AdSense-safe placeholders exist for sidebar, in-content, and footer inventory.
