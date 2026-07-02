@@ -125,6 +125,25 @@ class Config:
     API_NAME = "Nigeria Power Grid Monitor API"
     API_VERSION = os.environ.get("API_VERSION", "2.0.0")
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "https://nigeriapowerdata.com").rstrip("/")
+    INDEXNOW_KEY = os.environ.get(
+        "INDEXNOW_KEY", "aec53615a9bfaa336c0212274ff00b0c2b9eace958a045742666ed61f0d4b97d"
+    )
+    INDEXNOW_ENDPOINT = os.environ.get(
+        "INDEXNOW_ENDPOINT", "https://api.indexnow.org/indexnow"
+    )
+    INDEXNOW_ENABLED = _env_bool("INDEXNOW_ENABLED", True)
+    INDEXNOW_AUTO_NOTIFY_ENABLED = _env_bool("INDEXNOW_AUTO_NOTIFY_ENABLED", _running_on_render())
+    INDEXNOW_SUBMIT_TIMEOUT_SECONDS = _env_float("INDEXNOW_SUBMIT_TIMEOUT_SECONDS", 8.0)
+    INDEXNOW_STARTUP_MIN_INTERVAL_SECONDS = _env_int(
+        "INDEXNOW_STARTUP_MIN_INTERVAL_SECONDS", 86400
+    )
+    INDEXNOW_ADMIN_TOKEN = os.environ.get("INDEXNOW_ADMIN_TOKEN")
+    INDEXNOW_PUBLICATION_VERSION = (
+        os.environ.get("INDEXNOW_PUBLICATION_VERSION")
+        or os.environ.get("RENDER_GIT_COMMIT")
+        or os.environ.get("SOURCE_VERSION")
+        or API_VERSION
+    )
     CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "hello@nigeriapowerdata.com")
     RESEARCH_EMAIL = os.environ.get("RESEARCH_EMAIL", CONTACT_EMAIL)
     ADS_EMAIL = os.environ.get("ADS_EMAIL", CONTACT_EMAIL)

@@ -9,6 +9,7 @@ from grid_monitor.config import Config
 from grid_monitor.extensions import db, migrate
 from grid_monitor.routes.api import api_bp
 from grid_monitor.routes.web import web_bp
+from grid_monitor.services.indexnow import start_indexnow_startup_notification
 from grid_monitor.services.scheduler import start_scheduler, stop_scheduler
 from grid_monitor.services.storage import _ensure_sqlite_parent, init_database
 from grid_monitor.utils.logging import configure_logging, log_event
@@ -84,6 +85,8 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     if app.config["HISTORY_CAPTURE_ENABLED"] and not is_flask_db_command:
         start_scheduler(app)
+    if app.config["INDEXNOW_ENABLED"] and not is_flask_db_command:
+        start_indexnow_startup_notification(app)
 
     log_event("app_startup", database_uri=app.config["SAFE_DATABASE_URI"])
     atexit.register(stop_scheduler)

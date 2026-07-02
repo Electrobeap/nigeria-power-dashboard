@@ -44,7 +44,9 @@ signals into operational analytics.
 |   |   |-- distribution.py
 |   |   |-- entity_intelligence.py
 |   |   |-- geographic_hierarchy.py
+|   |   |-- indexnow.py
 |   |   |-- state_intelligence.py
+|   |   |-- site_urls.py
 |   |   |-- scheduler.py
 |   |   |-- scraper.py
 |   |   |-- storage.py
@@ -94,9 +96,11 @@ signals into operational analytics.
 - `services/entity_intelligence.py` resolves DisCo/GenCo slugs and builds entity-level history, forecasts, rankings, risk, utilization, and generated analysis summaries.
 - `services/state_intelligence.py` maps states and regions to responsible DisCos and estimates geography-level allocation, demand, reliability, stress, transformer risk, and peer rankings.
 - `services/geographic_hierarchy.py` builds the replaceable State/LGA/Town/Community/Settlement hierarchy, search index, map payload, demand estimates, transformer loading, grid health, and infrastructure upgrade recommendations.
+- `services/site_urls.py` provides the canonical public URL inventory used by sitemap and IndexNow submissions.
+- `services/indexnow.py` exposes the IndexNow key file details, submits public URL batches, and tracks deployment-triggered notification state.
 - `services/scheduler.py` runs APScheduler collection with `max_instances=1` and `replace_existing=True` when `WEB_SCHEDULER_ENABLED=1`.
 - `routes/api.py` exposes compatibility, analytics, distribution, metadata, and health endpoints.
-- `routes/web.py` serves the dashboard, entity drill-down pages, state and regional intelligence pages, hierarchical map pages, content pages, favicon, robots file, and sitemap.
+- `routes/web.py` serves the dashboard, entity drill-down pages, state and regional intelligence pages, hierarchical map pages, content pages, favicon, robots file, sitemap, and IndexNow root key file.
 
 ## Distribution Intelligence
 
@@ -182,6 +186,8 @@ Platform endpoints:
 - `GET /api/geography/search?q=lagos`
 - `GET /api/geography/{level}/{slug}`
 - `GET /api/metadata`
+- `GET /api/indexnow`
+- `POST /api/indexnow`
 - `GET /api/health`
 
 Every JSON response includes `response_timestamp`.
@@ -213,6 +219,12 @@ Web pages:
 | `POSTGRES_DRIVER` | `psycopg` | PostgreSQL SQLAlchemy driver for normalized Render URLs. |
 | `GRID_SQLITE_PATH` | `data/grid_history.sqlite3` | Local SQLite fallback path. |
 | `APP_BASE_URL` | `https://nigeriapowerdata.com` | Canonical domain for SEO URLs. |
+| `INDEXNOW_KEY` | generated project key | IndexNow API key. The app serves it at `/{INDEXNOW_KEY}.txt`. |
+| `INDEXNOW_ENDPOINT` | `https://api.indexnow.org/indexnow` | IndexNow JSON submission endpoint. |
+| `INDEXNOW_ENABLED` | `1` | Enables the IndexNow key file, status endpoint, and submissions. |
+| `INDEXNOW_AUTO_NOTIFY_ENABLED` | auto on Render | Submits the public URL list in a background thread after production startup. |
+| `INDEXNOW_STARTUP_MIN_INTERVAL_SECONDS` | `86400` | Minimum seconds before resubmitting an unchanged URL inventory. |
+| `INDEXNOW_ADMIN_TOKEN` | unset | Optional bearer or `X-IndexNow-Token` value required for live manual `POST /api/indexnow` submissions. |
 | `CONTACT_EMAIL` | `hello@nigeriapowerdata.com` | Public general contact email shown on About and Contact pages. |
 | `RESEARCH_EMAIL` | `CONTACT_EMAIL` | Research collaboration and data-correction email. |
 | `ADS_EMAIL` | `CONTACT_EMAIL` | Advertising and sponsorship enquiry email. |
@@ -316,6 +328,7 @@ when you are ready to automate ingestion again.
 - Canonical URL points to `https://nigeriapowerdata.com/`.
 - OpenGraph and Twitter metadata are included.
 - `robots.txt` and `sitemap.xml` are served by Flask.
+- IndexNow is enabled with a root key file and automatic production startup notification of the public URL inventory when the published version changes or the submission interval expires.
 - The dashboard uses semantic sections, accessible labels, responsive cards, and lightweight assets.
 - AdSense-safe placeholders exist for sidebar, in-content, and footer inventory.
 

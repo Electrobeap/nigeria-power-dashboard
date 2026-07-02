@@ -1,4 +1,5 @@
 import copy
+import secrets
 from typing import Any
 
 from flask import Blueprint, current_app, jsonify, request
@@ -13,6 +14,11 @@ from grid_monitor.services.geographic_hierarchy import (
     hierarchy_detail,
     hierarchy_overview,
     search_hierarchy,
+)
+from grid_monitor.services.indexnow import (
+    indexnow_status,
+    submit_indexnow_urls,
+    submit_public_urls_if_due,
 )
 from grid_monitor.services.scheduler import scheduler_status
 from grid_monitor.services.scraper import get_dashboard_payload, get_disco_profile, get_live_grid_payload
@@ -48,6 +54,20 @@ def _json(payload: dict[str, Any], status: int = 200):
 
 def _error(message: str, status: int = 500, code: str = "internal_error"):
     return _json({"error": message, "code": code, "status": status}, status)
+
+
+def _truthy(value: Any) -> bool:
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _indexnow_authorized() -> bool:
+    expected = current_app.config.get("INDEXNOW_ADMIN_TOKEN")
+    if not expected:
+        return False
+    authorization = request.headers.get("Authorization", "")
+    bearer_token = authorization.removeprefix("Bearer ").strip()
+    submitted = request.headers.get("X-IndexNow-Token") or bearer_token
+    return bool(submitted) and secrets.compare_digest(str(submitted), str(expected))
 
 
 def _entity_response(entity_type: str, slug: str):
@@ -395,6 +415,7 @@ def metadata():
         "geography_map": "/api/geography/map",
         "geography_search": "/api/geography/search?q=lagos",
         "geography_hierarchy": "/api/geography/{level}/{slug}",
+        "indexnow": "/api/indexnow",
         "gencos": "/api/gencos",
         "discos": "/api/discos",
         "health": "/api/health",
@@ -422,6 +443,40 @@ def metadata():
             "endpoints": endpoints,
         }
     )
+
+
+@api_bp.get("/api/indexnow")
+def indexnow_metadata():
+    return _json(indexnow_status())
+
+
+@api_bp.post("/api/indexnow")
+def indexnow_submit():
+    payload = request.get_json(silent=True) or {}
+    dry_run = _truthy(payload.get("dry_run")) or _truthy(request.args.get("dry_run"))
+    force = _truthy(payload.get("force")) or _truthy(request.args.get("force"))
+    urls = payload.get("urls")
+    if urls is not None and (
+        not isinstance(urls, list) or any(not isinstance(url, str) for url in urls)
+    ):
+        raise ValidationError("urls must be a list of absolute URL strings")
+    if not dry_run and not _indexnow_authorized():
+        return _error("INDEXNOW_ADMIN_TOKEN is required for manual submissions", 403, "forbidden")
+
+    try:
+        if urls:
+            result = submit_indexnow_urls(urls, reason="api", dry_run=dry_run)
+        else:
+            result = (
+                submit_indexnow_urls(reason="api", dry_run=True)
+                if dry_run
+                else submit_public_urls_if_due(force=force, reason="api")
+            )
+    except Exception as exc:
+        return _error(str(exc), 502, "indexnow_submission_failed")
+
+    status = 200 if result.get("ok") else 502
+    return _json(result, status)
 
 
 @api_bp.get("/api/entities")
@@ -531,5 +586,6 @@ def health():
             "name": current_app.config["API_NAME"],
             "version": current_app.config["API_VERSION"],
         },
+        "indexnow": indexnow_status(),
     }
     return _json(status, 200 if storage["ok"] else 503)

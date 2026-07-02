@@ -2,7 +2,9 @@ from copy import deepcopy
 
 from flask import Blueprint, Response, abort, current_app, render_template, send_from_directory
 
+from grid_monitor.services.indexnow import indexnow_key, indexnow_key_file_body
 from grid_monitor.services.geographic_hierarchy import hierarchy_counts
+from grid_monitor.services.site_urls import public_url_entries
 from grid_monitor.services.state_intelligence import list_regions, list_states
 
 
@@ -297,79 +299,27 @@ def robots():
 
 @web_bp.get("/sitemap.xml")
 def sitemap():
-    base_url = current_app.config["APP_BASE_URL"]
-    pages = ["about", "contact", "privacy-policy", "terms-of-use", "methodology", "data-sources"]
-    page_urls = "\n".join(
+    url_entries = "\n".join(
         f"""  <url>
-    <loc>{base_url}/{page}</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <loc>{entry['loc']}</loc>
+    <changefreq>{entry['changefreq']}</changefreq>
+    <priority>{entry['priority']}</priority>
   </url>"""
-        for page in pages
-    )
-    state_urls = "\n".join(
-        f"""  <url>
-    <loc>{base_url}{state['url']}</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>"""
-        for state in list_states()
-    )
-    region_urls = "\n".join(
-        f"""  <url>
-    <loc>{base_url}{region['url']}</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>"""
-        for region in list_regions()
-    )
-    hierarchy_state_urls = "\n".join(
-        f"""  <url>
-    <loc>{base_url}/geography/state/{state['slug']}</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.7</priority>
-  </url>"""
-        for state in list_states()
+        for entry in public_url_entries(current_app.config["APP_BASE_URL"])
     )
     body = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>{base_url}/</loc>
-    <changefreq>hourly</changefreq>
-    <priority>1.0</priority>
-  </url>
-{page_urls}
-  <url>
-    <loc>{base_url}/states</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>{base_url}/regions</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>{base_url}/geography</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-{state_urls}
-{region_urls}
-{hierarchy_state_urls}
-  <url>
-    <loc>{base_url}/api/metadata</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>{base_url}/api/distribution</loc>
-    <changefreq>hourly</changefreq>
-    <priority>0.5</priority>
-  </url>
+{url_entries}
 </urlset>
 """
     return Response(body, mimetype="application/xml")
+
+
+@web_bp.get("/<key_file>.txt")
+def indexnow_key_file(key_file):
+    if key_file != indexnow_key():
+        abort(404)
+    return Response(indexnow_key_file_body(), mimetype="text/plain; charset=utf-8")
 
 
 @web_bp.get("/favicon.svg")
