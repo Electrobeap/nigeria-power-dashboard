@@ -47,6 +47,7 @@ signals into operational analytics.
 |   |   |-- indexnow.py
 |   |   |-- state_intelligence.py
 |   |   |-- site_urls.py
+|   |   |-- social_meta.py
 |   |   |-- structured_data.py
 |   |   |-- scheduler.py
 |   |   |-- scraper.py
@@ -99,6 +100,7 @@ signals into operational analytics.
 - `services/geographic_hierarchy.py` builds the replaceable State/LGA/Town/Community/Settlement hierarchy, search index, map payload, demand estimates, transformer loading, grid health, and infrastructure upgrade recommendations.
 - `services/site_urls.py` provides the canonical public URL inventory used by sitemap and IndexNow submissions.
 - `services/indexnow.py` exposes the IndexNow key file details, submits public URL batches, and tracks deployment-triggered notification state.
+- `services/social_meta.py` builds page-specific Open Graph and Twitter Card metadata with a high-resolution fallback preview image.
 - `services/structured_data.py` builds one JSON-LD `@graph` per rendered page for Organization, WebSite/SearchAction, WebPage, Breadcrumb, Dataset, Article, NewsArticle-ready article nodes, and FAQ where applicable.
 - `services/scheduler.py` runs APScheduler collection with `max_instances=1` and `replace_existing=True` when `WEB_SCHEDULER_ENABLED=1`.
 - `routes/api.py` exposes compatibility, analytics, distribution, metadata, and health endpoints.
@@ -221,6 +223,11 @@ Web pages:
 | `POSTGRES_DRIVER` | `psycopg` | PostgreSQL SQLAlchemy driver for normalized Render URLs. |
 | `GRID_SQLITE_PATH` | `data/grid_history.sqlite3` | Local SQLite fallback path. |
 | `APP_BASE_URL` | `https://nigeriapowerdata.com` | Canonical domain for SEO URLs. |
+| `SOCIAL_DEFAULT_IMAGE` | `/static/images/og-image.png` | Default 1200x630 social preview image used when a page has no specific image. |
+| `SOCIAL_IMAGE_WIDTH` | `1200` | Width advertised in Open Graph image metadata. |
+| `SOCIAL_IMAGE_HEIGHT` | `630` | Height advertised in Open Graph image metadata. |
+| `TWITTER_CARD` | `summary_large_image` | Twitter/X card type. |
+| `TWITTER_SITE` | unset | Optional Twitter/X handle, for example `@NigeriaPowerData`. |
 | `SCHEMA_DATE_PUBLISHED` | `2026-06-01` | Published date used in Article/NewsArticle JSON-LD. |
 | `SCHEMA_DATE_MODIFIED` | `2026-07-02` | Modified date used in Article/NewsArticle JSON-LD. |
 | `INDEXNOW_KEY` | generated project key | IndexNow API key. The app serves it at `/{INDEXNOW_KEY}.txt`. |
@@ -330,7 +337,7 @@ when you are ready to automate ingestion again.
 ## SEO And AdSense Prep
 
 - Canonical URL points to `https://nigeriapowerdata.com/`.
-- OpenGraph and Twitter metadata are included.
+- Page-specific Open Graph and Twitter Card metadata are included with a 1200x630 default preview image.
 - Schema.org JSON-LD is emitted as a single page-specific `@graph` and includes Organization, WebSite, SearchAction, WebPage, Breadcrumb, Dataset, Article, and FAQPage markup where page content supports it.
 - `robots.txt` and `sitemap.xml` are served by Flask.
 - IndexNow is enabled with a root key file and automatic production startup notification of the public URL inventory when the published version changes or the submission interval expires.

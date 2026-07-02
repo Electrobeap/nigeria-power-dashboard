@@ -6,16 +6,7 @@
     <meta name="description" content="{{ description }}">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#0B1F3A">
-    <meta property="og:title" content="{{ page_title }} | Nigeria Power Data">
-    <meta property="og:description" content="{{ description }}">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="{{ config.APP_BASE_URL }}/{{ entity_plural }}/{{ slug }}">
-    <meta property="og:site_name" content="Nigeria Power Data">
-    <meta property="og:image" content="{{ config.APP_BASE_URL }}/static/images/og-image.png">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{{ page_title }} | Nigeria Power Data">
-    <meta name="twitter:description" content="{{ description }}">
-    <meta name="twitter:image" content="{{ config.APP_BASE_URL }}/static/images/og-image.png">
+    {% include "partials/social_meta.html" %}
     <title>{{ page_title }} | Nigeria Power Data</title>
     <link rel="canonical" href="{{ config.APP_BASE_URL }}/{{ entity_plural }}/{{ slug }}">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">

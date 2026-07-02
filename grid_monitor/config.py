@@ -125,6 +125,11 @@ class Config:
     API_NAME = "Nigeria Power Grid Monitor API"
     API_VERSION = os.environ.get("API_VERSION", "2.0.0")
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "https://nigeriapowerdata.com").rstrip("/")
+    SOCIAL_DEFAULT_IMAGE = os.environ.get("SOCIAL_DEFAULT_IMAGE", "/static/images/og-image.png")
+    SOCIAL_IMAGE_WIDTH = _env_int("SOCIAL_IMAGE_WIDTH", 1200)
+    SOCIAL_IMAGE_HEIGHT = _env_int("SOCIAL_IMAGE_HEIGHT", 630)
+    TWITTER_CARD = os.environ.get("TWITTER_CARD", "summary_large_image")
+    TWITTER_SITE = os.environ.get("TWITTER_SITE")
     SCHEMA_DATE_PUBLISHED = os.environ.get("SCHEMA_DATE_PUBLISHED", "2026-06-01")
     SCHEMA_DATE_MODIFIED = os.environ.get("SCHEMA_DATE_MODIFIED", "2026-07-02")
     INDEXNOW_KEY = os.environ.get(

@@ -5,6 +5,7 @@ from flask import Blueprint, Response, abort, current_app, render_template, send
 from grid_monitor.services.indexnow import indexnow_key, indexnow_key_file_body
 from grid_monitor.services.geographic_hierarchy import hierarchy_counts
 from grid_monitor.services.site_urls import public_url_entries
+from grid_monitor.services.social_meta import build_social_meta
 from grid_monitor.services.state_intelligence import list_regions, list_states
 from grid_monitor.services.structured_data import build_structured_data
 
@@ -179,6 +180,15 @@ def _schema(title, description, path, breadcrumbs, **kwargs):
     )
 
 
+def _social(title, description, path, og_type="website"):
+    return build_social_meta(
+        title=title,
+        description=description,
+        path=path,
+        og_type=og_type,
+    )
+
+
 def _report_schema(title, description, path, breadcrumbs, sections):
     return _schema(
         title,
@@ -232,8 +242,10 @@ def _configured_content_page(page_slug):
 @web_bp.get("/")
 def index():
     description = "Nigeria Power Data tracks real-time generation, GenCo performance, DisCo allocation, grid health, and transformer loading intelligence for Nigeria's electricity market."
+    title = "Nigeria Power Data | Real-Time Grid Intelligence"
     return render_template(
         "index.html",
+        social_meta=_social(title, description, "/"),
         structured_data=_schema(
             "Nigeria Power Data | Grid & Distribution Intelligence",
             description,
@@ -256,6 +268,7 @@ def disco_page(slug):
         page_title=title,
         entity_label="DisCo",
         description=description,
+        social_meta=_social(title, description, f"/discos/{slug}", og_type="article"),
         structured_data=_report_schema(
             title,
             description,
@@ -283,6 +296,7 @@ def genco_page(slug):
         page_title=title,
         entity_label="GenCo",
         description=description,
+        social_meta=_social(title, description, f"/gencos/{slug}", og_type="article"),
         structured_data=_report_schema(
             title,
             description,
@@ -308,6 +322,7 @@ def states_page():
         states=list_states(),
         regions=list_regions(),
         canonical_path="/states",
+        social_meta=_social(title, description, "/states"),
         structured_data=_schema(
             title,
             description,
@@ -329,6 +344,7 @@ def regions_page():
         regions=list_regions(),
         focus="regions",
         canonical_path="/regions",
+        social_meta=_social(title, description, "/regions"),
         structured_data=_schema(
             title,
             description,
@@ -347,6 +363,7 @@ def hierarchy_page():
         title=title,
         description=description,
         counts=hierarchy_counts(),
+        social_meta=_social(title, description, "/geography"),
         structured_data=_schema(
             title,
             description,
@@ -367,6 +384,7 @@ def hierarchy_detail_page(level, slug):
         slug=slug,
         page_title=title,
         description=description,
+        social_meta=_social(title, description, f"/geography/{level}/{slug}", og_type="article"),
         structured_data=_report_schema(
             title,
             description,
@@ -393,6 +411,7 @@ def state_page(slug):
         slug=slug,
         page_title=title,
         description=description,
+        social_meta=_social(title, description, f"/state/{slug}", og_type="article"),
         structured_data=_report_schema(
             title,
             description,
@@ -419,6 +438,7 @@ def region_page(slug):
         slug=slug,
         page_title=title,
         description=description,
+        social_meta=_social(title, description, f"/region/{slug}", og_type="article"),
         structured_data=_report_schema(
             title,
             description,
@@ -442,6 +462,7 @@ def content_page(page_slug):
         "page.html",
         page=page,
         page_slug=page_slug,
+        social_meta=_social(page["title"], page["description"], f"/{page_slug}", og_type="article"),
         structured_data=_content_schema(page_slug, page),
     )
 

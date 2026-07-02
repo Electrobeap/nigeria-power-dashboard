@@ -9,16 +9,7 @@
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#0B1F3A">
     <meta name="application-name" content="Nigeria Power Data">
-    <meta property="og:title" content="Nigeria Power Data | Real-Time Grid Intelligence">
-    <meta property="og:description" content="Premium electricity generation, distribution loading, and grid health analytics for Nigeria.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://nigeriapowerdata.com/">
-    <meta property="og:site_name" content="Nigeria Power Data">
-    <meta property="og:image" content="{{ config.APP_BASE_URL }}/static/images/og-image.png">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Nigeria Power Data">
-    <meta name="twitter:description" content="Real-time Nigerian electricity generation, distribution, and transformer loading intelligence.">
-    <meta name="twitter:image" content="{{ config.APP_BASE_URL }}/static/images/og-image.png">
+    {% include "partials/social_meta.html" %}
     <title>Nigeria Power Data | Grid &amp; Distribution Intelligence</title>
     <link rel="canonical" href="https://nigeriapowerdata.com/">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
