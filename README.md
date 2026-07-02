@@ -23,7 +23,7 @@ signals into operational analytics.
 - Hierarchical Geographic Intelligence map with State to LGA to Town/City to Community to Settlement drill-down, direct search, demand estimates, transformer loading, grid health, and upgrade recommendations.
 - Public content pages for About, Contact, Privacy Policy, Terms of Use, Methodology, and Data Sources.
 - Modern responsive dashboard with dark mode, KPI cards, loading states, sticky navigation, polished charts, tables, and footer.
-- SEO and AdSense readiness: meta tags, OpenGraph/Twitter tags, favicon, logo, semantic HTML, `robots.txt`, `sitemap.xml`, and non-intrusive ad placeholders.
+- SEO and AdSense readiness: meta tags, OpenGraph/Twitter tags, Schema.org JSON-LD, favicon, logo, semantic HTML, `robots.txt`, `sitemap.xml`, IndexNow, and non-intrusive ad placeholders.
 
 ## Project Structure
 
@@ -47,6 +47,7 @@ signals into operational analytics.
 |   |   |-- indexnow.py
 |   |   |-- state_intelligence.py
 |   |   |-- site_urls.py
+|   |   |-- structured_data.py
 |   |   |-- scheduler.py
 |   |   |-- scraper.py
 |   |   |-- storage.py
@@ -98,6 +99,7 @@ signals into operational analytics.
 - `services/geographic_hierarchy.py` builds the replaceable State/LGA/Town/Community/Settlement hierarchy, search index, map payload, demand estimates, transformer loading, grid health, and infrastructure upgrade recommendations.
 - `services/site_urls.py` provides the canonical public URL inventory used by sitemap and IndexNow submissions.
 - `services/indexnow.py` exposes the IndexNow key file details, submits public URL batches, and tracks deployment-triggered notification state.
+- `services/structured_data.py` builds one JSON-LD `@graph` per rendered page for Organization, WebSite/SearchAction, WebPage, Breadcrumb, Dataset, Article, NewsArticle-ready article nodes, and FAQ where applicable.
 - `services/scheduler.py` runs APScheduler collection with `max_instances=1` and `replace_existing=True` when `WEB_SCHEDULER_ENABLED=1`.
 - `routes/api.py` exposes compatibility, analytics, distribution, metadata, and health endpoints.
 - `routes/web.py` serves the dashboard, entity drill-down pages, state and regional intelligence pages, hierarchical map pages, content pages, favicon, robots file, sitemap, and IndexNow root key file.
@@ -219,6 +221,8 @@ Web pages:
 | `POSTGRES_DRIVER` | `psycopg` | PostgreSQL SQLAlchemy driver for normalized Render URLs. |
 | `GRID_SQLITE_PATH` | `data/grid_history.sqlite3` | Local SQLite fallback path. |
 | `APP_BASE_URL` | `https://nigeriapowerdata.com` | Canonical domain for SEO URLs. |
+| `SCHEMA_DATE_PUBLISHED` | `2026-06-01` | Published date used in Article/NewsArticle JSON-LD. |
+| `SCHEMA_DATE_MODIFIED` | `2026-07-02` | Modified date used in Article/NewsArticle JSON-LD. |
 | `INDEXNOW_KEY` | generated project key | IndexNow API key. The app serves it at `/{INDEXNOW_KEY}.txt`. |
 | `INDEXNOW_ENDPOINT` | `https://api.indexnow.org/indexnow` | IndexNow JSON submission endpoint. |
 | `INDEXNOW_ENABLED` | `1` | Enables the IndexNow key file, status endpoint, and submissions. |
@@ -327,6 +331,7 @@ when you are ready to automate ingestion again.
 
 - Canonical URL points to `https://nigeriapowerdata.com/`.
 - OpenGraph and Twitter metadata are included.
+- Schema.org JSON-LD is emitted as a single page-specific `@graph` and includes Organization, WebSite, SearchAction, WebPage, Breadcrumb, Dataset, Article, and FAQPage markup where page content supports it.
 - `robots.txt` and `sitemap.xml` are served by Flask.
 - IndexNow is enabled with a root key file and automatic production startup notification of the public URL inventory when the published version changes or the submission interval expires.
 - The dashboard uses semantic sections, accessible labels, responsive cards, and lightweight assets.

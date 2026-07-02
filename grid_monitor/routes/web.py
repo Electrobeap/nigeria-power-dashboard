@@ -6,6 +6,7 @@ from grid_monitor.services.indexnow import indexnow_key, indexnow_key_file_body
 from grid_monitor.services.geographic_hierarchy import hierarchy_counts
 from grid_monitor.services.site_urls import public_url_entries
 from grid_monitor.services.state_intelligence import list_regions, list_states
+from grid_monitor.services.structured_data import build_structured_data
 
 
 web_bp = Blueprint("web", __name__)
@@ -161,6 +162,54 @@ CONTENT_PAGES = {
 }
 
 
+FAQ_CONTENT_PAGES = {"methodology", "data-sources"}
+
+
+def _display_slug(slug):
+    return slug.replace("-", " ").title()
+
+
+def _schema(title, description, path, breadcrumbs, **kwargs):
+    return build_structured_data(
+        title=title,
+        description=description,
+        path=path,
+        breadcrumbs=breadcrumbs,
+        **kwargs,
+    )
+
+
+def _report_schema(title, description, path, breadcrumbs, sections):
+    return _schema(
+        title,
+        description,
+        path,
+        breadcrumbs,
+        page_type="WebPage",
+        article_type="Article",
+        article_sections=sections,
+    )
+
+
+def _content_schema(page_slug, page):
+    faq_items = None
+    if page_slug in FAQ_CONTENT_PAGES:
+        faq_items = [
+            {"question": section["heading"], "answer": section["body"]}
+            for section in page.get("sections", [])
+        ]
+    return _schema(
+        page["title"],
+        page["description"],
+        f"/{page_slug}",
+        [{"name": "Home", "path": "/"}, {"name": page["title"], "path": f"/{page_slug}"}],
+        page_type="WebPage",
+        article_type="Article",
+        article_sections=[section["heading"] for section in page.get("sections", [])],
+        faq_items=faq_items,
+    )
+
+
 def _configured_content_page(page_slug):
     page = deepcopy(CONTENT_PAGES.get(page_slug))
     if not page:
@@ -182,100 +231,205 @@ def _configured_content_page(page_slug):
 
 @web_bp.get("/")
 def index():
-    return render_template("index.html")
+    description = "Nigeria Power Data tracks real-time generation, GenCo performance, DisCo allocation, grid health, and transformer loading intelligence for Nigeria's electricity market."
+    return render_template(
+        "index.html",
+        structured_data=_schema(
+            "Nigeria Power Data | Grid & Distribution Intelligence",
+            description,
+            "/",
+            [{"name": "Home", "path": "/"}],
+        ),
+    )
 
 
 @web_bp.get("/discos/<slug>")
 def disco_page(slug):
+    display_name = _display_slug(slug)
+    title = f"{display_name} DisCo Intelligence"
+    description = "DisCo load allocation, transformer utilization, risk, forecast, and settlement growth intelligence."
     return render_template(
         "entity.html",
         entity_type="disco",
         entity_plural="discos",
         slug=slug,
-        page_title="DisCo Intelligence",
+        page_title=title,
         entity_label="DisCo",
-        description="DisCo load allocation, transformer utilization, risk, forecast, and settlement growth intelligence.",
+        description=description,
+        structured_data=_report_schema(
+            title,
+            description,
+            f"/discos/{slug}",
+            [
+                {"name": "Home", "path": "/"},
+                {"name": "DisCo Intelligence", "path": "/#distribution"},
+                {"name": display_name, "path": f"/discos/{slug}"},
+            ],
+            ["DisCo allocation", "Transformer utilization", "Forecast and risk"],
+        ),
     )
 
 
 @web_bp.get("/gencos/<slug>")
 def genco_page(slug):
+    display_name = _display_slug(slug)
+    title = f"{display_name} GenCo Intelligence"
+    description = "GenCo output history, forecast, volatility, ranking, and performance intelligence."
     return render_template(
         "entity.html",
         entity_type="genco",
         entity_plural="gencos",
         slug=slug,
-        page_title="GenCo Intelligence",
+        page_title=title,
         entity_label="GenCo",
-        description="GenCo output history, forecast, volatility, ranking, and performance intelligence.",
+        description=description,
+        structured_data=_report_schema(
+            title,
+            description,
+            f"/gencos/{slug}",
+            [
+                {"name": "Home", "path": "/"},
+                {"name": "GenCo Performance", "path": "/#market-data"},
+                {"name": display_name, "path": f"/gencos/{slug}"},
+            ],
+            ["GenCo output", "Performance ranking", "Forecast and volatility"],
+        ),
     )
 
 
 @web_bp.get("/states")
 def states_page():
+    title = "State Intelligence"
+    description = "State and regional power allocation intelligence for Nigeria."
     return render_template(
         "geo_index.html",
-        title="State Intelligence",
-        description="State and regional power allocation intelligence for Nigeria.",
+        title=title,
+        description=description,
         states=list_states(),
         regions=list_regions(),
+        canonical_path="/states",
+        structured_data=_schema(
+            title,
+            description,
+            "/states",
+            [{"name": "Home", "path": "/"}, {"name": "States", "path": "/states"}],
+        ),
     )
 
 
 @web_bp.get("/regions")
 def regions_page():
+    title = "Regional Intelligence"
+    description = "Regional power allocation, reliability, infrastructure stress, and DisCo coverage intelligence for Nigeria."
     return render_template(
         "geo_index.html",
-        title="Regional Intelligence",
-        description="Regional power allocation, reliability, infrastructure stress, and DisCo coverage intelligence for Nigeria.",
+        title=title,
+        description=description,
         states=list_states(),
         regions=list_regions(),
         focus="regions",
+        canonical_path="/regions",
+        structured_data=_schema(
+            title,
+            description,
+            "/regions",
+            [{"name": "Home", "path": "/"}, {"name": "Regions", "path": "/regions"}],
+        ),
     )
 
 
 @web_bp.get("/geography")
 def hierarchy_page():
+    title = "Nigeria Geographic Power Intelligence Map"
+    description = "Interactive Nigeria map with state, LGA, town, community, and settlement-level electricity demand intelligence."
     return render_template(
         "hierarchy_index.html",
-        title="Nigeria Geographic Power Intelligence Map",
-        description="Interactive Nigeria map with state, LGA, town, community, and settlement-level electricity demand intelligence.",
+        title=title,
+        description=description,
         counts=hierarchy_counts(),
+        structured_data=_schema(
+            title,
+            description,
+            "/geography",
+            [{"name": "Home", "path": "/"}, {"name": "Geography", "path": "/geography"}],
+        ),
     )
 
 
 @web_bp.get("/geography/<level>/<slug>")
 def hierarchy_detail_page(level, slug):
+    display_name = _display_slug(slug)
+    title = f"{display_name} Geographic Drill-Down Intelligence"
+    description = "Hierarchical power demand, transformer loading, DisCo coverage, grid health, and infrastructure upgrade intelligence."
     return render_template(
         "hierarchy_detail.html",
         level=level,
         slug=slug,
-        page_title="Geographic Drill-Down Intelligence",
-        description="Hierarchical power demand, transformer loading, DisCo coverage, grid health, and infrastructure upgrade intelligence.",
+        page_title=title,
+        description=description,
+        structured_data=_report_schema(
+            title,
+            description,
+            f"/geography/{level}/{slug}",
+            [
+                {"name": "Home", "path": "/"},
+                {"name": "Geography", "path": "/geography"},
+                {"name": display_name, "path": f"/geography/{level}/{slug}"},
+            ],
+            ["Demand projection", "Transformer loading", "Infrastructure upgrades"],
+        ),
     )
 
 
 @web_bp.get("/state/<slug>")
 def state_page(slug):
+    display_name = _display_slug(slug)
+    title = f"{display_name} State Intelligence"
+    description = "State power allocation, demand, reliability, transformer risk, and regional electricity intelligence."
     return render_template(
         "geo.html",
         scope="state",
         api_collection="states",
         slug=slug,
-        page_title="State Intelligence",
-        description="State power allocation, demand, reliability, transformer risk, and regional electricity intelligence.",
+        page_title=title,
+        description=description,
+        structured_data=_report_schema(
+            title,
+            description,
+            f"/state/{slug}",
+            [
+                {"name": "Home", "path": "/"},
+                {"name": "States", "path": "/states"},
+                {"name": display_name, "path": f"/state/{slug}"},
+            ],
+            ["State allocation", "Demand growth", "Reliability and transformer risk"],
+        ),
     )
 
 
 @web_bp.get("/region/<slug>")
 def region_page(slug):
+    display_name = _display_slug(slug)
+    title = f"{display_name} Regional Intelligence"
+    description = "Regional power allocation, state coverage, infrastructure stress, demand growth, and grid reliability intelligence."
     return render_template(
         "geo.html",
         scope="region",
         api_collection="regions",
         slug=slug,
-        page_title="Regional Intelligence",
-        description="Regional power allocation, state coverage, infrastructure stress, demand growth, and grid reliability intelligence.",
+        page_title=title,
+        description=description,
+        structured_data=_report_schema(
+            title,
+            description,
+            f"/region/{slug}",
+            [
+                {"name": "Home", "path": "/"},
+                {"name": "Regions", "path": "/regions"},
+                {"name": display_name, "path": f"/region/{slug}"},
+            ],
+            ["Regional allocation", "Infrastructure stress", "Demand growth"],
+        ),
     )
 
 
@@ -284,7 +438,12 @@ def content_page(page_slug):
     page = _configured_content_page(page_slug)
     if not page:
         abort(404)
-    return render_template("page.html", page=page, page_slug=page_slug)
+    return render_template(
+        "page.html",
+        page=page,
+        page_slug=page_slug,
+        structured_data=_content_schema(page_slug, page),
+    )
 
 
 @web_bp.get("/robots.txt")

@@ -125,6 +125,8 @@ class Config:
     API_NAME = "Nigeria Power Grid Monitor API"
     API_VERSION = os.environ.get("API_VERSION", "2.0.0")
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "https://nigeriapowerdata.com").rstrip("/")
+    SCHEMA_DATE_PUBLISHED = os.environ.get("SCHEMA_DATE_PUBLISHED", "2026-06-01")
+    SCHEMA_DATE_MODIFIED = os.environ.get("SCHEMA_DATE_MODIFIED", "2026-07-02")
     INDEXNOW_KEY = os.environ.get(
         "INDEXNOW_KEY", "aec53615a9bfaa336c0212274ff00b0c2b9eace958a045742666ed61f0d4b97d"
     )

@@ -9,18 +9,19 @@
     <meta property="og:title" content="{{ title }} | Nigeria Power Data">
     <meta property="og:description" content="{{ description }}">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="{{ config.APP_BASE_URL }}/states">
+    <meta property="og:url" content="{{ config.APP_BASE_URL }}{{ canonical_path }}">
     <meta property="og:site_name" content="Nigeria Power Data">
     <meta property="og:image" content="{{ config.APP_BASE_URL }}/static/images/og-image.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="{{ config.APP_BASE_URL }}/static/images/og-image.png">
     <title>{{ title }} | Nigeria Power Data</title>
-    <link rel="canonical" href="{{ config.APP_BASE_URL }}/states">
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}{{ canonical_path }}">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=brand-20260630">
+    {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
 </head>
