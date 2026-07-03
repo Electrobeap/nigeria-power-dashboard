@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#0B1F3A">
     {% include "partials/social_meta.html" %}
     <title>{{ page_title }} | Nigeria Power Data</title>
-    <link rel="canonical" href="{{ config.APP_BASE_URL }}/{{ scope }}/{{ slug }}">
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}{{ canonical_path }}">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
@@ -54,11 +54,20 @@
 </header>
 
 <main class="shell entity-shell">
+    {% if seo_content and seo_content.breadcrumbs %}
+    <nav class="breadcrumb-list" aria-label="Breadcrumb">
+        {% for crumb in seo_content.breadcrumbs %}
+        <a href="{{ crumb.path }}">{{ crumb.name }}</a>
+        {% if not loop.last %}<span>/</span>{% endif %}
+        {% endfor %}
+    </nav>
+    {% endif %}
+
     <section class="hero-copy entity-hero" aria-labelledby="geo-title">
         <div>
-            <p class="eyebrow" id="geo-eyebrow">{{ page_title }}</p>
-            <h1 id="geo-title">{{ slug | replace("-", " ") | title }}</h1>
-            <p class="hero-lede" id="geo-lede">Loading allocation, demand, infrastructure stress, transformer risk, and reliability intelligence.</p>
+            <p class="eyebrow" id="geo-eyebrow">{{ seo_content.eyebrow if seo_content else page_title }}</p>
+            <h1 id="geo-title">{{ seo_content.h1 if seo_content else slug | replace("-", " ") | title }}</h1>
+            <p class="hero-lede" id="geo-lede">{{ seo_content.lede if seo_content else "Loading allocation, demand, infrastructure stress, transformer risk, and reliability intelligence." }}</p>
             <div class="hero-actions" aria-label="Geography signals">
                 <span id="geo-rank-pill">Ranking pending</span>
                 <span id="geo-risk-pill">Risk pending</span>
@@ -177,6 +186,44 @@
             <div class="entity-link-grid" id="geo-related"></div>
         </article>
     </section>
+
+    {% if seo_content %}
+    <section class="seo-landing-grid" aria-label="{{ scope | title }} SEO intelligence">
+        <article class="card seo-copy-card">
+            <p class="eyebrow compact">Search Intelligence</p>
+            <h2>{{ page_title }}</h2>
+            <p>{{ seo_content.summary }}</p>
+        </article>
+        <article class="card seo-facts-card">
+            <div class="section-head">
+                <h2>Key Geography Signals</h2>
+                <span>Server-rendered for search</span>
+            </div>
+            <dl class="seo-fact-grid">
+                {% for item in seo_content.facts %}
+                <div>
+                    <dt>{{ item.label }}</dt>
+                    <dd>{{ item.value }}</dd>
+                </div>
+                {% endfor %}
+            </dl>
+        </article>
+        <article class="card seo-faq-card wide">
+            <div class="section-head">
+                <h2>{{ scope | title }} FAQs</h2>
+                <span>Structured data aligned with visible content</span>
+            </div>
+            <div class="faq-list">
+                {% for item in seo_content.faq_items %}
+                <details>
+                    <summary>{{ item.question }}</summary>
+                    <p>{{ item.answer }}</p>
+                </details>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
+    {% endif %}
 </main>
 
 <footer class="site-footer">
@@ -193,6 +240,8 @@
         <a href="/states">States</a>
         <a href="/geography">Map</a>
         <a href="/regions">Regions</a>
+        <a href="/discos">DisCos</a>
+        <a href="/gencos">GenCos</a>
         <a href="/privacy-policy">Privacy</a>
         <a href="/terms-of-use">Terms</a>
     </nav>

@@ -2,11 +2,23 @@ from copy import deepcopy
 
 from flask import Blueprint, Response, abort, current_app, render_template, send_from_directory
 
+from grid_monitor.services.entity_intelligence import (
+    EntityNotFound,
+    display_entity_name,
+    entity_intelligence,
+    list_entities,
+)
 from grid_monitor.services.indexnow import indexnow_key, indexnow_key_file_body
 from grid_monitor.services.geographic_hierarchy import hierarchy_counts
 from grid_monitor.services.site_urls import public_url_entries
 from grid_monitor.services.social_meta import build_social_meta
-from grid_monitor.services.state_intelligence import list_regions, list_states
+from grid_monitor.services.state_intelligence import (
+    GeographyNotFound,
+    list_regions,
+    list_states,
+    region_intelligence,
+    state_intelligence,
+)
 from grid_monitor.services.structured_data import build_structured_data
 
 
@@ -170,6 +182,22 @@ def _display_slug(slug):
     return slug.replace("-", " ").title()
 
 
+def _labelize(value):
+    return str(value or "pending").replace("_", " ").replace("-", " ").title()
+
+
+def _format_mw(value, digits=0):
+    if value is None:
+        return "Pending"
+    return f"{float(value):,.{digits}f} MW"
+
+
+def _format_percent(value, digits=1):
+    if value is None:
+        return "Pending"
+    return f"{float(value):,.{digits}f}%"
+
+
 def _schema(title, description, path, breadcrumbs, **kwargs):
     return build_structured_data(
         title=title,
@@ -189,7 +217,7 @@ def _social(title, description, path, og_type="website"):
     )
 
 
-def _report_schema(title, description, path, breadcrumbs, sections):
+def _report_schema(title, description, path, breadcrumbs, sections, faq_items=None):
     return _schema(
         title,
         description,
@@ -198,7 +226,219 @@ def _report_schema(title, description, path, breadcrumbs, sections):
         page_type="WebPage",
         article_type="Article",
         article_sections=sections,
+        faq_items=faq_items,
     )
+
+
+def _entity_fallback_payload(entity_type, slug):
+    label = "DisCo" if entity_type == "disco" else "GenCo"
+    plural = "discos" if entity_type == "disco" else "gencos"
+    name = display_entity_name(_display_slug(slug))
+    return {
+        "entity": {
+            "type": entity_type,
+            "label": label,
+            "name": name,
+            "slug": slug,
+            "unit": "MW allocation" if entity_type == "disco" else "MW output",
+            "url": f"/{plural}/{slug}",
+        },
+        "statistics": {},
+        "trend": {},
+        "forecast": {},
+        "risk": {"classification": "pending", "primary_driver": "source_history"},
+        "utilization": {},
+        "rankings": {"latest": {}, "average": {}},
+        "performance": {},
+        "sample_count": 0,
+        "analysis_summary": (
+            f"{name} {label} intelligence will populate with historical trend, forecast, ranking, "
+            "and risk metrics as soon as source readings are stored for this entity."
+        ),
+        "related": list_entities(entity_type),
+    }
+
+
+def _entity_seo_context(entity_type, slug):
+    try:
+        payload = entity_intelligence(entity_type, slug)
+    except EntityNotFound:
+        payload = _entity_fallback_payload(entity_type, slug)
+
+    entity = payload["entity"]
+    name = entity["name"]
+    label = entity["label"]
+    stats = payload.get("statistics") or {}
+    trend = payload.get("trend") or {}
+    forecast = payload.get("forecast") or {}
+    risk = payload.get("risk") or {}
+    latest_rank = (payload.get("rankings") or {}).get("latest") or {}
+    performance = payload.get("performance") or {}
+    distribution = (payload.get("utilization") or {}).get("distribution") or {}
+    canonical_path = entity.get("url") or f"/{entity['type']}s/{slug}"
+
+    if entity_type == "disco":
+        title = f"{name} Load Allocation, Transformer Risk & Distribution Intelligence"
+        description = (
+            f"{name} electricity distribution intelligence with load allocation trends, transformer utilization, "
+            "settlement growth pressure, grid risk signals, forecasts, and peer ranking for Nigeria."
+        )
+        sections = ["DisCo allocation", "Transformer utilization", "Settlement growth", "Forecast and risk"]
+        facts = [
+            {"label": "Latest allocation", "value": _format_mw(stats.get("latest_mw"))},
+            {"label": "Transformer utilization", "value": _format_percent(distribution.get("estimated_utilization_percent"))},
+            {"label": "12-month utilization forecast", "value": _format_percent(distribution.get("projected_utilization_12m_percent"))},
+            {"label": "Risk classification", "value": _labelize(risk.get("classification"))},
+            {"label": "Latest rank", "value": f"#{latest_rank.get('rank')} of {latest_rank.get('total_entities')}" if latest_rank.get("rank") else "Pending"},
+            {"label": "24h forecast", "value": _format_mw(forecast.get("next_24h_mw"))},
+        ]
+        faq_items = [
+            {
+                "question": f"What does the {name} page track?",
+                "answer": f"It tracks {name} load allocation, historical trend, transformer utilization, settlement growth pressure, forecast movement, and risk classification from stored public grid readings.",
+            },
+            {
+                "question": f"How is {name} transformer risk estimated?",
+                "answer": "Transformer risk is estimated from DisCo allocation, planning-grade utilization assumptions, settlement growth pressure, and configured warning and overload thresholds.",
+            },
+            {
+                "question": f"Is {name} data official operational advice?",
+                "answer": "No. Nigeria Power Data is an independent public-data analytics platform. Readings and estimates should be verified against official sources before operational, regulatory, or commercial decisions.",
+            },
+        ]
+    else:
+        title = f"{name} Generation Output, Forecast & Performance Intelligence"
+        description = (
+            f"{name} generation intelligence with output history, moving averages, volatility, rankings, forecast, "
+            "and performance analytics from Nigeria Power Data."
+        )
+        sections = ["GenCo output", "Generation history", "Performance ranking", "Forecast and volatility"]
+        facts = [
+            {"label": "Latest output", "value": _format_mw(stats.get("latest_mw"))},
+            {"label": "Average output", "value": _format_mw(stats.get("average_mw"))},
+            {"label": "Volatility", "value": _format_percent(stats.get("volatility_percent"))},
+            {"label": "Performance score", "value": f"{performance.get('score')}/100" if performance.get("score") is not None else "Pending"},
+            {"label": "Latest rank", "value": f"#{latest_rank.get('rank')} of {latest_rank.get('total_entities')}" if latest_rank.get("rank") else "Pending"},
+            {"label": "24h forecast", "value": _format_mw(forecast.get("next_24h_mw"))},
+        ]
+        faq_items = [
+            {
+                "question": f"What does the {name} GenCo page show?",
+                "answer": f"It shows {name} output history, moving average, volatility, ranking, short-term forecast, and automated performance analysis from stored generation readings.",
+            },
+            {
+                "question": f"How is {name} performance ranked?",
+                "answer": "Ranking compares latest and average stored output against other generation entities captured by the platform during the selected history window.",
+            },
+            {
+                "question": f"How often is {name} generation intelligence updated?",
+                "answer": "The page updates as new public NISO/NIGGRID readings are fetched and stored by the platform scheduler.",
+            },
+        ]
+
+    breadcrumbs = [
+        {"name": "Home", "path": "/"},
+        {"name": f"{label} Intelligence", "path": f"/{entity['type']}s"},
+        {"name": name, "path": canonical_path},
+    ]
+    return {
+        "payload": payload,
+        "title": title,
+        "description": description,
+        "canonical_path": canonical_path,
+        "breadcrumbs": breadcrumbs,
+        "sections": sections,
+        "faq_items": faq_items,
+        "content": {
+            "eyebrow": f"{label} SEO Intelligence",
+            "h1": title,
+            "lede": description,
+            "summary": payload.get("analysis_summary"),
+            "facts": facts,
+            "faq_items": faq_items,
+            "breadcrumbs": breadcrumbs,
+        },
+    }
+
+
+def _geo_seo_context(scope, slug):
+    try:
+        payload = state_intelligence(slug) if scope == "state" else region_intelligence(slug)
+    except GeographyNotFound:
+        abort(404)
+
+    entity = payload["entity"]
+    name = entity.get("short_name") or entity["name"]
+    metrics = payload.get("metrics") or {}
+    stats = payload.get("statistics") or {}
+    rankings = payload.get("rankings") or {}
+    discos = payload.get("responsible_discos") or []
+    disco_names = ", ".join(disco["name"] for disco in discos) or "DisCo coverage pending"
+    scope_label = "State" if scope == "state" else "Regional"
+    canonical_path = entity["url"]
+    title = f"{name} Power Data: Allocation, Demand Growth & Grid Reliability"
+    description = (
+        f"{name} {scope_label.lower()} electricity intelligence covering responsible DisCos, estimated allocation, "
+        "peak demand, demand growth, transformer risk, infrastructure stress, reliability score, and peer ranking."
+    )
+    facts = [
+        {"label": "Responsible DisCo(s)", "value": disco_names},
+        {"label": "Latest estimated allocation", "value": _format_mw(stats.get("latest_mw"))},
+        {"label": "Estimated peak demand", "value": _format_mw(metrics.get("estimated_peak_demand_mw"))},
+        {"label": "Demand growth", "value": _format_percent(metrics.get("estimated_demand_growth_percent"))},
+        {"label": "Transformer risk score", "value": f"{metrics.get('transformer_risk_score')}/100" if metrics.get("transformer_risk_score") is not None else "Pending"},
+        {"label": "Reliability rank", "value": f"#{rankings.get('reliability_rank')} of {rankings.get('peer_count')}" if rankings.get("reliability_rank") else "Pending"},
+    ]
+    faq_items = [
+        {
+            "question": f"Which DisCos serve {name}?",
+            "answer": f"{name} is mapped to {disco_names} in Nigeria Power Data's planning-grade franchise coverage model.",
+        },
+        {
+            "question": f"What does the {name} power availability estimate mean?",
+            "answer": "Power availability compares estimated allocation against a peak-demand proxy derived from population, urbanization, industrial activity, and demand-growth assumptions.",
+        },
+        {
+            "question": f"How should {name} transformer risk be interpreted?",
+            "answer": "Transformer risk is a planning indicator based on allocation pressure, infrastructure stress, settlement growth, and demand assumptions. It is not direct feeder or transformer telemetry.",
+        },
+    ]
+    breadcrumbs = [
+        {"name": "Home", "path": "/"},
+        {"name": "States" if scope == "state" else "Regions", "path": "/states" if scope == "state" else "/regions"},
+        {"name": name, "path": canonical_path},
+    ]
+    return {
+        "payload": payload,
+        "title": title,
+        "description": description,
+        "canonical_path": canonical_path,
+        "breadcrumbs": breadcrumbs,
+        "sections": ["Allocation trend", "Demand growth", "Transformer risk", "Reliability ranking"],
+        "faq_items": faq_items,
+        "content": {
+            "eyebrow": f"{scope_label} SEO Intelligence",
+            "h1": title,
+            "lede": description,
+            "summary": payload.get("analysis_summary"),
+            "facts": facts,
+            "faq_items": faq_items,
+            "breadcrumbs": breadcrumbs,
+        },
+    }
+
+
+def _directory_faq(entity_label):
+    return [
+        {
+            "question": f"What is the Nigeria Power Data {entity_label} directory?",
+            "answer": f"It is a crawlable index of {entity_label} landing pages with live-linked historical trends, forecasts, rankings, and risk indicators from the platform.",
+        },
+        {
+            "question": "How are these pages updated?",
+            "answer": "Directory pages link to dynamic landing pages that update as the scheduler stores new public grid readings and analytics snapshots.",
+        },
+    ]
 
 
 def _content_schema(page_slug, page):
@@ -257,56 +497,110 @@ def index():
 
 @web_bp.get("/discos/<slug>")
 def disco_page(slug):
-    display_name = _display_slug(slug)
-    title = f"{display_name} DisCo Intelligence"
-    description = "DisCo load allocation, transformer utilization, risk, forecast, and settlement growth intelligence."
+    seo = _entity_seo_context("disco", slug)
     return render_template(
         "entity.html",
         entity_type="disco",
         entity_plural="discos",
         slug=slug,
-        page_title=title,
+        canonical_path=seo["canonical_path"],
+        page_title=seo["title"],
         entity_label="DisCo",
-        description=description,
-        social_meta=_social(title, description, f"/discos/{slug}", og_type="article"),
+        description=seo["description"],
+        seo_content=seo["content"],
+        social_meta=_social(seo["title"], seo["description"], seo["canonical_path"], og_type="article"),
         structured_data=_report_schema(
-            title,
-            description,
-            f"/discos/{slug}",
-            [
-                {"name": "Home", "path": "/"},
-                {"name": "DisCo Intelligence", "path": "/#distribution"},
-                {"name": display_name, "path": f"/discos/{slug}"},
-            ],
-            ["DisCo allocation", "Transformer utilization", "Forecast and risk"],
+            seo["title"],
+            seo["description"],
+            seo["canonical_path"],
+            seo["breadcrumbs"],
+            seo["sections"],
+            faq_items=seo["faq_items"],
         ),
     )
 
 
 @web_bp.get("/gencos/<slug>")
 def genco_page(slug):
-    display_name = _display_slug(slug)
-    title = f"{display_name} GenCo Intelligence"
-    description = "GenCo output history, forecast, volatility, ranking, and performance intelligence."
+    seo = _entity_seo_context("genco", slug)
     return render_template(
         "entity.html",
         entity_type="genco",
         entity_plural="gencos",
         slug=slug,
-        page_title=title,
+        canonical_path=seo["canonical_path"],
+        page_title=seo["title"],
         entity_label="GenCo",
-        description=description,
-        social_meta=_social(title, description, f"/gencos/{slug}", og_type="article"),
+        description=seo["description"],
+        seo_content=seo["content"],
+        social_meta=_social(seo["title"], seo["description"], seo["canonical_path"], og_type="article"),
         structured_data=_report_schema(
+            seo["title"],
+            seo["description"],
+            seo["canonical_path"],
+            seo["breadcrumbs"],
+            seo["sections"],
+            faq_items=seo["faq_items"],
+        ),
+    )
+
+
+@web_bp.get("/discos")
+def discos_directory_page():
+    title = "Nigeria DisCo Intelligence Directory"
+    description = "SEO index of Nigerian electricity distribution companies with allocation trends, transformer loading, settlement pressure, and risk intelligence."
+    breadcrumbs = [{"name": "Home", "path": "/"}, {"name": "DisCos", "path": "/discos"}]
+    faq_items = _directory_faq("DisCo")
+    return render_template(
+        "entity_index.html",
+        title=title,
+        description=description,
+        canonical_path="/discos",
+        entity_label="DisCo",
+        entity_plural="discos",
+        entities=list_entities("disco"),
+        breadcrumbs=breadcrumbs,
+        faq_items=faq_items,
+        social_meta=_social(title, description, "/discos"),
+        structured_data=_schema(
             title,
             description,
-            f"/gencos/{slug}",
-            [
-                {"name": "Home", "path": "/"},
-                {"name": "GenCo Performance", "path": "/#market-data"},
-                {"name": display_name, "path": f"/gencos/{slug}"},
-            ],
-            ["GenCo output", "Performance ranking", "Forecast and volatility"],
+            "/discos",
+            breadcrumbs,
+            page_type="CollectionPage",
+            article_type="Article",
+            article_sections=["DisCo allocation", "Transformer loading", "Distribution risk"],
+            faq_items=faq_items,
+        ),
+    )
+
+
+@web_bp.get("/gencos")
+def gencos_directory_page():
+    title = "Nigeria GenCo Intelligence Directory"
+    description = "SEO index of Nigerian generation companies and plants with output trends, forecasts, rankings, volatility, and performance intelligence."
+    breadcrumbs = [{"name": "Home", "path": "/"}, {"name": "GenCos", "path": "/gencos"}]
+    faq_items = _directory_faq("GenCo")
+    return render_template(
+        "entity_index.html",
+        title=title,
+        description=description,
+        canonical_path="/gencos",
+        entity_label="GenCo",
+        entity_plural="gencos",
+        entities=list_entities("genco"),
+        breadcrumbs=breadcrumbs,
+        faq_items=faq_items,
+        social_meta=_social(title, description, "/gencos"),
+        structured_data=_schema(
+            title,
+            description,
+            "/gencos",
+            breadcrumbs,
+            page_type="CollectionPage",
+            article_type="Article",
+            article_sections=["GenCo output", "Generation history", "Performance ranking"],
+            faq_items=faq_items,
         ),
     )
 
@@ -401,54 +695,48 @@ def hierarchy_detail_page(level, slug):
 
 @web_bp.get("/state/<slug>")
 def state_page(slug):
-    display_name = _display_slug(slug)
-    title = f"{display_name} State Intelligence"
-    description = "State power allocation, demand, reliability, transformer risk, and regional electricity intelligence."
+    seo = _geo_seo_context("state", slug)
     return render_template(
         "geo.html",
         scope="state",
         api_collection="states",
         slug=slug,
-        page_title=title,
-        description=description,
-        social_meta=_social(title, description, f"/state/{slug}", og_type="article"),
+        canonical_path=seo["canonical_path"],
+        page_title=seo["title"],
+        description=seo["description"],
+        seo_content=seo["content"],
+        social_meta=_social(seo["title"], seo["description"], seo["canonical_path"], og_type="article"),
         structured_data=_report_schema(
-            title,
-            description,
-            f"/state/{slug}",
-            [
-                {"name": "Home", "path": "/"},
-                {"name": "States", "path": "/states"},
-                {"name": display_name, "path": f"/state/{slug}"},
-            ],
-            ["State allocation", "Demand growth", "Reliability and transformer risk"],
+            seo["title"],
+            seo["description"],
+            seo["canonical_path"],
+            seo["breadcrumbs"],
+            seo["sections"],
+            faq_items=seo["faq_items"],
         ),
     )
 
 
 @web_bp.get("/region/<slug>")
 def region_page(slug):
-    display_name = _display_slug(slug)
-    title = f"{display_name} Regional Intelligence"
-    description = "Regional power allocation, state coverage, infrastructure stress, demand growth, and grid reliability intelligence."
+    seo = _geo_seo_context("region", slug)
     return render_template(
         "geo.html",
         scope="region",
         api_collection="regions",
         slug=slug,
-        page_title=title,
-        description=description,
-        social_meta=_social(title, description, f"/region/{slug}", og_type="article"),
+        canonical_path=seo["canonical_path"],
+        page_title=seo["title"],
+        description=seo["description"],
+        seo_content=seo["content"],
+        social_meta=_social(seo["title"], seo["description"], seo["canonical_path"], og_type="article"),
         structured_data=_report_schema(
-            title,
-            description,
-            f"/region/{slug}",
-            [
-                {"name": "Home", "path": "/"},
-                {"name": "Regions", "path": "/regions"},
-                {"name": display_name, "path": f"/region/{slug}"},
-            ],
-            ["Regional allocation", "Infrastructure stress", "Demand growth"],
+            seo["title"],
+            seo["description"],
+            seo["canonical_path"],
+            seo["breadcrumbs"],
+            seo["sections"],
+            faq_items=seo["faq_items"],
         ),
     )
 

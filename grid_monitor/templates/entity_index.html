@@ -33,6 +33,8 @@
         <a href="/geography">Map</a>
         <a href="/states">States</a>
         <a href="/regions">Regions</a>
+        <a href="/discos">DisCos</a>
+        <a href="/gencos">GenCos</a>
         <a href="/methodology">Methodology</a>
         <a href="/data-sources">Sources</a>
     </nav>
@@ -41,49 +43,65 @@
     </div>
 </header>
 
-<main class="shell content-page geo-index-page">
+<main class="shell content-page entity-directory-page">
+    <nav class="breadcrumb-list" aria-label="Breadcrumb">
+        {% for crumb in breadcrumbs %}
+        <a href="{{ crumb.path }}">{{ crumb.name }}</a>
+        {% if not loop.last %}<span>/</span>{% endif %}
+        {% endfor %}
+    </nav>
+
     <section class="hero-copy content-hero" aria-labelledby="page-title">
         <div>
-            <p class="eyebrow">Geographic Intelligence</p>
-            <h1 id="page-title">State and regional power intelligence for Nigeria.</h1>
-            <p class="hero-lede">Explore all 36 states and the Federal Capital Territory through responsible DisCos, estimated allocation, demand, infrastructure stress, and reliability indicators.</p>
+            <p class="eyebrow">{{ entity_label }} Intelligence Directory</p>
+            <h1 id="page-title">{{ title }}</h1>
+            <p class="hero-lede">{{ description }}</p>
+            <div class="hero-actions" aria-label="{{ entity_label }} coverage">
+                <span>{{ entities|length }} {{ entity_label }} pages</span>
+                <span>Canonical URLs</span>
+                <span>JSON-LD + FAQ</span>
+            </div>
         </div>
     </section>
 
     <section class="card geo-directory-card">
         <div class="section-head">
             <div>
-                <h2>States</h2>
-                <p>All Nigerian states plus FCT, mapped to responsible DisCo franchise areas.</p>
+                <h2>All {{ entity_label }} Landing Pages</h2>
+                <p>Open a dedicated page for historical trends, forecasts, rankings, risk indicators, and automated analysis.</p>
             </div>
-            <span class="badge blue">{{ states|length }} pages</span>
+            <span class="badge blue">{{ entities|length }} pages</span>
         </div>
-        <div class="geo-directory-grid">
-            {% for state in states %}
-            <a href="{{ state.url }}">
-                <strong>{{ state.short_name }}</strong>
-                <span>{{ state.region }}</span>
+        <div class="geo-directory-grid entity-directory-grid">
+            {% for entity in entities %}
+            <a href="{{ entity.url }}">
+                <strong>{{ entity.name }}</strong>
+                <span>{{ entity_label }} power intelligence</span>
             </a>
             {% endfor %}
         </div>
     </section>
 
-    <section class="card geo-directory-card">
-        <div class="section-head">
-            <div>
-                <h2>Regions</h2>
-                <p>Six geopolitical region intelligence pages for aggregate state comparison.</p>
+    <section class="seo-landing-grid" aria-label="{{ entity_label }} directory SEO content">
+        <article class="card seo-copy-card">
+            <p class="eyebrow compact">Search Landing Page</p>
+            <h2>{{ entity_label }} analytics coverage</h2>
+            <p>{{ description }} Each linked page includes unique metadata, canonical URLs, Open Graph and Twitter metadata, JSON-LD structured data, visible FAQs, and dynamic metrics from the Nigeria Power Data platform.</p>
+        </article>
+        <article class="card seo-faq-card wide">
+            <div class="section-head">
+                <h2>{{ entity_label }} Directory FAQs</h2>
+                <span>Structured data aligned with visible content</span>
             </div>
-            <span class="badge blue">{{ regions|length }} pages</span>
-        </div>
-        <div class="geo-directory-grid region-grid">
-            {% for region in regions %}
-            <a href="{{ region.url }}">
-                <strong>{{ region.name }}</strong>
-                <span>{{ region.state_count }} states/FCT areas</span>
-            </a>
-            {% endfor %}
-        </div>
+            <div class="faq-list">
+                {% for item in faq_items %}
+                <details>
+                    <summary>{{ item.question }}</summary>
+                    <p>{{ item.answer }}</p>
+                </details>
+                {% endfor %}
+            </div>
+        </article>
     </section>
 </main>
 
@@ -98,8 +116,8 @@
         <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
     </div>
     <nav aria-label="Footer navigation">
-        <a href="/about">About</a>
-        <a href="/methodology">Methodology</a>
+        <a href="/states">States</a>
+        <a href="/regions">Regions</a>
         <a href="/discos">DisCos</a>
         <a href="/gencos">GenCos</a>
         <a href="/privacy-policy">Privacy</a>

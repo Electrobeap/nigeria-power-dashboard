@@ -880,6 +880,7 @@ tbody tr:hover {
     .content-grid,
     .geo-directory-card,
     .entity-content-grid,
+    .seo-landing-grid,
     .content-page-grid {
         content-visibility: auto;
         contain-intrinsic-size: 1px 560px;
@@ -905,6 +906,26 @@ tbody tr:hover {
 
 .entity-shell {
     margin-top: 18px;
+}
+
+.breadcrumb-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 14px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.breadcrumb-list a {
+    color: var(--blue);
+    text-decoration: none;
+}
+
+.breadcrumb-list a:hover {
+    text-decoration: underline;
 }
 
 .entity-hero h1 {
@@ -937,6 +958,83 @@ tbody tr:hover {
 
 .entity-summary-card {
     grid-column: 1 / -1;
+}
+
+.seo-landing-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.seo-copy-card p,
+.seo-faq-card p {
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.seo-facts-card,
+.seo-faq-card.wide {
+    grid-column: span 1;
+}
+
+.seo-faq-card.wide {
+    grid-column: 1 / -1;
+}
+
+.seo-fact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 0;
+}
+
+.seo-fact-grid div {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card), transparent 14%);
+    padding: 14px;
+}
+
+.seo-fact-grid dt {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.seo-fact-grid dd {
+    margin: 8px 0 0;
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.faq-list {
+    display: grid;
+    gap: 10px;
+}
+
+.faq-list details {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card), transparent 12%);
+    padding: 14px;
+}
+
+.faq-list summary {
+    cursor: pointer;
+    color: var(--text);
+    font-weight: 900;
+}
+
+.faq-list p {
+    margin: 10px 0 0;
+}
+
+.entity-directory-grid a {
+    min-height: 92px;
 }
 
 .entity-summary-card p {
@@ -1353,6 +1451,7 @@ tbody tr:hover {
     .hero-copy,
     .distribution-kpis,
     .distribution-grid,
+    .seo-landing-grid,
     .hierarchy-side {
         grid-template-columns: 1fr;
     }

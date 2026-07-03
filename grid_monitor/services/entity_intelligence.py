@@ -33,6 +33,87 @@ ENTITY_META = {
 }
 
 
+FALLBACK_ENTITY_NAMES = {
+    "disco": [
+        "Abuja Disco",
+        "Benin Disco",
+        "Eko Disco",
+        "Enugu Disco",
+        "Ibadan Disco",
+        "Ikeja Disco",
+        "Jos Disco",
+        "Kaduna Disco",
+        "Kano Disco",
+        "PHarcourt Disco",
+        "Yola Disco",
+    ],
+    "genco": [
+        "AFAM III FAST P",
+        "AFAM VI (GAS/STEAM)",
+        "ALAOJI NIPP (GAS)",
+        "AZURA-EDO IPP (GAS)",
+        "DADINKOWA G.S",
+        "DELTA (GAS)",
+        "EGBIN (STEAM)",
+        "GBARAIN NIPP (GAS)",
+        "GEREGU (GAS)",
+        "GEREGU NIPP (GAS)",
+        "GPAL (GAS)",
+        "IBOM POWER (GAS)",
+        "IHOVBOR NIPP (GAS)",
+        "JEBBA (HYDRO)",
+        "KAINJI (HYDRO)",
+        "KASHIMBILA GS",
+        "MEPP",
+        "ODUKPANI NIPP (GAS)",
+        "OKPAI (GAS/STEAM)",
+        "OLORUNSOGO (GAS)",
+        "OLORUNSOGO NIPP",
+        "OMOKU (GAS)",
+        "OMOTOSHO (GAS)",
+        "OMOTOSHO NIPP (GAS)",
+        "PARAS ENERGY (GAS)",
+        "RIVERS IPP (GAS)",
+        "SAPELE (STEAM)",
+        "SAPELE NIPP (GAS)",
+        "SHIRORO (HYDRO)",
+        "TAOPEX (GAS)",
+        "TRANS AFAM POWE",
+        "TRANS-AMADI (GAS)",
+        "ZUNGERU",
+    ],
+}
+
+ENTITY_DISPLAY_NAMES = {
+    "abuja-disco": "Abuja DisCo",
+    "benin-disco": "Benin DisCo",
+    "eko-disco": "Eko DisCo",
+    "enugu-disco": "Enugu DisCo",
+    "ibadan-disco": "Ibadan DisCo",
+    "ikeja-disco": "Ikeja DisCo",
+    "jos-disco": "Jos DisCo",
+    "kaduna-disco": "Kaduna DisCo",
+    "kano-disco": "Kano DisCo",
+    "pharcourt-disco": "Port Harcourt DisCo",
+    "port-harcourt-disco": "Port Harcourt DisCo",
+    "yola-disco": "Yola DisCo",
+}
+
+ENTITY_SLUG_ALIASES = {
+    "disco": {
+        "port-harcourt-disco": "PHarcourt Disco",
+        "port-harcourt": "PHarcourt Disco",
+    },
+    "genco": {
+        "egbin": "EGBIN (STEAM)",
+        "kainji": "KAINJI (HYDRO)",
+        "jebba": "JEBBA (HYDRO)",
+        "shiroro": "SHIRORO (HYDRO)",
+        "zungeru": "ZUNGERU",
+    },
+}
+
+
 class EntityNotFound(ValueError):
     pass
 
@@ -55,12 +136,16 @@ def _entity_meta(entity_type: str) -> dict[str, Any]:
         raise EntityNotFound(f"Unsupported entity type: {entity_type}") from exc
 
 
+def display_entity_name(value: str) -> str:
+    return ENTITY_DISPLAY_NAMES.get(slugify_entity(value), value)
+
+
 def _all_entity_names(entity_type: str) -> list[str]:
     meta = _entity_meta(entity_type)
     model = meta["model"]
     name_col = getattr(model, meta["name_attr"])
     rows = db.session.query(name_col).filter(name_col.isnot(None)).distinct().all()
-    names = sorted({row[0] for row in rows if row[0]}, key=str.lower)
+    names = [row[0] for row in rows if row[0]]
 
     latest = get_latest_snapshot()
     if latest:
@@ -70,20 +155,37 @@ def _all_entity_names(entity_type: str) -> list[str]:
         else:
             names.extend(row["plant"] for row in latest.get("gencos") or [] if row.get("plant"))
 
-    return sorted(set(names), key=str.lower)
+    names.extend(FALLBACK_ENTITY_NAMES.get(entity_type, []))
+    by_slug = {}
+    for name in names:
+        by_slug.setdefault(slugify_entity(name), name)
+    return sorted(by_slug.values(), key=lambda name: display_entity_name(name).lower())
 
 
 def resolve_entity_name(entity_type: str, slug: str) -> str:
     requested = slug.strip().lower()
-    for name in _all_entity_names(entity_type):
+    normalized_requested = slugify_entity(requested)
+    alias = ENTITY_SLUG_ALIASES.get(entity_type, {}).get(normalized_requested)
+    if alias:
+        return alias
+
+    names = _all_entity_names(entity_type)
+    for name in names:
         if slugify_entity(name) == requested or name.lower() == requested:
             return name
+    prefix_matches = [name for name in names if slugify_entity(name).startswith(normalized_requested)]
+    if len(prefix_matches) == 1:
+        return prefix_matches[0]
     raise EntityNotFound(f"{_entity_meta(entity_type)['label']} not found: {slug}")
 
 
 def list_entities(entity_type: str) -> list[dict[str, str]]:
     return [
-        {"name": name, "slug": slugify_entity(name), "url": f"/{_entity_meta(entity_type)['plural']}/{slugify_entity(name)}"}
+        {
+            "name": display_entity_name(name),
+            "slug": slugify_entity(name),
+            "url": f"/{_entity_meta(entity_type)['plural']}/{slugify_entity(name)}",
+        }
         for name in _all_entity_names(entity_type)
     ]
 
@@ -344,6 +446,7 @@ def _analysis_summary(
     rank: dict[str, Any],
 ) -> str:
     label = _entity_meta(entity_type)["label"]
+    display_name = display_entity_name(name)
     rank_text = (
         f"ranked {rank['rank']} of {rank['total_entities']}"
         if rank.get("rank")
@@ -354,7 +457,7 @@ def _analysis_summary(
     direction = trend.get("direction", "flat")
     forecast_value = forecast.get("next_24h_mw")
     return (
-        f"{name} is a {label} currently {rank_text} in the latest stored reading. "
+        f"{display_name} is a {label} currently {rank_text} in the latest stored reading. "
         f"The latest value is {_round(latest) if latest is not None else 'unknown'} MW "
         f"against an observed average of {_round(average) if average is not None else 'unknown'} MW. "
         f"The recent trend is {direction}, with a {trend.get('change_mw', 0)} MW movement over the sampled window. "
@@ -384,7 +487,8 @@ def entity_intelligence(entity_type: str, slug: str, hours: float = 168, limit: 
         "entity": {
             "type": entity_type,
             "label": meta["label"],
-            "name": name,
+            "name": display_entity_name(name),
+            "source_name": name,
             "slug": slugify_entity(name),
             "unit": meta["unit"],
             "url": f"/{meta['plural']}/{slugify_entity(name)}",

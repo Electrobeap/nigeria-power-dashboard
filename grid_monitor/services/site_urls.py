@@ -1,3 +1,4 @@
+from grid_monitor.services.entity_intelligence import list_entities
 from grid_monitor.services.state_intelligence import list_regions, list_states
 
 
@@ -35,7 +36,7 @@ def public_url_entries(base_url: str) -> list[dict[str, str]]:
             "changefreq": "daily",
             "priority": "0.8",
         }
-        for path in ("/states", "/regions", "/geography")
+        for path in ("/states", "/regions", "/geography", "/discos", "/gencos")
     )
     entries.extend(
         {
@@ -60,6 +61,22 @@ def public_url_entries(base_url: str) -> list[dict[str, str]]:
             "priority": "0.7",
         }
         for state in list_states()
+    )
+    entries.extend(
+        {
+            "loc": _absolute_url(base_url, entity["url"]),
+            "changefreq": "daily",
+            "priority": "0.7",
+        }
+        for entity in list_entities("disco")
+    )
+    entries.extend(
+        {
+            "loc": _absolute_url(base_url, entity["url"]),
+            "changefreq": "daily",
+            "priority": "0.7",
+        }
+        for entity in list_entities("genco")
     )
     entries.extend(
         {

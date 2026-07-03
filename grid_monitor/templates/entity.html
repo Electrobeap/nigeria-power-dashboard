@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#0B1F3A">
     {% include "partials/social_meta.html" %}
     <title>{{ page_title }} | Nigeria Power Data</title>
-    <link rel="canonical" href="{{ config.APP_BASE_URL }}/{{ entity_plural }}/{{ slug }}">
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}{{ canonical_path }}">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
@@ -56,11 +56,20 @@
 </header>
 
 <main class="shell entity-shell">
+    {% if seo_content and seo_content.breadcrumbs %}
+    <nav class="breadcrumb-list" aria-label="Breadcrumb">
+        {% for crumb in seo_content.breadcrumbs %}
+        <a href="{{ crumb.path }}">{{ crumb.name }}</a>
+        {% if not loop.last %}<span>/</span>{% endif %}
+        {% endfor %}
+    </nav>
+    {% endif %}
+
     <section class="hero-copy entity-hero" aria-labelledby="entity-title">
         <div>
-            <p class="eyebrow" id="entity-eyebrow">{{ page_title }}</p>
-            <h1 id="entity-title">{{ slug | replace("-", " ") | title }}</h1>
-            <p class="hero-lede" id="entity-lede">Loading historical trends, forecast, risk indicators, and automated analysis summary.</p>
+            <p class="eyebrow" id="entity-eyebrow">{{ seo_content.eyebrow if seo_content else page_title }}</p>
+            <h1 id="entity-title">{{ seo_content.h1 if seo_content else slug | replace("-", " ") | title }}</h1>
+            <p class="hero-lede" id="entity-lede">{{ seo_content.lede if seo_content else "Loading historical trends, forecast, risk indicators, and automated analysis summary." }}</p>
             <div class="hero-actions" aria-label="Entity signals">
                 <span id="entity-rank-pill">Ranking pending</span>
                 <span id="entity-risk-pill">Risk pending</span>
@@ -167,6 +176,44 @@
             <div class="entity-link-grid" id="entity-related"></div>
         </article>
     </section>
+
+    {% if seo_content %}
+    <section class="seo-landing-grid" aria-label="{{ entity_label }} SEO intelligence">
+        <article class="card seo-copy-card">
+            <p class="eyebrow compact">Search Intelligence</p>
+            <h2>{{ page_title }}</h2>
+            <p>{{ seo_content.summary }}</p>
+        </article>
+        <article class="card seo-facts-card">
+            <div class="section-head">
+                <h2>Key {{ entity_label }} Signals</h2>
+                <span>Server-rendered for search</span>
+            </div>
+            <dl class="seo-fact-grid">
+                {% for item in seo_content.facts %}
+                <div>
+                    <dt>{{ item.label }}</dt>
+                    <dd>{{ item.value }}</dd>
+                </div>
+                {% endfor %}
+            </dl>
+        </article>
+        <article class="card seo-faq-card wide">
+            <div class="section-head">
+                <h2>{{ entity_label }} FAQs</h2>
+                <span>Structured data aligned with visible content</span>
+            </div>
+            <div class="faq-list">
+                {% for item in seo_content.faq_items %}
+                <details>
+                    <summary>{{ item.question }}</summary>
+                    <p>{{ item.answer }}</p>
+                </details>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
+    {% endif %}
 </main>
 
 <footer class="site-footer">
@@ -182,6 +229,8 @@
     <nav aria-label="Footer navigation">
         <a href="/privacy-policy">Privacy</a>
         <a href="/terms-of-use">Terms</a>
+        <a href="/discos">DisCos</a>
+        <a href="/gencos">GenCos</a>
         <a href="/states">States</a>
         <a href="/geography">Map</a>
         <a href="/regions">Regions</a>
