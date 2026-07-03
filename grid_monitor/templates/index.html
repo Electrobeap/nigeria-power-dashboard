@@ -10,22 +10,23 @@
     <meta name="theme-color" content="#0B1F3A">
     <meta name="application-name" content="Nigeria Power Data">
     {% include "partials/social_meta.html" %}
-    <title>Nigeria Power Data | Grid &amp; Distribution Intelligence</title>
+    <title>Nigeria Power Data | Live Electricity Dashboard</title>
     <link rel="canonical" href="https://nigeriapowerdata.com/">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
-    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=cwv-20260703" as="style">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=live-dashboard-20260703" as="style">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=cwv-20260703">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=live-dashboard-20260703">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
 </head>
-<body class="loading">
+<body class="loading home-dashboard">
 <div class="loading-screen" role="status" aria-live="polite">
     <div class="loading-brand">
         <picture>
@@ -35,267 +36,393 @@
         <span>Loading Grid Intelligence...</span>
     </div>
 </div>
-<header class="topbar">
-    <a class="brand" href="/" aria-label="Nigeria Power Data home">
-        <picture>
-            <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
-            <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76" decoding="async" fetchpriority="high">
-        </picture>
-    </a>
-    <nav class="nav-links" aria-label="Primary navigation">
-        <a href="#overview">Overview</a>
-        <a href="#generation">Generation</a>
-        <a href="#distribution">Distribution</a>
-        <a href="#market-data">Market Data</a>
-        <a href="/geography">Map</a>
-        <a href="/states">States</a>
-        <a href="/methodology">Methodology</a>
-        <a href="/data-sources">Sources</a>
-    </nav>
-    <div class="topbar-actions">
-        <span class="refresh-state" id="refresh-state" aria-live="polite">Starting live refresh...</span>
-        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+
+<header class="topbar navbar navbar-expand-xl" aria-label="Site header">
+    <div class="npd-nav-container container-fluid">
+        <a class="brand navbar-brand" href="/" aria-label="Nigeria Power Data home">
+            <picture>
+                <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+                <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76" decoding="async" fetchpriority="high">
+            </picture>
+        </a>
+        <nav class="nav-links navbar-nav" aria-label="Primary navigation">
+            <a class="nav-link" href="#overview">Overview</a>
+            <a class="nav-link" href="#generation">Generation</a>
+            <a class="nav-link" href="#market-data">Market</a>
+            <a class="nav-link" href="#map-preview">Map</a>
+            <a class="nav-link" href="#insights">Insights</a>
+            <a class="nav-link" href="#distribution">Distribution</a>
+            <a class="nav-link" href="/states">States</a>
+            <a class="nav-link" href="/methodology">Methodology</a>
+        </nav>
+        <div class="topbar-actions">
+            <span class="refresh-state" id="refresh-state" aria-live="polite">Starting live refresh...</span>
+            <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+        </div>
     </div>
 </header>
 
-<main class="shell">
-    <section class="hero-copy" id="overview" aria-labelledby="page-title">
-        <div>
-            <p class="eyebrow">NISO/NIGGRID public data intelligence</p>
-            <h1 id="page-title">Nigeria's power system, translated into operational signals.</h1>
-            <p class="hero-lede">Live generation, DisCo allocation, GenCo output, grid stress, and distribution planning indicators in one lightweight dashboard.</p>
-            <div class="hero-actions" aria-label="Platform signals">
-                <span>Live API</span>
-                <span>PostgreSQL history</span>
-                <span>Transformer risk model</span>
+<main class="shell dashboard-shell">
+    <section class="dashboard-hero row g-4 align-items-stretch" id="overview" aria-labelledby="page-title">
+        <div class="col-12 col-lg-8">
+            <div class="hero-copy">
+                <p class="eyebrow">Live electricity intelligence</p>
+                <h1 id="page-title">Nigeria's live power dashboard for generation, distribution, and grid risk.</h1>
+                <p class="hero-lede">Track current supply, 24-hour generation movement, GenCo output, DisCo allocation, transformer loading, and planning-grade signals from public NISO/NIGGRID data.</p>
+                <div class="hero-actions" aria-label="Platform signals">
+                    <span>Live API</span>
+                    <span>PostgreSQL history</span>
+                    <span>Grid analytics</span>
+                    <span>Distribution intelligence</span>
+                </div>
             </div>
         </div>
-        <div class="source-box">
-            <div id="source">Loading source...</div>
-            <div id="time">Fetching latest snapshot...</div>
+        <div class="col-12 col-lg-4">
+            <aside class="source-box hero-status-panel h-100" aria-label="Live data source status">
+                <div class="source-status-dot" aria-hidden="true"></div>
+                <div id="source">Loading source...</div>
+                <div id="time">Fetching latest snapshot...</div>
+                <div class="hero-mini-metrics">
+                    <span><strong id="status">Loading</strong> Grid status</span>
+                    <span><strong id="trend">Collecting trend</strong> 24h trend</span>
+                </div>
+            </aside>
         </div>
     </section>
 
-    <div class="banner" id="error-banner"></div>
+    <div class="banner" id="error-banner" role="alert"></div>
 
-    <div class="layout-grid">
-        <section class="main-column">
-            <section class="kpi-grid" aria-label="Grid key performance indicators">
-                <article class="card kpi-card primary">
-                    <span>Total Generation</span>
-                    <strong class="mw skeleton-text" id="mw">...</strong>
-                    <div class="status-row">
-                        <span class="badge amber" id="status">Loading</span>
-                        <span class="badge blue" id="trend">Collecting trend</span>
-                    </div>
-                    <p id="insight">Waiting for the first live reading.</p>
-                </article>
-                <article class="card kpi-card">
-                    <span>Grid Health</span>
-                    <strong id="grid-health">...</strong>
-                    <p id="grid-health-note">...</p>
-                </article>
-                <article class="card kpi-card">
-                    <span>Stability</span>
-                    <strong id="stability-score">...</strong>
-                    <p id="stability-note">...</p>
-                </article>
-                <article class="card kpi-card">
-                    <span>Volatility</span>
-                    <strong id="volatility">...</strong>
-                    <p id="volatility-note">...</p>
-                </article>
-            </section>
+    <section class="row g-3 dashboard-kpi-row" aria-label="Live grid key performance indicators">
+        <div class="col-12 col-md-6 col-xl-3">
+            <article class="card dashboard-kpi-card primary h-100">
+                <div class="kpi-heading">
+                    <span>Current Generation</span>
+                    <span class="kpi-icon" aria-hidden="true">MW</span>
+                </div>
+                <strong class="mw skeleton-text" id="mw">...</strong>
+                <p id="insight">Waiting for the first live reading.</p>
+            </article>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <article class="card dashboard-kpi-card h-100">
+                <div class="kpi-heading">
+                    <span>Grid Frequency</span>
+                    <span class="kpi-icon blue" aria-hidden="true">Hz</span>
+                </div>
+                <strong id="grid-frequency">...</strong>
+                <p id="grid-frequency-note">Awaiting frequency signal.</p>
+            </article>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <article class="card dashboard-kpi-card h-100">
+                <div class="kpi-heading">
+                    <span>Available Capacity</span>
+                    <span class="kpi-icon green" aria-hidden="true">AC</span>
+                </div>
+                <strong id="available-capacity">...</strong>
+                <p id="available-capacity-note">Awaiting capacity signal.</p>
+            </article>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <article class="card dashboard-kpi-card h-100">
+                <div class="kpi-heading">
+                    <span>Energy Deficit</span>
+                    <span class="kpi-icon amber" aria-hidden="true">ED</span>
+                </div>
+                <strong id="energy-deficit">...</strong>
+                <p id="energy-deficit-note">Estimated against reference demand.</p>
+            </article>
+        </div>
+        <div class="col-12 col-md-4">
+            <article class="card dashboard-kpi-card compact h-100">
+                <div class="kpi-heading">
+                    <span>GENCOs Online</span>
+                    <span class="kpi-icon green" aria-hidden="true">GO</span>
+                </div>
+                <strong id="gencos-online">...</strong>
+                <p><span id="reporting">...</span> reporting GenCos. <span id="gencos-online-note">Awaiting plant output.</span></p>
+            </article>
+        </div>
+        <div class="col-12 col-md-4">
+            <article class="card dashboard-kpi-card compact h-100">
+                <div class="kpi-heading">
+                    <span>DISCOs</span>
+                    <span class="kpi-icon blue" aria-hidden="true">DO</span>
+                </div>
+                <strong id="discos-count">...</strong>
+                <p id="discos-count-note">Awaiting DisCo allocation profile.</p>
+            </article>
+        </div>
+        <div class="col-12 col-md-4">
+            <article class="card dashboard-kpi-card compact h-100">
+                <div class="kpi-heading">
+                    <span>Last Updated</span>
+                    <span class="kpi-icon" aria-hidden="true">LU</span>
+                </div>
+                <strong id="last-updated">...</strong>
+                <p><span id="as-at">...</span>. <span id="last-updated-note">Awaiting snapshot.</span></p>
+            </article>
+        </div>
+    </section>
 
-            <section class="card chart-card" id="generation" aria-labelledby="generation-title">
+    <section class="row g-3 align-items-stretch dashboard-main-row">
+        <div class="col-12 col-xl-8">
+            <article class="card chart-card h-100" id="generation" aria-labelledby="generation-title">
                 <div class="section-head">
                     <div>
-                        <h2 id="generation-title">Generation Trend</h2>
-                        <p>24-hour generation with moving average and stress signals.</p>
+                        <p class="eyebrow compact">Generation Trend</p>
+                        <h2 id="generation-title">24-hour generation and moving average</h2>
+                        <p>Live readings are plotted against the rolling average so short-term movement is easy to scan.</p>
                     </div>
                     <span class="badge blue" id="chart-window">24 hours</span>
                 </div>
-                <div class="chart-wrap">
-                    <canvas id="chart" width="720" height="340"></canvas>
+                <div class="chart-wrap generation-chart-wrap">
+                    <canvas id="chart" width="720" height="340" aria-label="Generation trend chart"></canvas>
                     <div class="empty-state" id="chart-empty">Collecting historical readings.</div>
                 </div>
-            </section>
+            </article>
+        </div>
+        <div class="col-12 col-xl-4">
+            <article class="card map-preview-card h-100" id="map-preview" aria-labelledby="map-title">
+                <div class="section-head compact-head">
+                    <div>
+                        <p class="eyebrow compact">Geographic Intelligence</p>
+                        <h2 id="map-title">Nigeria map drill-down</h2>
+                        <p>Jump from national visibility into state-level electricity intelligence.</p>
+                    </div>
+                </div>
+                <div class="nigeria-map-placeholder" role="img" aria-label="Interactive placeholder map of Nigeria with state intelligence links">
+                    <a class="map-node lagos" href="/state/lagos" aria-label="Open Lagos State power intelligence">Lagos</a>
+                    <a class="map-node fct" href="/state/fct" aria-label="Open FCT power intelligence">FCT</a>
+                    <a class="map-node kano" href="/state/kano" aria-label="Open Kano State power intelligence">Kano</a>
+                    <a class="map-node rivers" href="/state/rivers" aria-label="Open Rivers State power intelligence">Rivers</a>
+                    <a class="map-node oyo" href="/state/oyo" aria-label="Open Oyo State power intelligence">Oyo</a>
+                    <span class="map-grid-line line-one" aria-hidden="true"></span>
+                    <span class="map-grid-line line-two" aria-hidden="true"></span>
+                    <span class="map-orbit" aria-hidden="true"></span>
+                </div>
+                <div class="map-preview-actions">
+                    <a class="ghost-action map-link" href="/geography">Open national map</a>
+                    <a class="ghost-action map-link" href="/states">Browse all states</a>
+                </div>
+            </article>
+        </div>
+    </section>
 
-            <section class="card distribution-panel" id="distribution" aria-labelledby="distribution-title">
+    <section class="row g-3" id="market-data" aria-label="Market data tables and daily performance">
+        <div class="col-12 col-xl-4">
+            <article class="card dashboard-table-card h-100">
                 <div class="section-head">
                     <div>
-                        <p class="eyebrow compact">Distribution Intelligence</p>
-                        <h2 id="distribution-title">Transformer loading and settlement expansion risk</h2>
-                        <p>Engineering estimates based on DisCo allocation, regional growth pressure, and simulated loading trends.</p>
-                    </div>
-                    <div class="section-actions">
-                        <button class="ghost-action hidden" id="distribution-back" type="button">Back to All DISCOs</button>
-                        <span class="badge blue" id="distribution-classification">Calculating</span>
+                        <h2>Daily Grid Performance</h2>
+                        <p id="daily-date">...</p>
                     </div>
                 </div>
-                <div class="distribution-kpis">
-                    <article>
-                        <span>Current Utilization</span>
-                        <strong id="transformer-utilization">...</strong>
-                        <p id="transformer-note">Awaiting DisCo allocation.</p>
-                    </article>
-                    <article>
-                        <span>12-Month Forecast</span>
-                        <strong id="transformer-forecast">...</strong>
-                        <p id="transformer-forecast-note">Projected loading pending.</p>
-                    </article>
-                    <article>
-                        <span>Risk</span>
-                        <strong id="distribution-risk-level">...</strong>
-                        <p id="distribution-risk-level-note">Transformer loading model pending.</p>
-                    </article>
-                    <article>
-                        <span>Capacity Margin</span>
-                        <strong id="capacity-margin">...</strong>
-                        <p id="capacity-margin-note">Margin to overload threshold.</p>
-                    </article>
-                    <article>
-                        <span>Settlement Growth</span>
-                        <strong id="settlement-growth">...</strong>
-                        <p id="settlement-note">Projected 12-month load growth.</p>
-                    </article>
+                <div class="metric-list">
+                    <div><span>Peak Generation</span><strong id="peak">...</strong></div>
+                    <div><span>Off-Peak Generation</span><strong id="off-peak">...</strong></div>
+                    <div><span>Highest Stored</span><strong id="daily-high">...</strong></div>
+                    <div><span>Lowest Stored</span><strong id="daily-low">...</strong></div>
+                    <div><span>Energy Generated</span><strong id="energy-generated">...</strong></div>
+                    <div><span>Energy Sent Out</span><strong id="energy-sent">...</strong></div>
                 </div>
-                <div class="distribution-grid">
-                    <div class="distribution-chart-stack">
-                        <div class="distribution-chart-block">
-                            <div class="mini-chart-title" id="distribution-chart-title">Transformer Loading Trend</div>
-                            <div class="chart-wrap distribution-chart-wrap">
-                                <canvas id="distribution-chart" width="520" height="250"></canvas>
-                                <div class="empty-state" id="distribution-chart-empty">Collecting transformer loading data.</div>
-                            </div>
-                        </div>
-                        <div class="distribution-chart-block">
-                            <div class="mini-chart-title" id="settlement-chart-title">Settlement Expansion Risk</div>
-                            <div class="chart-wrap distribution-chart-wrap">
-                                <canvas id="settlement-chart" width="520" height="250"></canvas>
-                                <div class="empty-state" id="settlement-chart-empty">Collecting settlement expansion data.</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="table-wrap distribution-table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>DisCo Region</th>
-                                    <th>Util.</th>
-                                    <th>12m</th>
-                                    <th>Risk</th>
-                                </tr>
-                            </thead>
-                            <tbody id="distribution-table"><tr><td colspan="4"><span class="spinner"></span> Loading...</td></tr></tbody>
-                        </table>
+            </article>
+        </div>
+        <div class="col-12 col-xl-4">
+            <article class="card table-card dashboard-table-card h-100">
+                <div class="section-head">
+                    <div>
+                        <h2>Top DISCOs</h2>
+                        <p id="disco-time">...</p>
                     </div>
                 </div>
-                <p class="method-note" id="distribution-method">Distribution model will appear after the first stored allocation reading.</p>
-            </section>
+                <div class="table-wrap">
+                    <table class="table live-table align-middle mb-0">
+                        <caption class="visually-hidden">Top electricity distribution companies by latest allocation</caption>
+                        <thead><tr><th scope="col">Company</th><th scope="col">MW</th></tr></thead>
+                        <tbody id="discos"><tr><td colspan="2"><span class="spinner"></span> Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </article>
+        </div>
+        <div class="col-12 col-xl-4">
+            <article class="card table-card dashboard-table-card h-100">
+                <div class="section-head">
+                    <div>
+                        <h2>Top GENCOs</h2>
+                        <p id="genco-time">Latest plant output</p>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="table live-table align-middle mb-0">
+                        <caption class="visually-hidden">Top generation companies and plants by latest output</caption>
+                        <thead><tr><th scope="col">Plant</th><th scope="col">MW</th></tr></thead>
+                        <tbody id="gencos"><tr><td colspan="2"><span class="spinner"></span> Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </article>
+        </div>
+    </section>
 
-            <div class="ad-slot ad-slot-horizontal" aria-label="Future advertisement slot">
-                <span>Sponsored</span>
+    <section class="jirow-section" id="insights" aria-labelledby="insights-title">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow compact">Jirow Data Insights</p>
+                <h2 id="insights-title">Operating signals for energy decision makers</h2>
+                <p>Analytics combine live grid readings, stored history, distribution stress estimates, and API health monitoring.</p>
             </div>
-
-            <section class="insight-grid">
-                <article class="card mini-card">
-                    <span>Reporting GenCos</span>
-                    <strong id="reporting">...</strong>
-                    <p id="genco-time">...</p>
+        </div>
+        <div class="row g-3">
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="card insight-card h-100">
+                    <span>Grid Health</span>
+                    <strong id="grid-health">...</strong>
+                    <p id="grid-health-note">Awaiting live generation.</p>
                 </article>
-                <article class="card mini-card">
-                    <span>As At</span>
-                    <strong id="as-at">...</strong>
-                    <p>Latest source reading time</p>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="card insight-card h-100">
+                    <span>Supply Stability</span>
+                    <strong id="stability-score">...</strong>
+                    <p id="stability-note">Awaiting historical readings.</p>
                 </article>
-                <article class="card mini-card">
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="card insight-card h-100">
+                    <span>Generation Volatility</span>
+                    <strong id="volatility">...</strong>
+                    <p id="volatility-note">Awaiting historical readings.</p>
+                </article>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="card insight-card h-100">
                     <span>Moving Average</span>
                     <strong id="moving-average">...</strong>
-                    <p id="sample-count">...</p>
+                    <p id="sample-count">No stored readings yet.</p>
                 </article>
-                <article class="card mini-card">
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="card insight-card h-100">
                     <span>Load Concentration</span>
                     <strong id="load-concentration">...</strong>
-                    <p id="load-note">...</p>
+                    <p id="load-note">Awaiting DisCo profile.</p>
                 </article>
-                <article class="card mini-card">
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="card insight-card h-100">
                     <span>Top GenCo</span>
                     <strong id="top-genco">...</strong>
-                    <p id="top-genco-note">...</p>
+                    <p id="top-genco-note">Awaiting GenCo output.</p>
                 </article>
-                <article class="card mini-card">
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="card insight-card h-100">
                     <span>Outage Detection</span>
                     <strong id="outage-status">...</strong>
-                    <p id="outage-note">...</p>
+                    <p id="outage-note">Awaiting trend data.</p>
                 </article>
-            </section>
-
-            <section class="content-grid" id="market-data" aria-label="Generation and distribution data tables">
-                <article class="card">
-                    <div class="section-head">
-                        <h2>Daily Grid Performance</h2>
-                        <span id="daily-date">...</span>
-                    </div>
-                    <div class="metric-list">
-                        <div><span>Peak Generation</span><strong id="peak">...</strong></div>
-                        <div><span>Off-Peak Generation</span><strong id="off-peak">...</strong></div>
-                        <div><span>Highest Stored</span><strong id="daily-high">...</strong></div>
-                        <div><span>Lowest Stored</span><strong id="daily-low">...</strong></div>
-                        <div><span>Energy Generated</span><strong id="energy-generated">...</strong></div>
-                        <div><span>Energy Sent Out</span><strong id="energy-sent">...</strong></div>
-                    </div>
-                </article>
-
-                <article class="card table-card">
-                    <div class="section-head">
-                        <h2>DisCo Load Profile</h2>
-                        <span id="disco-time">...</span>
-                    </div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead><tr><th>Company</th><th>MW</th></tr></thead>
-                            <tbody id="discos"><tr><td colspan="2"><span class="spinner"></span> Loading...</td></tr></tbody>
-                        </table>
-                    </div>
-                </article>
-
-                <article class="card table-card wide">
-                    <div class="section-head">
-                        <h2>GenCo Performance</h2>
-                        <span>Latest plant output</span>
-                    </div>
-                    <div class="table-wrap tall">
-                        <table>
-                            <thead><tr><th>Plant</th><th>MW</th></tr></thead>
-                            <tbody id="gencos"><tr><td colspan="2"><span class="spinner"></span> Loading...</td></tr></tbody>
-                        </table>
-                    </div>
-                </article>
-            </section>
-        </section>
-
-        <aside class="side-column">
-            <div class="ad-slot ad-slot-sidebar" aria-label="Future sidebar advertisement slot">
-                <span>Sidebar ad slot</span>
             </div>
-            <article class="card side-card">
-                <span>API Health</span>
-                <strong id="api-health">Checking...</strong>
-                <p id="api-health-note">Scheduler and database status.</p>
-            </article>
-            <article class="card side-card">
-                <span>7-Day Trend</span>
-                <strong id="trend-7d">...</strong>
-                <p id="trend-7d-note">Awaiting stored data.</p>
-            </article>
-            <article class="card side-card">
-                <span>Transformer Risk</span>
-                <strong id="transformer-risk">...</strong>
-                <p id="transformer-risk-note">Awaiting distribution intelligence.</p>
-            </article>
-        </aside>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="card insight-card h-100">
+                    <span>7-Day Trend</span>
+                    <strong id="trend-7d">...</strong>
+                    <p id="trend-7d-note">Awaiting 7-day storage depth.</p>
+                </article>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="card insight-card h-100">
+                    <span>API Health</span>
+                    <strong id="api-health">Checking...</strong>
+                    <p id="api-health-note">Scheduler and database status.</p>
+                </article>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <article class="card insight-card h-100">
+                    <span>Transformer Risk</span>
+                    <strong id="transformer-risk">...</strong>
+                    <p id="transformer-risk-note">Awaiting distribution intelligence.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <div class="ad-slot ad-slot-horizontal" aria-label="Future advertisement slot">
+        <span>Sponsored</span>
     </div>
+
+    <section class="card distribution-panel" id="distribution" aria-labelledby="distribution-title">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow compact">Distribution Intelligence</p>
+                <h2 id="distribution-title">Transformer loading and settlement expansion risk</h2>
+                <p>Engineering estimates based on DisCo allocation, regional growth pressure, and simulated loading trends.</p>
+            </div>
+            <div class="section-actions">
+                <button class="ghost-action hidden" id="distribution-back" type="button">Back to All DISCOs</button>
+                <span class="badge blue" id="distribution-classification">Calculating</span>
+            </div>
+        </div>
+        <div class="distribution-kpis">
+            <article>
+                <span>Current Utilization</span>
+                <strong id="transformer-utilization">...</strong>
+                <p id="transformer-note">Awaiting DisCo allocation.</p>
+            </article>
+            <article>
+                <span>12-Month Forecast</span>
+                <strong id="transformer-forecast">...</strong>
+                <p id="transformer-forecast-note">Projected loading pending.</p>
+            </article>
+            <article>
+                <span>Risk</span>
+                <strong id="distribution-risk-level">...</strong>
+                <p id="distribution-risk-level-note">Transformer loading model pending.</p>
+            </article>
+            <article>
+                <span>Capacity Margin</span>
+                <strong id="capacity-margin">...</strong>
+                <p id="capacity-margin-note">Margin to overload threshold.</p>
+            </article>
+            <article>
+                <span>Settlement Growth</span>
+                <strong id="settlement-growth">...</strong>
+                <p id="settlement-note">Projected 12-month load growth.</p>
+            </article>
+        </div>
+        <div class="distribution-grid">
+            <div class="distribution-chart-stack">
+                <div class="distribution-chart-block">
+                    <div class="mini-chart-title" id="distribution-chart-title">Transformer Loading Trend</div>
+                    <div class="chart-wrap distribution-chart-wrap">
+                        <canvas id="distribution-chart" width="520" height="250" aria-label="Transformer loading trend chart"></canvas>
+                        <div class="empty-state" id="distribution-chart-empty">Collecting transformer loading data.</div>
+                    </div>
+                </div>
+                <div class="distribution-chart-block">
+                    <div class="mini-chart-title" id="settlement-chart-title">Settlement Expansion Risk</div>
+                    <div class="chart-wrap distribution-chart-wrap">
+                        <canvas id="settlement-chart" width="520" height="250" aria-label="Settlement expansion risk chart"></canvas>
+                        <div class="empty-state" id="settlement-chart-empty">Collecting settlement expansion data.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="table-wrap distribution-table-wrap">
+                <table class="table live-table align-middle mb-0">
+                    <caption class="visually-hidden">Distribution transformer risk by DisCo region</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">DisCo Region</th>
+                            <th scope="col">Util.</th>
+                            <th scope="col">12m</th>
+                            <th scope="col">Risk</th>
+                        </tr>
+                    </thead>
+                    <tbody id="distribution-table"><tr><td colspan="4"><span class="spinner"></span> Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+        <p class="method-note" id="distribution-method">Distribution model will appear after the first stored allocation reading.</p>
+    </section>
 
     <div class="ad-slot ad-slot-footer" aria-label="Future footer advertisement slot">
         <span>Footer banner ad slot</span>
@@ -326,6 +453,6 @@
     </nav>
 </footer>
 
-<script src="{{ url_for('static', filename='js/dashboard.min.js') }}?v=cwv-20260703" defer></script>
+<script src="{{ url_for('static', filename='js/dashboard.min.js') }}?v=live-dashboard-20260703" defer></script>
 </body>
 </html>

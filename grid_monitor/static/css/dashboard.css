@@ -130,7 +130,9 @@ body.brand-loaded .loading-screen {
 
 body.loading .skeleton-text,
 body.loading .mini-card strong,
-body.loading .kpi-card strong:not(.mw) {
+body.loading .kpi-card strong:not(.mw),
+body.loading .dashboard-kpi-card strong:not(.mw),
+body.loading .insight-card strong {
     position: relative;
     overflow: hidden;
     color: transparent;
@@ -138,7 +140,9 @@ body.loading .kpi-card strong:not(.mw) {
 
 body.loading .skeleton-text::after,
 body.loading .mini-card strong::after,
-body.loading .kpi-card strong:not(.mw)::after {
+body.loading .kpi-card strong:not(.mw)::after,
+body.loading .dashboard-kpi-card strong:not(.mw)::after,
+body.loading .insight-card strong::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -165,6 +169,20 @@ body.loading .kpi-card strong:not(.mw)::after {
     border-bottom: 1px solid var(--line);
     background: var(--bg-soft);
     backdrop-filter: blur(18px);
+}
+
+.topbar.navbar {
+    display: block;
+}
+
+.npd-nav-container {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 18px;
+    width: min(1240px, 100%);
+    margin: 0 auto;
+    padding: 0;
 }
 
 .brand {
@@ -229,6 +247,10 @@ body.loading .kpi-card strong:not(.mw)::after {
     gap: 8px;
 }
 
+.nav-links.navbar-nav {
+    flex-direction: row;
+}
+
 .nav-links a,
 .site-footer a {
     border-radius: 8px;
@@ -261,6 +283,330 @@ body.loading .kpi-card strong:not(.mw)::after {
 .theme-toggle:hover {
     transform: translateY(-1px);
     border-color: var(--blue);
+}
+
+.dashboard-shell {
+    margin-top: 20px;
+}
+
+.dashboard-hero {
+    margin-bottom: 18px;
+}
+
+.home-dashboard .hero-copy {
+    display: block;
+    margin-bottom: 0;
+    padding: clamp(12px, 3vw, 28px) 0;
+}
+
+.hero-status-panel {
+    position: relative;
+    justify-items: start;
+    overflow: hidden;
+    min-width: 0;
+    text-align: left;
+}
+
+.hero-status-panel::after {
+    content: "";
+    position: absolute;
+    right: -54px;
+    bottom: -58px;
+    width: 170px;
+    height: 170px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--blue-bg), transparent 68%);
+    pointer-events: none;
+}
+
+.source-status-dot {
+    width: 12px;
+    height: 12px;
+    margin-bottom: 10px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 7px var(--green-bg);
+}
+
+.hero-mini-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+    margin-top: 18px;
+}
+
+.hero-mini-metrics span {
+    display: grid;
+    gap: 4px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card), transparent 10%);
+    padding: 10px;
+}
+
+.hero-mini-metrics strong {
+    color: var(--text);
+    font-size: 15px;
+}
+
+.dashboard-kpi-row,
+.dashboard-main-row,
+#market-data,
+.jirow-section {
+    margin-top: 14px;
+}
+
+.dashboard-kpi-card {
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    min-height: 176px;
+}
+
+.dashboard-kpi-card.compact {
+    min-height: 148px;
+}
+
+.dashboard-kpi-card p,
+.insight-card p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.kpi-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.kpi-heading > span:first-child,
+.insight-card > span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.kpi-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    background: var(--amber-bg);
+    color: var(--amber);
+    font-size: 11px;
+    font-weight: 950;
+}
+
+.kpi-icon.green {
+    background: var(--green-bg);
+    color: var(--green);
+}
+
+.kpi-icon.blue {
+    background: var(--blue-bg);
+    color: var(--blue);
+}
+
+.kpi-icon.amber {
+    background: var(--amber-bg);
+    color: var(--amber);
+}
+
+.dashboard-kpi-card strong,
+.insight-card strong {
+    display: block;
+    color: var(--text);
+    font-size: clamp(24px, 3vw, 36px);
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+}
+
+.dashboard-kpi-card.primary strong {
+    color: var(--amber);
+}
+
+.dashboard-main-row .chart-card,
+.dashboard-main-row .map-preview-card {
+    margin-top: 0;
+}
+
+.generation-chart-wrap {
+    min-height: clamp(320px, 42vw, 430px);
+}
+
+.compact-head {
+    margin-bottom: 8px;
+}
+
+.map-preview-card {
+    display: grid;
+    grid-template-rows: auto minmax(300px, 1fr) auto;
+    gap: 12px;
+}
+
+.nigeria-map-placeholder {
+    position: relative;
+    min-height: 330px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background:
+        radial-gradient(circle at 48% 46%, color-mix(in srgb, var(--green-bg), transparent 20%), transparent 48%),
+        linear-gradient(135deg, color-mix(in srgb, var(--card), transparent 5%), color-mix(in srgb, var(--blue-bg), transparent 58%));
+    isolation: isolate;
+}
+
+.nigeria-map-placeholder::before {
+    content: "";
+    position: absolute;
+    inset: 34px 52px 38px 48px;
+    z-index: 0;
+    border: 2px solid color-mix(in srgb, var(--green), var(--blue) 18%);
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--green-bg), transparent 10%), transparent),
+        color-mix(in srgb, var(--card-strong), transparent 18%);
+    clip-path: polygon(42% 1%, 56% 8%, 70% 5%, 84% 18%, 79% 34%, 88% 47%, 75% 63%, 72% 79%, 55% 89%, 43% 98%, 30% 87%, 18% 84%, 16% 67%, 5% 55%, 12% 39%, 7% 22%, 24% 13%);
+}
+
+.map-node {
+    position: absolute;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    min-height: 30px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card-strong);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 950;
+    text-decoration: none;
+    transform: translate(-50%, -50%);
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
+}
+
+.map-node::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 5px var(--green-bg);
+}
+
+.map-node:hover,
+.map-node:focus-visible {
+    border-color: var(--blue);
+    color: var(--blue);
+    box-shadow: 0 16px 30px rgba(16, 32, 51, 0.16);
+    outline: none;
+    transform: translate(-50%, -50%) scale(1.05);
+}
+
+.map-node.lagos { left: 34%; top: 68%; }
+.map-node.fct { left: 55%; top: 48%; }
+.map-node.kano { left: 50%; top: 23%; }
+.map-node.rivers { left: 56%; top: 78%; }
+.map-node.oyo { left: 28%; top: 57%; }
+
+.map-grid-line {
+    position: absolute;
+    z-index: 1;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, var(--blue), transparent);
+    opacity: 0.46;
+    transform-origin: left center;
+}
+
+.map-grid-line.line-one {
+    left: 18%;
+    top: 43%;
+    width: 64%;
+    transform: rotate(20deg);
+}
+
+.map-grid-line.line-two {
+    left: 20%;
+    top: 66%;
+    width: 60%;
+    transform: rotate(-18deg);
+}
+
+.map-orbit {
+    position: absolute;
+    right: 24px;
+    top: 26px;
+    z-index: 1;
+    width: 78px;
+    height: 78px;
+    border: 2px solid var(--green-bg);
+    border-radius: 50%;
+}
+
+.map-orbit::before,
+.map-orbit::after {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border: 2px solid color-mix(in srgb, var(--green), transparent 45%);
+    border-radius: 50%;
+}
+
+.map-orbit::after {
+    inset: 25px;
+    background: var(--green);
+    border-color: var(--green);
+}
+
+.map-preview-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.map-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.dashboard-table-card {
+    min-height: 100%;
+}
+
+.live-table {
+    color: var(--text);
+    margin: 0;
+}
+
+.live-table > :not(caption) > * > * {
+    border-bottom-color: var(--line);
+    background: transparent;
+    color: inherit;
+}
+
+.live-table thead th {
+    z-index: 1;
+}
+
+.jirow-section {
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+}
+
+.insight-card {
+    min-height: 152px;
 }
 
 .shell {
@@ -344,6 +690,12 @@ h2 {
     box-shadow: var(--shadow);
     padding: 14px;
     text-align: right;
+}
+
+.source-box.hero-status-panel {
+    justify-items: start;
+    min-width: 0;
+    text-align: left;
 }
 
 .source-link {
@@ -876,6 +1228,9 @@ tbody tr:hover {
 
 @supports (content-visibility: auto) {
     .distribution-panel,
+    .dashboard-main-row,
+    #market-data,
+    .jirow-section,
     .insight-grid,
     .content-grid,
     .geo-directory-card,
@@ -1443,6 +1798,20 @@ tbody tr:hover {
 }
 
 @media (max-width: 960px) {
+    .npd-nav-container {
+        grid-template-columns: 1fr auto;
+    }
+
+    .nav-links.navbar-nav {
+        flex-direction: row;
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+
     .kpi-grid,
     .insight-grid,
     .content-grid,
@@ -1497,6 +1866,10 @@ tbody tr:hover {
         padding: 12px 10px;
     }
 
+    .npd-nav-container {
+        grid-template-columns: 1fr;
+    }
+
     .topbar-actions {
         width: 100%;
         justify-content: space-between;
@@ -1519,6 +1892,28 @@ tbody tr:hover {
     .site-footer nav {
         flex-wrap: wrap;
         overflow-x: visible;
+    }
+
+    .hero-mini-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-kpi-card {
+        min-height: 142px;
+    }
+
+    .map-preview-card {
+        grid-template-rows: auto minmax(280px, 1fr) auto;
+    }
+
+    .nigeria-map-placeholder {
+        min-height: 300px;
+    }
+
+    .map-node {
+        min-width: 48px;
+        min-height: 28px;
+        font-size: 10px;
     }
 
     .card {

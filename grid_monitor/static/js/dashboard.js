@@ -1,5 +1,7 @@
 const REFRESH_MS = 60000;
 const CHART_JS_URL = "https://cdn.jsdelivr.net/npm/chart.js";
+const GRID_REFERENCE_DEMAND_MW = 6500;
+const GRID_NOMINAL_FREQUENCY_HZ = 50;
 window.requestAnimationFrame(() => document.body.classList.add("brand-loaded"));
 const chartLabels = [];
 const generationReadings = [];
@@ -21,7 +23,10 @@ let chartLibraryPromise = null;
 
 const ids = [
     "source", "refresh-state", "error-banner", "time", "mw", "status", "trend",
-    "insight", "reporting", "as-at", "moving-average", "sample-count", "chart",
+    "insight", "grid-frequency", "grid-frequency-note", "available-capacity",
+    "available-capacity-note", "energy-deficit", "energy-deficit-note",
+    "gencos-online", "gencos-online-note", "discos-count", "discos-count-note",
+    "last-updated", "last-updated-note", "reporting", "as-at", "moving-average", "sample-count", "chart",
     "chart-empty", "chart-window", "daily-date", "peak", "off-peak",
     "daily-high", "daily-low", "energy-generated", "energy-sent", "disco-time",
     "genco-time", "discos", "gencos", "grid-health", "grid-health-note",
@@ -205,6 +210,12 @@ function renderRows(target, rows, nameKey, valueKey, entityPlural) {
         .join("");
 }
 
+function topRows(rows, valueKey, limit = 8) {
+    return [...(rows || [])]
+        .sort((left, right) => Number(right[valueKey] || 0) - Number(left[valueKey] || 0))
+        .slice(0, limit);
+}
+
 function badgeClassForRisk(value) {
     if (["critical", "overload_risk", "elevated", "warning"].includes(value)) return "red";
     if (["watch", "stressed"].includes(value)) return "amber";
@@ -251,6 +262,21 @@ function renderTrendBadge(analytics) {
 
 function renderLive(data, analytics) {
     const mw = Number(data.total_generation_mw);
+    const daily = data.daily || {};
+    const frequency = numericOrNull(data.frequency_hz ?? data.grid_frequency_hz ?? data.frequency);
+    const shownFrequency = frequency ?? GRID_NOMINAL_FREQUENCY_HZ;
+    const availableCapacity = numericOrNull(
+        data.available_capacity_mw
+            ?? data.available_generation_capacity_mw
+            ?? data.installed_available_capacity_mw
+            ?? daily.peak_generation_mw,
+    ) ?? mw;
+    const referenceDemand = numericOrNull(
+        data.estimated_peak_demand_mw
+            ?? data.peak_demand_mw
+            ?? data.reference_demand_mw,
+    ) ?? GRID_REFERENCE_DEMAND_MW;
+    const energyDeficit = Math.max(0, referenceDemand - mw);
     const [statusText, statusClass, insight] = gridStatus(mw, data.stale, analytics?.grid_health);
 
     el.mw.innerHTML = `<span>${formatNumber(mw)}</span><span class="mw-unit">MW</span>`;
@@ -263,10 +289,25 @@ function renderLive(data, analytics) {
     el.status.textContent = statusText;
     el.status.className = `badge ${statusClass}`;
     el.insight.textContent = insight;
+    el["grid-frequency"].textContent = `${formatNumber(shownFrequency, 2)} Hz`;
+    el["grid-frequency-note"].textContent = frequency === null
+        ? "Nominal 50 Hz reference until live frequency is exposed."
+        : "Latest reported grid frequency.";
+    el["available-capacity"].textContent = formatMW(availableCapacity);
+    el["available-capacity-note"].textContent = availableCapacity === mw
+        ? "Using current generation until declared available capacity is reported."
+        : "Latest available capacity signal from the source payload.";
+    el["energy-deficit"].textContent = formatMW(energyDeficit);
+    el["energy-deficit-note"].textContent = `Against ${formatMW(referenceDemand, 0)} reference demand.`;
+    el["gencos-online"].textContent = data.reporting_gencos ?? "...";
+    el["gencos-online-note"].textContent = "Reporting GenCos from the latest source snapshot.";
+    el["last-updated"].textContent = formatTimestamp(data.fetched_at || data.reading_timestamp);
+    el["last-updated-note"].textContent = data.stale
+        ? "Stored fallback reading."
+        : "Live or latest stored grid snapshot.";
     el.reporting.textContent = data.reporting_gencos ?? "...";
     el["as-at"].textContent = data.as_at_time ?? "...";
 
-    const daily = data.daily || {};
     el["daily-date"].textContent = daily.performance_date ? `Performance date ${daily.performance_date}` : "...";
     el.peak.textContent = formatMW(daily.peak_generation_mw);
     el["off-peak"].textContent = formatMW(daily.off_peak_generation_mw);
@@ -752,10 +793,22 @@ function renderSettlementChart(payload, activeDisco = null) {
 
 function renderTables(latest) {
     const profile = latest?.disco_profile || {};
+    const discoRows = profile.discos || [];
+    const gencoRows = latest?.gencos || [];
+    const onlineGencos = gencoRows.filter((row) => (numericOrNull(row.generation_mw) || 0) > 0).length;
+
     el["disco-time"].textContent = profile.as_at ? `As at ${profile.as_at}` : formatTimestamp(profile.fetched_at);
     el["genco-time"].textContent = formatTimestamp(latest?.fetched_at || latest?.reading_timestamp);
-    renderRows(el.discos, profile.discos || [], "company", "load_allocation_mw", "discos");
-    renderRows(el.gencos, latest?.gencos || [], "plant", "generation_mw", "gencos");
+    el["discos-count"].textContent = discoRows.length ? discoRows.length : "...";
+    el["discos-count-note"].textContent = discoRows.length
+        ? `${discoRows.length} distribution companies in the latest allocation profile.`
+        : "Awaiting DisCo allocation profile.";
+    if (onlineGencos > 0) {
+        el["gencos-online"].textContent = onlineGencos;
+        el["gencos-online-note"].textContent = `${onlineGencos} plants with positive output in the latest snapshot.`;
+    }
+    renderRows(el.discos, topRows(discoRows, "load_allocation_mw"), "company", "load_allocation_mw", "discos");
+    renderRows(el.gencos, topRows(gencoRows, "generation_mw"), "plant", "generation_mw", "gencos");
 }
 
 function renderHealth(payload) {
