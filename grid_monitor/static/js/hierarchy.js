@@ -1,6 +1,8 @@
+const CHART_JS_URL = "https://cdn.jsdelivr.net/npm/chart.js";
 let hierarchyChart;
 let searchTimer;
-window.setTimeout(() => document.body.classList.add("brand-loaded"), 1400);
+let chartLibraryPromise = null;
+window.requestAnimationFrame(() => document.body.classList.add("brand-loaded"));
 
 const hierarchyIds = [
     "theme-toggle", "hierarchy-refresh-state", "hierarchy-error-banner",
@@ -21,6 +23,45 @@ const hierarchyIds = [
 ];
 const hierarchyEl = Object.fromEntries(hierarchyIds.map((id) => [id, document.getElementById(id)]));
 
+function loadChartLibrary() {
+    if (window.Chart) return Promise.resolve(window.Chart);
+    if (chartLibraryPromise) return chartLibraryPromise;
+    chartLibraryPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = CHART_JS_URL;
+        script.async = true;
+        script.onload = () => resolve(window.Chart);
+        script.onerror = () => reject(new Error("Chart library failed to load."));
+        document.head.appendChild(script);
+    });
+    return chartLibraryPromise;
+}
+
+function scheduleChartRender(target, callback) {
+    const run = () => {
+        if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(() => loadChartLibrary().then(callback).catch((error) => setBanner(error.message)), { timeout: 1800 });
+        } else {
+            window.setTimeout(() => loadChartLibrary().then(callback).catch((error) => setBanner(error.message)), 0);
+        }
+    };
+    if (window.Chart) {
+        window.requestAnimationFrame(run);
+        return;
+    }
+    if (target && "IntersectionObserver" in window) {
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                observer.disconnect();
+                window.requestAnimationFrame(run);
+            }
+        }, { rootMargin: "180px 0px" });
+        observer.observe(target);
+        return;
+    }
+    window.setTimeout(run, 3500);
+}
+
 function hasEl(id) {
     return Boolean(hierarchyEl[id]);
 }
@@ -38,7 +79,7 @@ function toggleHierarchyTheme() {
     document.documentElement.dataset.theme = next;
     localStorage.setItem("grid-theme", next);
     if (hasEl("theme-toggle")) hierarchyEl["theme-toggle"].textContent = next === "dark" ? "Light" : "Dark";
-    if (hierarchyChart) hierarchyChart.update();
+    if (hierarchyChart) hierarchyChart.update("none");
 }
 
 function escapeHTML(value) {
@@ -278,6 +319,7 @@ function renderProjectionChart(metrics) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
                 plugins: {
                     legend: { display: false },
                     tooltip: { callbacks: { label: (context) => formatMW(context.parsed.y) } },
@@ -295,7 +337,7 @@ function renderProjectionChart(metrics) {
     } else {
         hierarchyChart.data.datasets[0].data = values;
         hierarchyChart.options.scales.y.grid.color = gridColor;
-        hierarchyChart.update();
+        hierarchyChart.update("none");
     }
 }
 
@@ -337,7 +379,7 @@ function renderDetail(payload) {
     hierarchyEl["hierarchy-stress"].textContent = `${formatNumber(metrics.infrastructure_stress_score, 1)}/100`;
     hierarchyEl["hierarchy-summary"].textContent = payload.analysis_summary;
 
-    renderProjectionChart(metrics);
+    scheduleChartRender(hierarchyEl["hierarchy-demand-chart"], () => renderProjectionChart(metrics));
     renderCoverage(payload);
     renderUpgrades(payload);
     if (hasEl("hierarchy-children-title")) {

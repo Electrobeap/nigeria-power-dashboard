@@ -1,5 +1,7 @@
 const GEO_REFRESH_MS = 120000;
-window.setTimeout(() => document.body.classList.add("brand-loaded"), 1400);
+const CHART_JS_URL = "https://cdn.jsdelivr.net/npm/chart.js";
+window.requestAnimationFrame(() => document.body.classList.add("brand-loaded"));
+let chartLibraryPromise = null;
 let geoChart;
 
 const geoIds = [
@@ -18,6 +20,45 @@ const geoIds = [
 ];
 const geoEl = Object.fromEntries(geoIds.map((id) => [id, document.getElementById(id)]));
 
+function loadChartLibrary() {
+    if (window.Chart) return Promise.resolve(window.Chart);
+    if (chartLibraryPromise) return chartLibraryPromise;
+    chartLibraryPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = CHART_JS_URL;
+        script.async = true;
+        script.onload = () => resolve(window.Chart);
+        script.onerror = () => reject(new Error("Chart library failed to load."));
+        document.head.appendChild(script);
+    });
+    return chartLibraryPromise;
+}
+
+function scheduleChartRender(target, callback) {
+    const run = () => {
+        if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(() => loadChartLibrary().then(callback).catch((error) => setGeoBanner(error.message)), { timeout: 1800 });
+        } else {
+            window.setTimeout(() => loadChartLibrary().then(callback).catch((error) => setGeoBanner(error.message)), 0);
+        }
+    };
+    if (window.Chart) {
+        window.requestAnimationFrame(run);
+        return;
+    }
+    if (target && "IntersectionObserver" in window) {
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                observer.disconnect();
+                window.requestAnimationFrame(run);
+            }
+        }, { rootMargin: "180px 0px" });
+        observer.observe(target);
+        return;
+    }
+    window.setTimeout(run, 3500);
+}
+
 function initGeoTheme() {
     const stored = localStorage.getItem("grid-theme");
     const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -31,7 +72,7 @@ function toggleGeoTheme() {
     document.documentElement.dataset.theme = next;
     localStorage.setItem("grid-theme", next);
     geoEl["theme-toggle"].textContent = next === "dark" ? "Light" : "Dark";
-    if (geoChart) geoChart.update();
+    if (geoChart) geoChart.update("none");
 }
 
 function formatNumber(value, digits = 2) {
@@ -144,6 +185,7 @@ function renderGeoChart(payload) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
                 interaction: { intersect: false, mode: "index" },
                 plugins: {
                     legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
@@ -178,7 +220,7 @@ function renderGeoChart(payload) {
         geoChart.data.datasets[1].data = movingAverage;
         geoChart.data.datasets[2].data = availability;
         geoChart.options.scales.mw.grid.color = gridColor;
-        geoChart.update();
+        geoChart.update("none");
     }
 }
 
@@ -250,7 +292,7 @@ function renderGeo(payload) {
     geoEl["geo-high"].textContent = formatMW(stats.highest_mw);
     geoEl["geo-low"].textContent = formatMW(stats.lowest_mw);
 
-    renderGeoChart(payload);
+    scheduleChartRender(geoEl["geo-chart"], () => renderGeoChart(payload));
     renderRelated(payload);
 }
 

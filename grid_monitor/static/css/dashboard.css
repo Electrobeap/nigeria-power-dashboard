@@ -618,6 +618,7 @@ h2 {
 }
 
 canvas {
+    display: block;
     width: 100% !important;
     height: 100% !important;
     min-height: 320px;
@@ -871,6 +872,35 @@ tbody tr:hover {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+@supports (content-visibility: auto) {
+    .distribution-panel,
+    .insight-grid,
+    .content-grid,
+    .geo-directory-card,
+    .entity-content-grid,
+    .content-page-grid {
+        content-visibility: auto;
+        contain-intrinsic-size: 1px 560px;
+    }
+
+    .site-footer,
+    .ad-slot-footer {
+        content-visibility: auto;
+        contain-intrinsic-size: 1px 180px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.001ms !important;
+    }
 }
 
 .entity-shell {

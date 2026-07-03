@@ -13,9 +13,11 @@
     <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=brand-20260630">
+    <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=cwv-20260703" as="style">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=cwv-20260703">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
@@ -25,7 +27,7 @@
     <div class="loading-brand">
         <picture>
             <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="300" height="108">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="300" height="108" loading="eager" decoding="async" fetchpriority="high">
         </picture>
         <span>Loading Grid Intelligence...</span>
     </div>
@@ -34,7 +36,7 @@
     <a class="brand" href="/" aria-label="Nigeria Power Data home">
         <picture>
             <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
-            <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76">
+            <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76" decoding="async" fetchpriority="high">
         </picture>
     </a>
     <nav class="nav-links" aria-label="Primary navigation">
@@ -110,7 +112,7 @@
                 <span class="badge blue" id="entity-window">168 hours</span>
             </div>
             <div class="chart-wrap">
-                <canvas id="entity-chart"></canvas>
+                <canvas id="entity-chart" width="720" height="340"></canvas>
                 <div class="empty-state" id="entity-chart-empty">No stored readings for this entity yet.</div>
             </div>
         </article>
@@ -172,7 +174,7 @@
         <a class="footer-brand" href="/" aria-label="Nigeria Power Data home">
             <picture>
                 <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
-                <img class="footer-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" loading="lazy" width="230" height="83">
+                <img class="footer-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" loading="lazy" decoding="async" width="230" height="83">
             </picture>
         </a>
         <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
@@ -195,6 +197,6 @@
         slug: "{{ slug }}"
     };
 </script>
-<script src="{{ url_for('static', filename='js/entity.js') }}?v=brand-20260630"></script>
+<script src="{{ url_for('static', filename='js/entity.min.js') }}?v=cwv-20260703" defer></script>
 </body>
 </html>

@@ -1,5 +1,7 @@
 const ENTITY_REFRESH_MS = 120000;
-window.setTimeout(() => document.body.classList.add("brand-loaded"), 1400);
+const CHART_JS_URL = "https://cdn.jsdelivr.net/npm/chart.js";
+window.requestAnimationFrame(() => document.body.classList.add("brand-loaded"));
+let chartLibraryPromise = null;
 let entityChart;
 
 const entityIds = [
@@ -16,6 +18,45 @@ const entityIds = [
 ];
 const entityEl = Object.fromEntries(entityIds.map((id) => [id, document.getElementById(id)]));
 
+function loadChartLibrary() {
+    if (window.Chart) return Promise.resolve(window.Chart);
+    if (chartLibraryPromise) return chartLibraryPromise;
+    chartLibraryPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = CHART_JS_URL;
+        script.async = true;
+        script.onload = () => resolve(window.Chart);
+        script.onerror = () => reject(new Error("Chart library failed to load."));
+        document.head.appendChild(script);
+    });
+    return chartLibraryPromise;
+}
+
+function scheduleChartRender(target, callback) {
+    const run = () => {
+        if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(() => loadChartLibrary().then(callback).catch((error) => setEntityBanner(error.message)), { timeout: 1800 });
+        } else {
+            window.setTimeout(() => loadChartLibrary().then(callback).catch((error) => setEntityBanner(error.message)), 0);
+        }
+    };
+    if (window.Chart) {
+        window.requestAnimationFrame(run);
+        return;
+    }
+    if (target && "IntersectionObserver" in window) {
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                observer.disconnect();
+                window.requestAnimationFrame(run);
+            }
+        }, { rootMargin: "180px 0px" });
+        observer.observe(target);
+        return;
+    }
+    window.setTimeout(run, 3500);
+}
+
 function initEntityTheme() {
     const stored = localStorage.getItem("grid-theme");
     const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -29,7 +70,7 @@ function toggleEntityTheme() {
     document.documentElement.dataset.theme = next;
     localStorage.setItem("grid-theme", next);
     entityEl["theme-toggle"].textContent = next === "dark" ? "Light" : "Dark";
-    if (entityChart) entityChart.update();
+    if (entityChart) entityChart.update("none");
 }
 
 function formatNumber(value, digits = 2) {
@@ -143,6 +184,7 @@ function renderEntityChart(payload) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
                 interaction: { intersect: false, mode: "index" },
                 plugins: {
                     legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
@@ -177,7 +219,7 @@ function renderEntityChart(payload) {
         entityChart.data.datasets[1].data = movingAverage;
         entityChart.data.datasets[2].data = share;
         entityChart.options.scales.y.grid.color = gridColor;
-        entityChart.update();
+        entityChart.update("none");
     }
 }
 
@@ -257,7 +299,7 @@ function renderEntity(payload) {
         ? "DisCo load allocation, moving average, and share of total distribution allocation."
         : "GenCo output, moving average, and share of total generation.";
 
-    renderEntityChart(payload);
+    scheduleChartRender(entityEl["entity-chart"], () => renderEntityChart(payload));
     renderRelated(payload);
 }
 

@@ -1,9 +1,10 @@
 import atexit
+import gzip
 import logging
 import sys
 
 from alembic import command
-from flask import Flask, current_app
+from flask import Flask, current_app, request
 
 from grid_monitor.config import Config
 from grid_monitor.extensions import db, migrate
@@ -16,6 +17,18 @@ from grid_monitor.utils.logging import configure_logging, log_event
 
 
 _migrations_ran = False
+COMPRESSIBLE_MIMETYPES = {
+    "application/javascript",
+    "application/json",
+    "application/manifest+json",
+    "application/xml",
+    "image/svg+xml",
+    "text/css",
+    "text/html",
+    "text/javascript",
+    "text/plain",
+    "text/xml",
+}
 
 
 def _alembic_config(app: Flask):
@@ -99,6 +112,40 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     def add_production_headers(response):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        if request.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif request.path in {"/favicon.svg", "/robots.txt", "/sitemap.xml"}:
+            response.headers["Cache-Control"] = "public, max-age=3600"
+        elif request.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=300"
+
+        accepts_gzip = "gzip" in request.headers.get("Accept-Encoding", "").lower()
+        should_compress = (
+            accepts_gzip
+            and request.method != "HEAD"
+            and "Range" not in request.headers
+            and response.status_code < 300
+            and not response.headers.get("Content-Encoding")
+            and response.mimetype in COMPRESSIBLE_MIMETYPES
+        )
+        if should_compress:
+            response.direct_passthrough = False
+            body = response.get_data()
+            if len(body) >= 1024:
+                compressed = gzip.compress(body, compresslevel=6)
+                response.set_data(compressed)
+                response.headers["Content-Encoding"] = "gzip"
+                response.headers["Content-Length"] = str(len(compressed))
+                response.headers.pop("ETag", None)
+                vary_header = response.headers.get("Vary")
+                if vary_header:
+                    vary_values = {value.strip().lower() for value in vary_header.split(",")}
+                    if "accept-encoding" not in vary_values:
+                        response.headers["Vary"] = f"{vary_header}, Accept-Encoding"
+                else:
+                    response.headers["Vary"] = "Accept-Encoding"
         return response
 
     return app

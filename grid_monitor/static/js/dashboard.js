@@ -1,5 +1,6 @@
 const REFRESH_MS = 60000;
-window.setTimeout(() => document.body.classList.add("brand-loaded"), 1400);
+const CHART_JS_URL = "https://cdn.jsdelivr.net/npm/chart.js";
+window.requestAnimationFrame(() => document.body.classList.add("brand-loaded"));
 const chartLabels = [];
 const generationReadings = [];
 const movingAverageReadings = [];
@@ -16,6 +17,7 @@ let settlementChart;
 let previousMW = null;
 let latestDistributionPayload = null;
 let selectedDiscoSlug = null;
+let chartLibraryPromise = null;
 
 const ids = [
     "source", "refresh-state", "error-banner", "time", "mw", "status", "trend",
@@ -38,6 +40,54 @@ const ids = [
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
+function loadChartLibrary() {
+    if (window.Chart) return Promise.resolve(window.Chart);
+    if (chartLibraryPromise) return chartLibraryPromise;
+    chartLibraryPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = CHART_JS_URL;
+        script.async = true;
+        script.onload = () => resolve(window.Chart);
+        script.onerror = () => reject(new Error("Chart library failed to load."));
+        document.head.appendChild(script);
+    });
+    return chartLibraryPromise;
+}
+
+function scheduleNonCriticalWork(callback) {
+    const run = () => {
+        if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(callback, { timeout: 1800 });
+        } else {
+            window.setTimeout(callback, 0);
+        }
+    };
+    window.requestAnimationFrame(run);
+}
+
+function scheduleChartWork(target, callback) {
+    const run = () => scheduleNonCriticalWork(() => {
+        loadChartLibrary()
+            .then(callback)
+            .catch((error) => setBanner(error.message));
+    });
+    if (window.Chart) {
+        run();
+        return;
+    }
+    if (target && "IntersectionObserver" in window) {
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                observer.disconnect();
+                run();
+            }
+        }, { rootMargin: "180px 0px" });
+        observer.observe(target);
+        return;
+    }
+    window.setTimeout(run, 3500);
+}
+
 function initTheme() {
     const stored = localStorage.getItem("grid-theme");
     const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -51,9 +101,9 @@ function toggleTheme() {
     document.documentElement.dataset.theme = next;
     localStorage.setItem("grid-theme", next);
     el["theme-toggle"].textContent = next === "dark" ? "Light" : "Dark";
-    if (chart) chart.update();
-    if (distributionChart) distributionChart.update();
-    if (settlementChart) settlementChart.update();
+    if (chart) chart.update("none");
+    if (distributionChart) distributionChart.update("none");
+    if (settlementChart) settlementChart.update("none");
 }
 
 function formatNumber(value, digits = 2) {
@@ -347,6 +397,7 @@ function renderChart(history) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
                 interaction: { intersect: false, mode: "index" },
                 plugins: {
                     legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
@@ -367,7 +418,7 @@ function renderChart(history) {
         });
     } else {
         chart.options.scales.y.grid.color = gridColor;
-        chart.update();
+        chart.update("none");
     }
 }
 
@@ -564,6 +615,7 @@ function renderDistributionChart(payload, activeDisco = null) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
                 interaction: { intersect: false, mode: "index" },
                 plugins: {
                     legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
@@ -583,7 +635,7 @@ function renderDistributionChart(payload, activeDisco = null) {
         distributionChart.data.datasets[2].data = distributionOverload;
         distributionChart.data.datasets[0].pointRadius = pointRadius;
         distributionChart.options.scales.y.grid.color = gridColor;
-        distributionChart.update();
+        distributionChart.update("none");
     }
 }
 
@@ -658,6 +710,7 @@ function renderSettlementChart(payload, activeDisco = null) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
                 interaction: { intersect: false, mode: "index" },
                 plugins: {
                     legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
@@ -693,7 +746,7 @@ function renderSettlementChart(payload, activeDisco = null) {
         settlementChart.data.datasets[0].data = settlementGrowth;
         settlementChart.data.datasets[1].data = settlementStress;
         settlementChart.options.scales.mw.grid.color = gridColor;
-        settlementChart.update();
+        settlementChart.update("none");
     }
 }
 
@@ -741,10 +794,7 @@ async function refresh() {
     const analytics = history?.analytics || latest?.analytics?.trend_24h;
     const windows = latest?.analytics || history?.windows;
 
-    if (history) {
-        renderAnalytics(analytics, windows);
-        renderChart(history);
-    }
+    if (history) renderAnalytics(analytics, windows);
     if (latest) {
         renderLive(latest, analytics);
         renderTables(latest);
@@ -763,6 +813,11 @@ async function refresh() {
 
     el["refresh-state"].textContent = `Last refresh ${new Date().toLocaleTimeString()}`;
     document.body.classList.remove("loading");
+
+    if (history) scheduleChartWork(el.chart, () => renderChart(history));
+    if (distribution) {
+        scheduleChartWork(el["distribution-chart"], () => renderDistribution(distribution, resultError(results, "distribution")));
+    }
 }
 
 initTheme();
