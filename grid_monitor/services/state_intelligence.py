@@ -7,6 +7,7 @@ from grid_monitor.extensions import db
 from grid_monitor.models import GridSnapshot
 from grid_monitor.services.entity_intelligence import slugify_entity
 from grid_monitor.utils.time import parse_iso_datetime, to_iso, utc_now, utc_now_iso
+from sqlalchemy.orm import selectinload
 
 
 DISCO_LABELS = {
@@ -256,13 +257,19 @@ def _moving_average(history: list[dict[str, Any]], window_size: int = 6) -> list
 def _snapshot_rows(hours: float, limit: int) -> list[GridSnapshot]:
     since = utc_now() - timedelta(hours=hours)
     rows = (
-        GridSnapshot.query.filter(GridSnapshot.reading_timestamp >= since)
+        GridSnapshot.query.options(selectinload(GridSnapshot.disco_data))
+        .filter(GridSnapshot.reading_timestamp >= since)
         .order_by(GridSnapshot.reading_timestamp.desc())
         .limit(limit)
         .all()
     )
     if not rows:
-        rows = GridSnapshot.query.order_by(GridSnapshot.reading_timestamp.desc()).limit(limit).all()
+        rows = (
+            GridSnapshot.query.options(selectinload(GridSnapshot.disco_data))
+            .order_by(GridSnapshot.reading_timestamp.desc())
+            .limit(limit)
+            .all()
+        )
     return list(reversed(rows))
 
 

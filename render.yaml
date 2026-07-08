@@ -12,3 +12,11 @@ services:
         value: "1"
       - key: HISTORY_CAPTURE_ON_STARTUP
         value: "1"
+      - key: MEMORY_LIMIT_MB
+        value: "512"
+      - key: ANALYTICS_CACHE_MAX_ENTRIES
+        value: "24"
+      - key: GRID_CACHE_MAX_ENTRIES
+        value: "4"
+      - key: GUNICORN_THREADS
+        value: "2"

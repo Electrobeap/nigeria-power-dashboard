@@ -1,9 +1,11 @@
 import json
 import math
+import time
 from pathlib import Path
 from typing import Any
 
 from flask import current_app, has_app_context
+from sqlalchemy.orm import selectinload
 
 from grid_monitor.models import GridSnapshot
 from grid_monitor.services.entity_intelligence import slugify_entity
@@ -30,6 +32,14 @@ CHILD_LEVELS = {
     "lga": "town",
     "town": "community",
     "community": "settlement",
+}
+
+_nodes_cache: list[dict[str, Any]] | None = None
+_nodes_cache_signature: tuple[Any, ...] | None = None
+_state_allocation_cache: dict[str, Any] = {
+    "snapshot_id": None,
+    "allocations": {},
+    "checked_at": 0.0,
 }
 
 
@@ -168,6 +178,18 @@ def _load_external_nodes() -> list[dict[str, Any]] | None:
     return [_normalise_external_node(node) for node in nodes if isinstance(node, dict)]
 
 
+def _dataset_signature() -> tuple[Any, ...]:
+    dataset_path = _safe_config("GEOGRAPHY_DATASET_PATH")
+    if not dataset_path:
+        return ("built_in_planning_seed", len(STATE_PROFILES), len(LOCALITY_SEEDS))
+    path = Path(dataset_path)
+    try:
+        stat = path.stat()
+    except OSError:
+        return ("external_missing", str(path))
+    return ("external_json", str(path), stat.st_mtime_ns, stat.st_size)
+
+
 def _responsible_discos(discos: dict[str, float]) -> list[dict[str, Any]]:
     return [
         {
@@ -303,45 +325,88 @@ def _built_in_nodes() -> list[dict[str, Any]]:
 
 
 def hierarchy_nodes() -> list[dict[str, Any]]:
-    return _load_external_nodes() or _built_in_nodes()
+    global _nodes_cache, _nodes_cache_signature
+
+    signature = _dataset_signature()
+    if _nodes_cache is not None and _nodes_cache_signature == signature:
+        return _nodes_cache
+
+    _nodes_cache = _load_external_nodes() or _built_in_nodes()
+    _nodes_cache_signature = signature
+    return _nodes_cache
 
 
-def _index_by_slug() -> dict[tuple[str, str], dict[str, Any]]:
-    return {(node["level"], node["slug"]): node for node in hierarchy_nodes()}
+def _index_by_slug(nodes: list[dict[str, Any]] | None = None) -> dict[tuple[str, str], dict[str, Any]]:
+    nodes = nodes or hierarchy_nodes()
+    return {(node["level"], node["slug"]): node for node in nodes}
 
 
-def _children(parent: dict[str, Any]) -> list[dict[str, Any]]:
+def _children(parent: dict[str, Any], nodes: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     child_level = CHILD_LEVELS.get(parent["level"])
     if not child_level:
         return []
+    nodes = nodes or hierarchy_nodes()
     return [
         node
-        for node in hierarchy_nodes()
+        for node in nodes
         if node.get("level") == child_level and node.get("parent_slug") == parent["slug"]
     ]
 
 
-def _find_node(level: str, slug: str) -> dict[str, Any]:
+def _find_node(
+    level: str,
+    slug: str,
+    index: dict[tuple[str, str], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     level = slugify_entity(level)
     slug = slugify_entity(slug)
-    node = _index_by_slug().get((level, slug))
+    node = (index or _index_by_slug()).get((level, slug))
     if not node:
         raise HierarchyNotFound(f"{LEVEL_LABELS.get(level, 'Geography')} not found: {slug}")
     return node
 
 
-def _latest_state_allocation(state_slug: str) -> float | None:
+def _latest_state_allocations() -> dict[str, float | None]:
+    global _state_allocation_cache
+
+    now = time.time()
+    if (
+        _state_allocation_cache["checked_at"] > 0
+        and now - _state_allocation_cache["checked_at"] <= 30
+    ):
+        return _state_allocation_cache["allocations"]
+
     try:
-        latest_snapshot = GridSnapshot.query.order_by(GridSnapshot.reading_timestamp.desc()).first()
+        latest_snapshot = (
+            GridSnapshot.query.options(selectinload(GridSnapshot.disco_data))
+            .order_by(GridSnapshot.reading_timestamp.desc())
+            .first()
+        )
     except Exception:
-        return None
+        _state_allocation_cache = {"snapshot_id": None, "allocations": {}, "checked_at": now}
+        return {}
     if not latest_snapshot:
-        return None
-    profile = STATE_PROFILES.get(state_slug)
-    if not profile:
-        return None
-    allocation, _ = _estimate_allocation(profile, _snapshot_allocations(latest_snapshot))
-    return allocation
+        _state_allocation_cache = {"snapshot_id": None, "allocations": {}, "checked_at": now}
+        return {}
+    if _state_allocation_cache["snapshot_id"] == latest_snapshot.id:
+        _state_allocation_cache["checked_at"] = now
+        return _state_allocation_cache["allocations"]
+
+    disco_allocations = _snapshot_allocations(latest_snapshot)
+    allocations: dict[str, float | None] = {}
+    for state_slug, profile in STATE_PROFILES.items():
+        allocation, _ = _estimate_allocation(profile, disco_allocations)
+        allocations[state_slug] = allocation
+    _state_allocation_cache = {
+        "snapshot_id": latest_snapshot.id,
+        "allocations": allocations,
+        "checked_at": now,
+    }
+    return allocations
+
+
+def _latest_state_allocation(state_slug: str) -> float | None:
+    return _latest_state_allocations().get(state_slug)
 
 
 def _estimated_peak_demand(node: dict[str, Any]) -> float:
@@ -478,8 +543,11 @@ def _recommended_upgrades(node: dict[str, Any], metrics: dict[str, Any]) -> list
     return upgrades
 
 
-def _breadcrumbs(node: dict[str, Any]) -> list[dict[str, str]]:
-    index = _index_by_slug()
+def _breadcrumbs(
+    node: dict[str, Any],
+    index: dict[tuple[str, str], dict[str, Any]] | None = None,
+) -> list[dict[str, str]]:
+    index = index or _index_by_slug()
     chain = [node]
     parent_slug = node.get("parent_slug")
     parent_level = node.get("parent_level")
@@ -519,19 +587,20 @@ def _summary_node(node: dict[str, Any], include_metrics: bool = False) -> dict[s
 
 
 def hierarchy_overview() -> dict[str, Any]:
-    states = [node for node in hierarchy_nodes() if node["level"] == "state"]
+    nodes = hierarchy_nodes()
+    states = [node for node in nodes if node["level"] == "state"]
     return {
         "generated_at": utc_now_iso(),
         "dataset": data_lineage(),
         "levels": [{"key": level, "label": LEVEL_LABELS[level]} for level in LEVEL_ORDER],
         "states": [_summary_node(node, include_metrics=True) for node in sorted(states, key=lambda item: item["name"])],
-        "counts": hierarchy_counts(),
+        "counts": hierarchy_counts(nodes),
     }
 
 
-def hierarchy_counts() -> dict[str, int]:
+def hierarchy_counts(nodes: list[dict[str, Any]] | None = None) -> dict[str, int]:
     counts = {level: 0 for level in LEVEL_ORDER}
-    for node in hierarchy_nodes():
+    for node in nodes or hierarchy_nodes():
         counts[node["level"]] = counts.get(node["level"], 0) + 1
     return counts
 
@@ -547,9 +616,11 @@ def data_lineage() -> dict[str, Any]:
 
 
 def hierarchy_detail(level: str, slug: str) -> dict[str, Any]:
-    node = _find_node(level, slug)
+    nodes = hierarchy_nodes()
+    index = _index_by_slug(nodes)
+    node = _find_node(level, slug, index)
     metrics = _metrics(node)
-    children = _children(node)
+    children = _children(node, nodes)
     classification = _classification(metrics)
     child_level = CHILD_LEVELS.get(node["level"])
     return {
@@ -569,7 +640,7 @@ def hierarchy_detail(level: str, slug: str) -> dict[str, Any]:
             "parent_slug": node.get("parent_slug"),
             "parent_level": node.get("parent_level"),
         },
-        "breadcrumbs": _breadcrumbs(node),
+        "breadcrumbs": _breadcrumbs(node, index),
         "metrics": metrics,
         "coverage": {
             "responsible_discos": _responsible_discos(node["discos"]),
@@ -586,7 +657,7 @@ def hierarchy_detail(level: str, slug: str) -> dict[str, Any]:
         "child_level": child_level,
         "siblings": [
             _summary_node(item)
-            for item in hierarchy_nodes()
+            for item in nodes
             if item["level"] == node["level"] and item.get("parent_slug") == node.get("parent_slug") and item["slug"] != node["slug"]
         ][:12],
         "data_lineage": data_lineage(),

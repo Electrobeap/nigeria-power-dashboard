@@ -3,6 +3,7 @@ import logging
 import re
 import threading
 import time
+from collections import OrderedDict
 from typing import Any, Callable
 
 import requests
@@ -17,7 +18,7 @@ class SourceUnavailable(RuntimeError):
     pass
 
 
-_cache: dict[str, dict[str, Any]] = {}
+_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
 _cache_lock = threading.Lock()
 
 
@@ -37,9 +38,14 @@ def _copy_payload(payload: dict[str, Any]) -> dict[str, Any]:
 def _cached(key: str, loader: Callable[[], dict[str, Any]]) -> dict[str, Any]:
     current_ts = time.time()
     ttl = current_app.config["GRID_CACHE_TTL_SECONDS"]
+    max_entries = current_app.config["GRID_CACHE_MAX_ENTRIES"]
     with _cache_lock:
+        for cache_key in list(_cache):
+            if current_ts - _cache[cache_key]["loaded_at"] >= ttl:
+                _cache.pop(cache_key, None)
         cached = _cache.get(key)
         if cached and current_ts - cached["loaded_at"] < ttl:
+            _cache.move_to_end(key)
             return _copy_payload(cached["value"])
 
     try:
@@ -64,6 +70,9 @@ def _cached(key: str, loader: Callable[[], dict[str, Any]]) -> dict[str, Any]:
 
     with _cache_lock:
         _cache[key] = {"loaded_at": current_ts, "value": value}
+        _cache.move_to_end(key)
+        while len(_cache) > max_entries:
+            _cache.popitem(last=False)
     return _copy_payload(value)
 
 

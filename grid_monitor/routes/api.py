@@ -1,11 +1,10 @@
-import copy
 import secrets
 from typing import Any
 
 from flask import Blueprint, current_app, jsonify, request
 
 from grid_monitor.services.analytics import enrich_history_payload, history_analytics, multi_window_analytics
-from grid_monitor.services.cache import get_cached
+from grid_monitor.services.cache import cache_status, get_cached
 from grid_monitor.services.distribution import distribution_intelligence
 from grid_monitor.services.entity_intelligence import EntityNotFound, entity_intelligence, list_entities
 from grid_monitor.services.geographic_hierarchy import (
@@ -36,6 +35,7 @@ from grid_monitor.services.storage import (
     storage_status,
 )
 from grid_monitor.services.validation import ValidationError, bounded_float, bounded_int
+from grid_monitor.utils.memory import process_memory_status
 from grid_monitor.utils.time import utc_now_iso
 
 
@@ -43,7 +43,7 @@ api_bp = Blueprint("api", __name__)
 
 
 def _timestamped(payload: dict[str, Any]) -> dict[str, Any]:
-    payload = copy.deepcopy(payload)
+    payload = dict(payload)
     payload.setdefault("response_timestamp", utc_now_iso())
     return payload
 
@@ -582,6 +582,8 @@ def health():
             "retries": current_app.config["GRID_SCRAPER_RETRIES"],
             "cache_ttl_seconds": current_app.config["GRID_CACHE_TTL_SECONDS"],
         },
+        "memory": process_memory_status(current_app.config["MEMORY_LIMIT_MB"]),
+        "cache": cache_status(),
         "api": {
             "name": current_app.config["API_NAME"],
             "version": current_app.config["API_VERSION"],

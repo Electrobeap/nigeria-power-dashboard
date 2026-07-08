@@ -5,6 +5,7 @@ from typing import Any
 
 from flask import current_app
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import selectinload
 
 from grid_monitor.extensions import db
 from grid_monitor.models import (
@@ -229,7 +230,14 @@ def snapshot_to_payload(snapshot: GridSnapshot) -> dict[str, Any]:
 
 
 def get_latest_snapshot_model() -> GridSnapshot | None:
-    return GridSnapshot.query.order_by(GridSnapshot.reading_timestamp.desc()).first()
+    return (
+        GridSnapshot.query.options(
+            selectinload(GridSnapshot.genco_data),
+            selectinload(GridSnapshot.disco_data),
+        )
+        .order_by(GridSnapshot.reading_timestamp.desc())
+        .first()
+    )
 
 
 def get_latest_snapshot() -> dict[str, Any] | None:
@@ -239,14 +247,28 @@ def get_latest_snapshot() -> dict[str, Any] | None:
 
 def get_history_points(hours: float, limit: int) -> list[dict[str, Any]]:
     since = utc_now() - timedelta(hours=hours)
+    columns = (
+        GridSnapshot.id,
+        GridSnapshot.reading_timestamp,
+        GridSnapshot.captured_at,
+        GridSnapshot.as_at_time,
+        GridSnapshot.total_generation_mw,
+        GridSnapshot.reporting_gencos,
+    )
     rows = (
-        GridSnapshot.query.filter(GridSnapshot.reading_timestamp >= since)
+        db.session.query(*columns)
+        .filter(GridSnapshot.reading_timestamp >= since)
         .order_by(GridSnapshot.reading_timestamp.desc())
         .limit(limit)
         .all()
     )
     if not rows:
-        rows = GridSnapshot.query.order_by(GridSnapshot.reading_timestamp.desc()).limit(limit).all()
+        rows = (
+            db.session.query(*columns)
+            .order_by(GridSnapshot.reading_timestamp.desc())
+            .limit(limit)
+            .all()
+        )
     rows = list(reversed(rows))
 
     return [
