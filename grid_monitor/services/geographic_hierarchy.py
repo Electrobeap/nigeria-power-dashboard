@@ -47,44 +47,52 @@ class HierarchyNotFound(ValueError):
     pass
 
 
-STATE_MAP_COORDINATES = {
-    "sokoto": (27, 10),
-    "kebbi": (19, 25),
-    "zamfara": (33, 24),
-    "katsina": (43, 15),
-    "kano": (52, 22),
-    "jigawa": (62, 18),
-    "kaduna": (43, 38),
-    "niger": (30, 49),
-    "kwara": (25, 64),
-    "fct": (46, 56),
-    "nasarawa": (55, 59),
-    "plateau": (60, 48),
-    "benue": (58, 72),
-    "kogi": (45, 72),
-    "oyo": (28, 80),
-    "osun": (36, 82),
-    "ekiti": (43, 80),
-    "ondo": (42, 89),
-    "ogun": (25, 91),
-    "lagos": (22, 95),
-    "edo": (48, 91),
-    "delta": (53, 94),
-    "bayelsa": (58, 96),
-    "rivers": (65, 95),
-    "akwa-ibom": (77, 95),
-    "cross-river": (83, 91),
-    "abia": (70, 91),
-    "imo": (65, 90),
-    "anambra": (60, 84),
-    "enugu": (66, 79),
-    "ebonyi": (73, 82),
-    "bauchi": (67, 36),
-    "gombe": (74, 47),
-    "yobe": (78, 23),
-    "borno": (88, 32),
-    "adamawa": (82, 62),
-    "taraba": (74, 68),
+NIGERIA_MAP_BOUNDS = {
+    "min_lon": 2.691702,
+    "max_lon": 14.577178,
+    "min_lat": 4.240594,
+    "max_lat": 13.865924,
+}
+
+
+STATE_MARKER_GEO_COORDINATES = {
+    "abia": (7.486, 5.532),
+    "adamawa": (12.495, 9.203),
+    "akwa-ibom": (7.912, 5.038),
+    "anambra": (7.071, 6.210),
+    "bauchi": (9.844, 10.315),
+    "bayelsa": (6.268, 4.927),
+    "benue": (8.539, 7.732),
+    "borno": (13.150, 11.833),
+    "cross-river": (8.325, 4.950),
+    "delta": (6.731, 6.198),
+    "ebonyi": (8.114, 6.325),
+    "edo": (5.604, 6.335),
+    "ekiti": (5.220, 7.623),
+    "enugu": (7.548, 6.459),
+    "fct": (7.399, 9.077),
+    "gombe": (11.167, 10.290),
+    "imo": (7.035, 5.485),
+    "jigawa": (9.339, 11.756),
+    "kaduna": (7.433, 10.517),
+    "kano": (8.592, 12.002),
+    "katsina": (7.601, 12.989),
+    "kebbi": (4.198, 12.454),
+    "kogi": (6.743, 7.802),
+    "kwara": (4.542, 8.497),
+    "lagos": (3.352, 6.602),
+    "nasarawa": (8.515, 8.494),
+    "niger": (6.557, 9.614),
+    "ogun": (3.362, 7.148),
+    "ondo": (5.206, 7.257),
+    "osun": (4.542, 7.783),
+    "oyo": (3.947, 7.378),
+    "plateau": (8.892, 9.929),
+    "rivers": (7.050, 4.816),
+    "sokoto": (5.243, 13.063),
+    "taraba": (11.360, 8.894),
+    "yobe": (11.961, 11.747),
+    "zamfara": (6.661, 12.163),
 }
 
 
@@ -133,6 +141,16 @@ def _round(value: float | None, digits: int = 2) -> float | None:
     if value is None or not math.isfinite(value):
         return None
     return round(value, digits)
+
+
+def _project_to_nigeria_map(lon: float, lat: float) -> tuple[float, float]:
+    bounds = NIGERIA_MAP_BOUNDS
+    x = ((lon - bounds["min_lon"]) / (bounds["max_lon"] - bounds["min_lon"])) * 100
+    y = ((bounds["max_lat"] - lat) / (bounds["max_lat"] - bounds["min_lat"])) * 100
+    return (
+        max(0.0, min(100.0, round(x, 1))),
+        max(0.0, min(100.0, round(y, 1))),
+    )
 
 
 def _url(level: str, slug: str) -> str:
@@ -203,7 +221,8 @@ def _responsible_discos(discos: dict[str, float]) -> list[dict[str, Any]]:
 
 
 def _state_node(state_slug: str, profile: dict[str, Any]) -> dict[str, Any]:
-    x, y = STATE_MAP_COORDINATES.get(state_slug, (50, 50))
+    lon, lat = STATE_MARKER_GEO_COORDINATES.get(state_slug, (8.6753, 9.0820))
+    x, y = _project_to_nigeria_map(lon, lat)
     return {
         "slug": state_slug,
         "level": "state",

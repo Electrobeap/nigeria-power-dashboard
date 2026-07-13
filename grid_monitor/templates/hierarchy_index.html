@@ -14,8 +14,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
-    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=cwv-20260703" as="style">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=cwv-20260703">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=nigeria-map-20260713" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=nigeria-map-20260713">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
@@ -89,11 +89,14 @@
                 <span class="badge blue" id="map-count">Loading</span>
             </div>
             <div class="map-canvas" aria-label="Nigeria state intelligence map">
-                <svg class="nigeria-outline" viewBox="0 0 110 110" role="img" aria-label="Stylized Nigeria map outline">
-                    <path d="M26 8 L68 8 L92 26 L96 56 L84 82 L75 102 L45 100 L26 91 L12 66 L16 34 Z"></path>
-                    <path d="M42 12 L40 40 L20 57 M66 10 L66 36 L91 48 M31 76 L53 66 L76 88 M45 40 L66 55 L60 84"></path>
-                </svg>
-                <div class="state-marker-layer" id="state-marker-layer"></div>
+                <div class="map-viewport">
+                    <svg class="nigeria-outline" viewBox="0 0 100 80.984" role="img" aria-label="Nigeria map outline" preserveAspectRatio="xMidYMid meet">
+                        <title>Nigeria geographic outline</title>
+                        <path class="nigeria-boundary" d="M0.00 64.00 L0.48 50.44 L0.27 45.09 L1.86 39.78 L4.45 37.20 L8.53 31.99 L7.64 29.73 L9.30 26.34 L7.41 21.35 L7.74 18.56 L8.32 11.05 L10.73 7.65 L11.92 2.82 L14.11 1.00 L23.15 0.00 L31.58 3.14 L34.74 6.32 L39.03 6.46 L43.02 4.40 L53.20 8.74 L57.49 8.54 L62.46 4.95 L67.39 5.21 L69.82 4.03 L74.34 4.52 L80.86 6.97 L87.44 2.27 L89.41 2.60 L95.10 11.82 L96.67 11.63 L100.00 14.98 L99.08 16.50 L98.64 19.30 L91.55 25.81 L89.33 31.18 L88.14 35.55 L86.36 37.43 L84.66 43.31 L80.16 46.78 L78.85 51.04 L76.96 54.43 L76.18 57.92 L70.40 60.76 L65.67 57.30 L62.48 57.44 L57.47 62.37 L55.04 62.44 L51.04 70.56 L48.87 76.51 L40.14 79.54 L36.94 79.10 L33.71 80.98 L26.98 80.80 L22.47 75.54 L19.70 69.45 L13.75 63.90 L7.42 64.01 L0.00 64.00 Z"></path>
+                        <path class="nigeria-map-line" d="M12 31 L29 42 L43 44 L58 50 L76 58 M22 76 L33 63 L45 57 L54 47 L65 39 M23 0 L31 17 L40 26 L50 33 L62 37 M74 5 L71 20 L76 35 L84 43"></path>
+                    </svg>
+                    <div class="state-marker-layer" id="state-marker-layer"></div>
+                </div>
             </div>
         </article>
 

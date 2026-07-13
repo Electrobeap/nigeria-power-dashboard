@@ -1801,33 +1801,51 @@ tbody tr:hover {
 
 .map-canvas {
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-height: 620px;
     overflow: hidden;
+    padding: clamp(18px, 4vw, 34px);
     border: 1px solid var(--line);
     border-radius: 8px;
     background:
-        radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--blue-bg), transparent 20%), transparent 48%),
+        radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--blue-bg), transparent 24%), transparent 48%),
+        linear-gradient(135deg, color-mix(in srgb, var(--green-bg), transparent 60%), transparent 48%),
         color-mix(in srgb, var(--card), transparent 8%);
+}
+
+.map-viewport {
+    position: relative;
+    width: min(100%, 780px);
+    aspect-ratio: 100 / 80.984;
+    overflow: visible;
 }
 
 .nigeria-outline {
     position: absolute;
-    inset: 6%;
-    width: 88%;
-    height: 88%;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     opacity: 0.95;
+    filter: drop-shadow(0 22px 32px rgba(16, 32, 51, 0.08));
 }
 
-.nigeria-outline path:first-child {
+.nigeria-boundary {
     fill: color-mix(in srgb, var(--accent), transparent 84%);
     stroke: color-mix(in srgb, var(--accent), var(--blue) 35%);
-    stroke-width: 1.5;
+    stroke-width: 1.15;
+    vector-effect: non-scaling-stroke;
 }
 
-.nigeria-outline path:last-child {
+.nigeria-map-line {
     fill: none;
-    stroke: var(--line);
-    stroke-width: 0.9;
+    stroke: color-mix(in srgb, var(--line), var(--blue) 28%);
+    stroke-width: 0.62;
+    stroke-linecap: round;
+    stroke-dasharray: 2.4 2.6;
+    opacity: 0.72;
+    vector-effect: non-scaling-stroke;
 }
 
 .state-marker-layer {
@@ -1839,14 +1857,15 @@ tbody tr:hover {
     position: absolute;
     display: grid;
     place-items: center;
-    width: 38px;
-    height: 32px;
+    width: 32px;
+    height: 26px;
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--card-strong);
     color: var(--text);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 950;
+    line-height: 1;
     text-decoration: none;
     transform: translate(-50%, -50%);
     transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
@@ -2166,8 +2185,8 @@ tbody tr:hover {
     }
 
     .state-marker {
-        width: 34px;
-        height: 30px;
-        font-size: 9px;
+        width: 28px;
+        height: 24px;
+        font-size: 8px;
     }
 }
