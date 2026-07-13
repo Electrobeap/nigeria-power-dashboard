@@ -293,6 +293,11 @@ body.loading .insight-card strong::after {
     margin-bottom: 18px;
 }
 
+.status-card-col {
+    display: flex;
+    align-items: center;
+}
+
 .home-dashboard .hero-copy {
     display: block;
     margin-bottom: 0;
@@ -301,31 +306,209 @@ body.loading .insight-card strong::after {
 
 .hero-status-panel {
     position: relative;
+    display: grid;
+    width: 100%;
+    gap: 12px;
     justify-items: start;
     overflow: hidden;
     min-width: 0;
+    max-width: 430px;
+    margin-left: auto;
+    padding: 16px;
     text-align: left;
 }
 
 .hero-status-panel::after {
     content: "";
     position: absolute;
-    right: -54px;
-    bottom: -58px;
-    width: 170px;
-    height: 170px;
+    right: -44px;
+    bottom: -52px;
+    width: 142px;
+    height: 142px;
     border-radius: 50%;
     background: radial-gradient(circle, var(--blue-bg), transparent 68%);
     pointer-events: none;
 }
 
-.source-status-dot {
+.status-panel-section {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 6px;
+    width: 100%;
+}
+
+.status-panel-primary {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+}
+
+.status-panel-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.status-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-icon {
+    display: inline-flex;
     width: 12px;
     height: 12px;
-    margin-bottom: 10px;
-    border-radius: 50%;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: var(--blue);
+    box-shadow: 0 0 0 6px var(--blue-bg);
+}
+
+.status-icon.healthy {
     background: var(--green);
-    box-shadow: 0 0 0 7px var(--green-bg);
+    box-shadow: 0 0 0 6px var(--green-bg);
+}
+
+.status-icon.watch {
+    background: var(--amber);
+    box-shadow: 0 0 0 6px var(--amber-bg);
+}
+
+.status-icon.stressed {
+    background: #f97316;
+    box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.14);
+}
+
+.status-icon.critical {
+    background: var(--red);
+    box-shadow: 0 0 0 6px var(--red-bg);
+}
+
+.status-badge {
+    min-height: 34px;
+    border-radius: 8px;
+    font-size: 15px;
+    text-transform: capitalize;
+}
+
+.status-badge.healthy {
+    border-color: color-mix(in srgb, var(--green), transparent 64%);
+    background: var(--green-bg);
+    color: var(--green);
+}
+
+.status-badge.watch {
+    border-color: color-mix(in srgb, var(--amber), transparent 56%);
+    background: var(--amber-bg);
+    color: #b45309;
+}
+
+.status-badge.stressed {
+    border-color: rgba(249, 115, 22, 0.34);
+    background: rgba(249, 115, 22, 0.12);
+    color: #c2410c;
+}
+
+.status-badge.critical {
+    border-color: color-mix(in srgb, var(--red), transparent 58%);
+    background: var(--red-bg);
+    color: var(--red);
+}
+
+[data-theme="dark"] .status-badge.watch {
+    color: #fbbf24;
+}
+
+[data-theme="dark"] .status-badge.stressed {
+    background: rgba(249, 115, 22, 0.18);
+    color: #fb923c;
+}
+
+.trend-panel {
+    padding: 2px 0 4px;
+}
+
+.trend-panel-value {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.trend-arrow {
+    display: inline-grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--blue-bg);
+    color: var(--blue);
+    font-size: 28px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+.trend-arrow.up {
+    background: var(--green-bg);
+    color: var(--green);
+}
+
+.trend-arrow.down {
+    background: var(--red-bg);
+    color: var(--red);
+}
+
+.trend-change {
+    color: var(--text);
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 950;
+    line-height: 1;
+    overflow-wrap: anywhere;
+}
+
+.trend-change.up {
+    color: var(--green);
+}
+
+.trend-change.down {
+    color: var(--red);
+}
+
+.trend-percent {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
+.status-panel-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 12px;
+    width: 100%;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+
+.status-panel-time {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.3;
+}
+
+.source-panel {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.source-panel .source-link {
+    font-weight: 800;
 }
 
 .hero-mini-metrics {
@@ -1854,6 +2037,15 @@ tbody tr:hover {
         min-width: 0;
         text-align: left;
     }
+
+    .status-card-col {
+        align-items: stretch;
+    }
+
+    .hero-status-panel {
+        max-width: none;
+        margin-left: 0;
+    }
 }
 
 @media (max-width: 620px) {
@@ -1896,6 +2088,20 @@ tbody tr:hover {
 
     .hero-mini-metrics {
         grid-template-columns: 1fr;
+    }
+
+    .status-panel-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .trend-panel-value {
+        align-items: flex-start;
+    }
+
+    .trend-arrow {
+        width: 38px;
+        height: 38px;
+        font-size: 24px;
     }
 
     .dashboard-kpi-card {

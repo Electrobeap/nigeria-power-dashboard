@@ -22,7 +22,8 @@ let selectedDiscoSlug = null;
 let chartLibraryPromise = null;
 
 const ids = [
-    "source", "refresh-state", "error-banner", "time", "mw", "status", "trend",
+    "source", "refresh-state", "error-banner", "time", "mw", "status", "status-icon", "trend",
+    "trend-arrow", "trend-percent",
     "insight", "grid-frequency", "grid-frequency-note", "available-capacity",
     "available-capacity-note", "energy-deficit", "energy-deficit-note",
     "gencos-online", "gencos-online-note", "discos-count", "discos-count-note",
@@ -250,14 +251,31 @@ function renderTrendBadge(analytics) {
     const trend = analytics?.last_24h_generation_trend;
     if (!trend) {
         el.trend.textContent = "Collecting trend";
-        el.trend.className = "badge blue";
+        el.trend.className = "trend-change neutral";
+        el["trend-arrow"].innerHTML = "&rarr;";
+        el["trend-arrow"].className = "trend-arrow neutral";
+        el["trend-percent"].textContent = "Awaiting stored readings";
         return;
     }
     const sign = trend.change_mw > 0 ? "+" : "";
-    const arrow = trend.direction === "up" ? "&uarr;" : trend.direction === "down" ? "&darr;" : "&rarr;";
-    const percent = trend.change_percent === null ? "" : ` (${sign}${formatNumber(trend.change_percent)}%)`;
-    el.trend.innerHTML = `${arrow} ${sign}${formatMW(trend.change_mw)}${percent}`;
-    el.trend.className = `badge ${trend.direction === "up" ? "green" : trend.direction === "down" ? "red" : "blue"}`;
+    const directionClass = trend.direction === "up" ? "up" : trend.direction === "down" ? "down" : "neutral";
+    el["trend-arrow"].innerHTML = trend.direction === "up" ? "&uarr;" : trend.direction === "down" ? "&darr;" : "&rarr;";
+    el["trend-arrow"].className = `trend-arrow ${directionClass}`;
+    el.trend.textContent = `${sign}${formatMW(trend.change_mw)}`;
+    el.trend.className = `trend-change ${directionClass}`;
+    el["trend-percent"].textContent = trend.change_percent === null
+        ? "No percentage change available"
+        : `${sign}${formatNumber(trend.change_percent)}% over stored 24h window`;
+}
+
+function statusClassName(statusText, fallbackClass) {
+    const normalized = String(statusText || "").toLowerCase();
+    if (normalized.includes("critical")) return "critical";
+    if (normalized.includes("stressed") || normalized.includes("stress")) return "stressed";
+    if (normalized.includes("watch") || normalized.includes("fallback") || fallbackClass === "amber") return "watch";
+    if (normalized.includes("stable") || normalized.includes("healthy") || normalized.includes("strong") || fallbackClass === "green") return "healthy";
+    if (fallbackClass === "red") return "critical";
+    return "watch";
 }
 
 function renderLive(data, analytics) {
@@ -285,9 +303,10 @@ function renderLive(data, analytics) {
     if (previousMW !== null && mw < previousMW) el.mw.classList.add("red");
     previousMW = mw;
 
-    el.time.textContent = `Fetched ${formatTimestamp(data.fetched_at)}`;
     el.status.textContent = statusText;
-    el.status.className = `badge ${statusClass}`;
+    const normalizedStatusClass = statusClassName(statusText, statusClass);
+    el.status.className = `status-badge badge ${normalizedStatusClass}`;
+    el["status-icon"].className = `status-icon ${normalizedStatusClass}`;
     el.insight.textContent = insight;
     el["grid-frequency"].textContent = `${formatNumber(shownFrequency, 2)} Hz`;
     el["grid-frequency-note"].textContent = frequency === null
@@ -860,11 +879,14 @@ async function refresh() {
 
     if (!latest && !history) {
         el.status.textContent = "Source unavailable";
-        el.status.className = "badge red";
+        el.status.className = "status-badge badge critical";
+        el["status-icon"].className = "status-icon critical";
         el.insight.textContent = "No live or stored grid data is currently available.";
     }
 
-    el["refresh-state"].textContent = `Last refresh ${new Date().toLocaleTimeString()}`;
+    const refreshText = `Last refresh ${new Date().toLocaleTimeString()}`;
+    el["refresh-state"].textContent = refreshText;
+    el.time.textContent = refreshText;
     document.body.classList.remove("loading");
 
     if (history) scheduleChartWork(el.chart, () => renderChart(history));
@@ -879,7 +901,8 @@ el["distribution-back"].addEventListener("click", clearDiscoSelection);
 refresh().catch((error) => {
     setBanner(error.message);
     el.status.textContent = "Source unavailable";
-    el.status.className = "badge red";
+    el.status.className = "status-badge badge critical";
+    el["status-icon"].className = "status-icon critical";
     el.insight.textContent = "No live or stored grid data is currently available.";
     document.body.classList.remove("loading");
 });
