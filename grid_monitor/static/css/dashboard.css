@@ -536,7 +536,7 @@ body.loading .insight-card strong::after {
 .dashboard-kpi-row,
 .dashboard-main-row,
 #market-data,
-.jirow-section {
+.analytics-section {
     margin-top: 14px;
 }
 
@@ -783,7 +783,7 @@ body.loading .insight-card strong::after {
     z-index: 1;
 }
 
-.jirow-section {
+.analytics-section {
     border-top: 1px solid var(--line);
     padding-top: 18px;
 }
@@ -1413,7 +1413,7 @@ tbody tr:hover {
     .distribution-panel,
     .dashboard-main-row,
     #market-data,
-    .jirow-section,
+    .analytics-section,
     .insight-grid,
     .content-grid,
     .geo-directory-card,
