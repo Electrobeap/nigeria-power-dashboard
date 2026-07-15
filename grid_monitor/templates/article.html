@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ article.description }}">
+    <meta name="keywords" content="{{ article.keywords | join(', ') }}">
+    <meta name="author" content="{{ article.author }}">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0B1F3A">
+    {% include "partials/social_meta.html" %}
+    <title>{{ article.title }} | Nigeria Power Data</title>
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}{{ canonical_path }}">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=articles-20260715" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=articles-20260715">
+    {% include "partials/structured_data.html" %}
+    {% include "partials/google_analytics.html" %}
+    {% include "partials/microsoft_clarity.html" %}
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="/" aria-label="Nigeria Power Data home">
+        <picture>
+            <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+            <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76" decoding="async" fetchpriority="high">
+        </picture>
+    </a>
+    {% include "partials/nav.html" %}
+    <div class="topbar-actions">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+    </div>
+</header>
+
+<main class="shell article-shell">
+    <nav class="breadcrumb-list" aria-label="Breadcrumb">
+        {% for crumb in breadcrumbs %}
+        <a href="{{ crumb.path }}">{{ crumb.name }}</a>
+        {% if not loop.last %}<span>/</span>{% endif %}
+        {% endfor %}
+    </nav>
+
+    <article class="article-page" itemscope itemtype="https://schema.org/Article">
+        <header class="hero-copy content-hero article-hero" aria-labelledby="article-title">
+            <div>
+                <p class="eyebrow">{{ article.category }}</p>
+                <h1 id="article-title" itemprop="headline">{{ article.title }}</h1>
+                <p class="hero-lede" itemprop="description">{{ article.description }}</p>
+                <div class="article-meta-row article-hero-meta">
+                    <span itemprop="author">{{ article.author }}</span>
+                    <span>Published {{ article.published_at }}</span>
+                    <span>Last Updated {{ article.updated_at }}</span>
+                    <span>{{ article.read_minutes }} min read</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="article-feature-image" role="img" aria-label="Featured image placeholder for {{ article.title }}">
+            <span>{{ article.category }}</span>
+            <strong>Nigeria Power Data</strong>
+        </div>
+
+        <div class="article-layout">
+            <aside class="article-toc card" aria-labelledby="toc-title">
+                <h2 id="toc-title">Table of Contents</h2>
+                <nav aria-label="Article sections">
+                    {% for section in article.sections %}
+                    <a href="#{{ section.id }}">{{ section.heading }}</a>
+                    {% endfor %}
+                    <a href="#references">References</a>
+                    <a href="#faqs">FAQs</a>
+                </nav>
+            </aside>
+
+            <div class="article-content">
+                {% for section in article.sections %}
+                <section id="{{ section.id }}" class="card article-prose-section">
+                    <h2>{{ section.heading }}</h2>
+                    {% for paragraph in section.paragraphs %}
+                    <p>{{ paragraph }}</p>
+                    {% endfor %}
+                    {% if section.table %}
+                    <div class="article-table-wrap">
+                        <table class="article-table">
+                            <thead>
+                                <tr>
+                                    {% for header in section.table.headers %}
+                                    <th scope="col">{{ header }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in section.table.rows %}
+                                <tr>
+                                    {% for cell in row %}
+                                    <td>{{ cell }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                </section>
+                {% endfor %}
+
+                <section class="card article-links-card" aria-labelledby="internal-links-title">
+                    <div class="section-head">
+                        <h2 id="internal-links-title">Explore Related Data</h2>
+                        <span>Internal links</span>
+                    </div>
+                    <div class="topic-list">
+                        {% for link in article.internal_links %}
+                        <a href="{{ link.url }}">{{ link.label }}</a>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section id="references" class="card article-references" aria-labelledby="references-title">
+                    <div class="section-head">
+                        <h2 id="references-title">References</h2>
+                        <span>Public sources and platform notes</span>
+                    </div>
+                    <ol>
+                        {% for reference in article.references %}
+                        <li><a href="{{ reference.url }}" {% if reference.url.startswith('http') %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ reference.label }}</a></li>
+                        {% endfor %}
+                    </ol>
+                </section>
+
+                <section id="faqs" class="card seo-faq-card article-faq-card" aria-labelledby="faqs-title">
+                    <div class="section-head">
+                        <h2 id="faqs-title">FAQs</h2>
+                        <span>Structured data aligned with visible content</span>
+                    </div>
+                    <div class="faq-list">
+                        {% for item in article.faqs %}
+                        <details>
+                            <summary>{{ item.question }}</summary>
+                            <p>{{ item.answer }}</p>
+                        </details>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <nav class="article-next-prev" aria-label="Previous and next articles">
+                    {% if previous_article %}
+                    <a class="card" href="{{ previous_article.url }}">
+                        <span>Previous</span>
+                        <strong>{{ previous_article.title }}</strong>
+                    </a>
+                    {% endif %}
+                    {% if next_article %}
+                    <a class="card" href="{{ next_article.url }}">
+                        <span>Next</span>
+                        <strong>{{ next_article.title }}</strong>
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </article>
+
+    <section class="article-related-section" aria-labelledby="related-title">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow compact">Related Articles</p>
+                <h2 id="related-title">Continue reading</h2>
+            </div>
+        </div>
+        <div class="article-card-grid">
+            {% for related in related_articles %}
+            <article class="card article-card">
+                <a class="article-card-link" href="{{ related.url }}" aria-label="Read {{ related.title }}">
+                    <div class="article-card-media" aria-hidden="true">
+                        <span>{{ related.category }}</span>
+                    </div>
+                    <div class="article-card-body">
+                        <span class="badge blue">{{ related.category }}</span>
+                        <h3>{{ related.title }}</h3>
+                        <p>{{ related.description }}</p>
+                        <div class="article-meta-row">
+                            <span>{{ related.updated_at }}</span>
+                            <span>{{ related.read_minutes }} min read</span>
+                        </div>
+                    </div>
+                </a>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div>
+        <a class="footer-brand" href="/" aria-label="Nigeria Power Data home">
+            <picture>
+                <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+                <img class="footer-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" loading="lazy" decoding="async" width="230" height="83">
+            </picture>
+        </a>
+        <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
+    </div>
+    <nav aria-label="Footer navigation">
+        <a href="/articles">Articles</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/data-sources">Data Sources</a>
+        <a href="/privacy-policy">Privacy</a>
+        <a href="/terms-of-use">Terms</a>
+        <a href="/sitemap.xml">Sitemap</a>
+    </nav>
+</footer>
+
+<script>
+    const storedTheme = localStorage.getItem("grid-theme");
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = storedTheme || (prefersDark ? "dark" : "light");
+    document.documentElement.dataset.theme = theme;
+    const themeToggle = document.getElementById("theme-toggle");
+    themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
+    themeToggle.addEventListener("click", () => {
+        const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        localStorage.setItem("grid-theme", next);
+        themeToggle.textContent = next === "dark" ? "Light" : "Dark";
+    });
+</script>
+</body>
+</html>

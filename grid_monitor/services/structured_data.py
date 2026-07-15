@@ -239,6 +239,10 @@ def _article(
     description: str,
     article_type: str,
     sections: list[str] | None,
+    date_published: str | None = None,
+    date_modified: str | None = None,
+    keywords: list[str] | None = None,
+    image_path: str | None = None,
 ) -> dict[str, Any]:
     return {
         "@type": article_type,
@@ -246,12 +250,13 @@ def _article(
         "mainEntityOfPage": {"@id": f"{url}#webpage"},
         "headline": title,
         "description": description,
-        "image": f"{base_url}/static/images/og-image.png",
+        "image": _absolute_url(image_path or "/static/images/og-image.png"),
         "articleSection": sections,
+        "keywords": keywords,
         "author": {"@id": f"{base_url}/#organization"},
         "publisher": {"@id": f"{base_url}/#organization"},
-        "datePublished": current_app.config["SCHEMA_DATE_PUBLISHED"],
-        "dateModified": current_app.config["SCHEMA_DATE_MODIFIED"],
+        "datePublished": date_published or current_app.config["SCHEMA_DATE_PUBLISHED"],
+        "dateModified": date_modified or current_app.config["SCHEMA_DATE_MODIFIED"],
         "inLanguage": "en",
     }
 
@@ -284,6 +289,10 @@ def build_structured_data(
     include_datasets: bool = True,
     article_type: str | None = None,
     article_sections: list[str] | None = None,
+    article_date_published: str | None = None,
+    article_date_modified: str | None = None,
+    article_keywords: list[str] | None = None,
+    article_image_path: str | None = None,
     faq_items: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     base_url = current_app.config["APP_BASE_URL"].rstrip("/")
@@ -312,9 +321,12 @@ def build_structured_data(
                 description=description,
                 article_type=article_type,
                 sections=article_sections,
+                date_published=article_date_published,
+                date_modified=article_date_modified,
+                keywords=article_keywords,
+                image_path=article_image_path,
             )
         )
     if faq_items:
         graph.append(_faq(url, faq_items))
     return _clean({"@context": "https://schema.org", "@graph": graph})
-

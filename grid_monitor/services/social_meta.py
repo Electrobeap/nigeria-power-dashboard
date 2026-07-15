@@ -30,6 +30,8 @@ def build_social_meta(
     image_path: str | None = None,
     image_alt: str | None = None,
     og_type: str = "website",
+    published_time: str | None = None,
+    modified_time: str | None = None,
 ) -> dict[str, Any]:
     title = _title_with_site(title)
     url = _absolute_url(path)
@@ -48,10 +50,10 @@ def build_social_meta(
         "image_type": "image/png",
         "twitter_card": current_app.config["TWITTER_CARD"],
         "twitter_site": current_app.config.get("TWITTER_SITE"),
-        "published_time": current_app.config["SCHEMA_DATE_PUBLISHED"]
+        "published_time": published_time or current_app.config["SCHEMA_DATE_PUBLISHED"]
         if og_type == "article"
         else None,
-        "modified_time": current_app.config["SCHEMA_DATE_MODIFIED"]
+        "modified_time": modified_time or current_app.config["SCHEMA_DATE_MODIFIED"]
         if og_type == "article"
         else None,
     }

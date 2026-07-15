@@ -14,8 +14,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
-    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=cwv-20260703" as="style">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=cwv-20260703">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=articles-20260715" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=articles-20260715">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
@@ -28,16 +28,7 @@
             <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76" decoding="async" fetchpriority="high">
         </picture>
     </a>
-    <nav class="nav-links" aria-label="Primary navigation">
-        <a href="/">Dashboard</a>
-        <a href="/geography">Map</a>
-        <a href="/states">States</a>
-        <a href="/regions">Regions</a>
-        <a href="/discos">DisCos</a>
-        <a href="/gencos">GenCos</a>
-        <a href="/methodology">Methodology</a>
-        <a href="/data-sources">Sources</a>
-    </nav>
+    {% include "partials/nav.html" %}
     <div class="topbar-actions">
         <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
     </div>

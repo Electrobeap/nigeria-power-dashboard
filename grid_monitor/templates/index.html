@@ -17,11 +17,11 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
-    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=branding-cleanup-20260714" as="style">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=articles-20260715" as="style">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=branding-cleanup-20260714">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=articles-20260715">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
@@ -45,16 +45,10 @@
                 <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76" decoding="async" fetchpriority="high">
             </picture>
         </a>
-        <nav class="nav-links navbar-nav" aria-label="Primary navigation">
-            <a class="nav-link" href="#overview">Overview</a>
-            <a class="nav-link" href="#generation">Generation</a>
-            <a class="nav-link" href="#market-data">Market</a>
-            <a class="nav-link" href="#map-preview">Map</a>
-            <a class="nav-link" href="#insights">Insights</a>
-            <a class="nav-link" href="#distribution">Distribution</a>
-            <a class="nav-link" href="/states">States</a>
-            <a class="nav-link" href="/methodology">Methodology</a>
-        </nav>
+        {% set home_nav = true %}
+        {% set nav_class = "nav-links navbar-nav" %}
+        {% set nav_link_class = "nav-link" %}
+        {% include "partials/nav.html" %}
         <div class="topbar-actions">
             <span class="refresh-state" id="refresh-state" aria-live="polite">Starting live refresh...</span>
             <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>

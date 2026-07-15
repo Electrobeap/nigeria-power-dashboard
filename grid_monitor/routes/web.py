@@ -1,7 +1,19 @@
 from copy import deepcopy
 
-from flask import Blueprint, Response, abort, current_app, render_template, send_from_directory
+from flask import Blueprint, Response, abort, current_app, render_template, request, send_from_directory
 
+from grid_monitor.services.articles import (
+    adjacent_articles,
+    article_categories,
+    featured_article,
+    get_article,
+    latest_articles,
+    popular_articles,
+    related_articles,
+    related_articles_for_context,
+    related_topics,
+    search_articles,
+)
 from grid_monitor.services.entity_intelligence import (
     EntityNotFound,
     display_entity_name,
@@ -208,12 +220,21 @@ def _schema(title, description, path, breadcrumbs, **kwargs):
     )
 
 
-def _social(title, description, path, og_type="website"):
+def _social(
+    title,
+    description,
+    path,
+    og_type="website",
+    published_time=None,
+    modified_time=None,
+):
     return build_social_meta(
         title=title,
         description=description,
         path=path,
         og_type=og_type,
+        published_time=published_time,
+        modified_time=modified_time,
     )
 
 
@@ -457,6 +478,22 @@ def _content_schema(page_slug, page):
         article_type="Article",
         article_sections=[section["heading"] for section in page.get("sections", [])],
         faq_items=faq_items,
+    )
+
+
+def _article_schema(article, breadcrumbs):
+    return _schema(
+        article["title"],
+        article["description"],
+        article["url"],
+        breadcrumbs,
+        page_type="WebPage",
+        article_type="Article",
+        article_sections=[section["heading"] for section in article.get("sections", [])],
+        article_date_published=article["published_at"],
+        article_date_modified=article["updated_at"],
+        article_keywords=article.get("keywords"),
+        faq_items=article.get("faqs"),
     )
 
 
@@ -705,6 +742,7 @@ def state_page(slug):
         page_title=seo["title"],
         description=seo["description"],
         seo_content=seo["content"],
+        related_articles=related_articles_for_context("state", slug),
         social_meta=_social(seo["title"], seo["description"], seo["canonical_path"], og_type="article"),
         structured_data=_report_schema(
             seo["title"],
@@ -729,6 +767,7 @@ def region_page(slug):
         page_title=seo["title"],
         description=seo["description"],
         seo_content=seo["content"],
+        related_articles=related_articles_for_context("region", slug),
         social_meta=_social(seo["title"], seo["description"], seo["canonical_path"], og_type="article"),
         structured_data=_report_schema(
             seo["title"],
@@ -738,6 +777,75 @@ def region_page(slug):
             seo["sections"],
             faq_items=seo["faq_items"],
         ),
+    )
+
+
+@web_bp.get("/articles")
+def articles_page():
+    query = (request.args.get("q") or "").strip()
+    category = (request.args.get("category") or "").strip()
+    page_number = request.args.get("page", 1, type=int) or 1
+    listing = search_articles(query=query, category=category, page=page_number)
+    title = "Nigeria Power Data Articles"
+    description = (
+        "Original explainers and research guides on Nigeria's power grid, generation, "
+        "distribution, transmission, market structure, and electricity data."
+    )
+    breadcrumbs = [{"name": "Home", "path": "/"}, {"name": "Articles", "path": "/articles"}]
+    return render_template(
+        "articles.html",
+        title=title,
+        description=description,
+        canonical_path="/articles",
+        query=query,
+        category=category,
+        listing=listing,
+        categories=article_categories(),
+        featured=featured_article(),
+        latest=latest_articles(4),
+        popular=popular_articles(5),
+        topics=related_topics(),
+        breadcrumbs=breadcrumbs,
+        social_meta=_social(title, description, "/articles"),
+        structured_data=_schema(
+            title,
+            description,
+            "/articles",
+            breadcrumbs,
+            page_type="CollectionPage",
+            article_sections=["Grid operations", "Generation", "Distribution", "Market", "Policy"],
+        ),
+    )
+
+
+@web_bp.get("/articles/<slug>")
+def article_page(slug):
+    article = get_article(slug)
+    if not article:
+        abort(404)
+    previous_article, next_article = adjacent_articles(slug)
+    breadcrumbs = [
+        {"name": "Home", "path": "/"},
+        {"name": "Articles", "path": "/articles"},
+        {"name": article["title"], "path": article["url"]},
+    ]
+    return render_template(
+        "article.html",
+        article=article,
+        canonical_path=article["url"],
+        related_articles=related_articles(article),
+        previous_article=previous_article,
+        next_article=next_article,
+        breadcrumbs=breadcrumbs,
+        social_meta=_social(
+            article["title"],
+            article["description"],
+            article["url"],
+            og_type="article",
+            published_time=article["published_at"],
+            modified_time=article["updated_at"],
+        ),
+        structured_data=_article_schema(article, breadcrumbs),
     )
 
 

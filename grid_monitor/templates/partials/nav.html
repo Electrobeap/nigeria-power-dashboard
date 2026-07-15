@@ -1,0 +1,11 @@
+<nav class="{{ nav_class | default('nav-links') }}" aria-label="Primary navigation">
+    <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="{{ '#overview' if home_nav else '/' }}">Overview</a>
+    <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="{{ '#generation' if home_nav else '/#generation' }}">Generation</a>
+    <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="{{ '#market-data' if home_nav else '/#market-data' }}">Market</a>
+    <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="{{ '#map-preview' if home_nav else '/geography' }}">Map</a>
+    <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="{{ '#insights' if home_nav else '/#insights' }}">Insights</a>
+    <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="{{ '#distribution' if home_nav else '/#distribution' }}">Distribution</a>
+    <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="/states">States</a>
+    <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="/articles">Articles</a>
+    <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="/methodology">Methodology</a>
+</nav>

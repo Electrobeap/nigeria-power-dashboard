@@ -22,6 +22,7 @@ signals into operational analytics.
 - Regional Intelligence across the six geopolitical zones with aggregate state trends and DisCo coverage.
 - Hierarchical Geographic Intelligence map with State to LGA to Town/City to Community to Settlement drill-down, direct search, demand estimates, transformer loading, grid health, and upgrade recommendations.
 - Public content pages for About, Contact, Privacy Policy, Terms of Use, Methodology, and Data Sources.
+- Articles content hub with SEO-ready electricity explainers, search, category filtering, pagination, FAQs, references, Article JSON-LD, breadcrumbs, and sitemap integration.
 - Modern responsive dashboard with dark mode, KPI cards, loading states, sticky navigation, polished charts, tables, and footer.
 - SEO and AdSense readiness: meta tags, OpenGraph/Twitter tags, Schema.org JSON-LD, favicon, logo, semantic HTML, `robots.txt`, `sitemap.xml`, IndexNow, and non-intrusive ad placeholders.
 
@@ -45,6 +46,7 @@ signals into operational analytics.
 |   |   |-- entity_intelligence.py
 |   |   |-- geographic_hierarchy.py
 |   |   |-- indexnow.py
+|   |   |-- articles.py
 |   |   |-- state_intelligence.py
 |   |   |-- site_urls.py
 |   |   |-- social_meta.py
@@ -68,12 +70,15 @@ signals into operational analytics.
 |   |   `-- logo.svg
 |   |-- templates/
 |   |   |-- entity.html
+|   |   |-- article.html
+|   |   |-- articles.html
 |   |   |-- geo.html
 |   |   |-- geo_index.html
 |   |   |-- hierarchy_detail.html
 |   |   |-- hierarchy_index.html
 |   |   |-- index.html
-|   |   `-- page.html
+|   |   |-- page.html
+|   |   `-- partials/
 |   `-- utils/
 |       |-- logging.py
 |       `-- time.py
