@@ -14,8 +14,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
-    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=articles-20260715" as="style">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=articles-20260715">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=ad-layout-20260716" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=ad-layout-20260716">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
@@ -96,6 +96,11 @@
                 </div>
             </article>
 
+            {% set ad_variant = "article-feed-banner" %}
+            {% set ad_slot = "articles-after-featured" %}
+            {% set ad_format = "horizontal" %}
+            {% include "partials/ad_placeholder.html" %}
+
             <section class="article-section-block" aria-labelledby="latest-articles-title">
                 <div class="section-head">
                     <div>
@@ -123,6 +128,12 @@
                             </div>
                         </a>
                     </article>
+                    {% if loop.index is divisibleby 5 %}
+                    {% set ad_variant = "article-feed-inline" %}
+                    {% set ad_slot = "articles-feed-" ~ loop.index %}
+                    {% set ad_format = "fluid" %}
+                    {% include "partials/ad_placeholder.html" %}
+                    {% endif %}
                     {% endfor %}
                 </div>
                 {% else %}
@@ -161,6 +172,10 @@
                     {% endfor %}
                 </div>
             </article>
+            {% set ad_variant = "article-sidebar" %}
+            {% set ad_slot = "articles-sidebar" %}
+            {% set ad_format = "vertical" %}
+            {% include "partials/ad_placeholder.html" %}
             <article class="card">
                 <div class="section-head">
                     <h2>Related Topics</h2>

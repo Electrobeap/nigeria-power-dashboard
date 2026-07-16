@@ -1,0 +1,17 @@
+{% set ad_variant = ad_variant | default("banner") %}
+{% set ad_label = ad_label | default("Advertisement") %}
+{% set ad_slot = ad_slot | default("reserved") %}
+{% set ad_format = ad_format | default("auto") %}
+<aside
+    class="ad-placement ad-placement-{{ ad_variant }} ad-mode-{{ config.AD_RENDER_MODE }}"
+    role="complementary"
+    aria-label="{{ ad_label }}"
+    data-ad-slot="{{ ad_slot }}"
+    data-ad-format="{{ ad_format }}"
+>
+    {% if config.AD_RENDER_MODE == "adsense" %}
+    <div class="ad-live-mount" data-ad-slot="{{ ad_slot }}" data-ad-format="{{ ad_format }}"></div>
+    {% elif config.AD_PLACEHOLDER_LABELS_ENABLED %}
+    <span>{{ ad_label }}</span>
+    {% endif %}
+</aside>

@@ -289,6 +289,11 @@ body.loading .insight-card strong::after {
     margin-top: 20px;
 }
 
+.dashboard-shell > .row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
 .dashboard-hero {
     margin-bottom: 18px;
 }
@@ -942,8 +947,7 @@ h2 {
     margin-top: 14px;
 }
 
-.card,
-.ad-slot {
+.card {
     border: 1px solid var(--line);
     border-radius: 8px;
     background: linear-gradient(180deg, var(--card-strong), var(--card));
@@ -1336,10 +1340,14 @@ tbody tr:hover {
     grid-column: 1 / -1;
 }
 
-.ad-slot {
+.ad-placement {
     display: grid;
     place-items: center;
-    min-height: 110px;
+    width: 100%;
+    min-height: 118px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
     background:
         repeating-linear-gradient(
             135deg,
@@ -1348,11 +1356,65 @@ tbody tr:hover {
             color-mix(in srgb, var(--line), transparent 35%) 10px,
             color-mix(in srgb, var(--line), transparent 35%) 11px
         ),
-        var(--card);
+        color-mix(in srgb, var(--card), transparent 8%);
     color: var(--muted);
     font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
+    box-shadow: none;
+    contain: layout paint;
+}
+
+.ad-placement span {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card-strong), transparent 8%);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0;
+    padding: 6px 9px;
+}
+
+.ad-live-mount {
+    width: 100%;
+    min-height: inherit;
+}
+
+.ad-placement-homepage-bottom,
+.ad-placement-article-feed-banner,
+.ad-placement-article-title-banner,
+.ad-placement-article-before-related {
+    min-height: clamp(96px, 12vw, 132px);
+}
+
+.ad-placement-homepage-bottom {
+    margin-top: 14px;
+}
+
+.ad-placement-article-feed-banner {
+    margin-bottom: 0;
+}
+
+.ad-placement-article-feed-inline {
+    grid-column: 1 / -1;
+    min-height: clamp(92px, 11vw, 124px);
+}
+
+.ad-placement-article-sidebar {
+    min-height: 300px;
+}
+
+.ad-placement-article-title-banner {
+    margin-bottom: 14px;
+}
+
+.ad-placement-article-in-content {
+    min-height: clamp(96px, 12vw, 132px);
+}
+
+.ad-placement-article-before-related {
+    margin-top: 14px;
 }
 
 .site-footer {
@@ -1382,15 +1444,6 @@ tbody tr:hover {
 .site-footer p {
     margin-top: 4px;
     font-size: 13px;
-}
-
-.ad-slot-horizontal,
-.ad-slot-footer {
-    margin-top: 14px;
-}
-
-.ad-slot-sidebar {
-    min-height: 300px;
 }
 
 .spinner {
@@ -1427,7 +1480,7 @@ tbody tr:hover {
     }
 
     .site-footer,
-    .ad-slot-footer {
+    .ad-placement {
         content-visibility: auto;
         contain-intrinsic-size: 1px 180px;
     }
@@ -1752,6 +1805,7 @@ tbody tr:hover {
 .article-content {
     display: grid;
     gap: 14px;
+    min-width: 0;
 }
 
 .articles-side {
@@ -2021,6 +2075,7 @@ tbody tr:hover {
 }
 
 .article-prose-section {
+    min-width: 0;
     scroll-margin-top: 92px;
 }
 
@@ -2039,6 +2094,7 @@ tbody tr:hover {
 }
 
 .article-table-wrap {
+    max-width: 100%;
     margin-top: 16px;
     overflow-x: auto;
 }
@@ -2472,7 +2528,7 @@ tbody tr:hover {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .ad-slot-sidebar {
+    .ad-placement-article-sidebar {
         min-height: 140px;
     }
 }

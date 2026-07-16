@@ -245,6 +245,8 @@ Web pages:
 | `RESEARCH_EMAIL` | `CONTACT_EMAIL` | Research collaboration and data-correction email. |
 | `ADS_EMAIL` | `CONTACT_EMAIL` | Advertising and sponsorship enquiry email. |
 | `GEOGRAPHY_DATASET_PATH` | unset | Optional JSON node dataset for replacing built-in hierarchy planning seeds. |
+| `AD_RENDER_MODE` | `placeholder` | Advertising layout mode. Keep `placeholder` until Google AdSense code is approved and wired into the shared ad partial; future live mode is prepared as `adsense`. |
+| `AD_PLACEHOLDER_LABELS_ENABLED` | development only | Shows subtle "Advertisement" labels on reserved ad slots. Defaults off on Render and on outside Render. |
 | `RUN_MIGRATIONS_ON_STARTUP` | `1` | Runs Alembic migrations during app startup. |
 | `REQUIRE_DATABASE_ON_STARTUP` | `0` | Set `1` only if Gunicorn should fail when the database is unavailable. |
 | `STARTUP_ERROR_DEBUG` | `0` | Adds a traceback tail to fallback `/api/health` responses for temporary deployment debugging. |
@@ -347,7 +349,7 @@ when you are ready to automate ingestion again.
 - `robots.txt` and `sitemap.xml` are served by Flask. Robots rules keep public pages, static assets, social preview images, public metadata, and IndexNow key files crawlable while excluding admin/private/system JSON endpoints from search crawling.
 - IndexNow is enabled with a root key file and automatic production startup notification of the public URL inventory when the published version changes or the submission interval expires.
 - The dashboard uses semantic sections, accessible labels, responsive cards, and lightweight assets.
-- AdSense-safe placeholders exist for sidebar, in-content, and footer inventory.
+- AdSense-ready placeholders are rendered through one shared partial with reserved space for CLS control. The dashboard has one bottom placement only; article pages use restrained banner, in-content, and pre-related placements; the Articles index uses feed and sidebar placements.
 
 ## Recommended Next Improvements
 

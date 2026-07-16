@@ -158,6 +158,12 @@ class Config:
     RESEARCH_EMAIL = os.environ.get("RESEARCH_EMAIL", CONTACT_EMAIL)
     ADS_EMAIL = os.environ.get("ADS_EMAIL", CONTACT_EMAIL)
     GEOGRAPHY_DATASET_PATH = os.environ.get("GEOGRAPHY_DATASET_PATH")
+    AD_RENDER_MODE = os.environ.get("AD_RENDER_MODE", "placeholder").strip().lower()
+    if AD_RENDER_MODE not in {"placeholder", "adsense"}:
+        AD_RENDER_MODE = "placeholder"
+    AD_PLACEHOLDER_LABELS_ENABLED = _env_bool(
+        "AD_PLACEHOLDER_LABELS_ENABLED", not _running_on_render()
+    )
 
     GRID_STRESS_CRITICAL_MW = _env_float("GRID_STRESS_CRITICAL_MW", 3000.0)
     GRID_STRESS_STRESSED_MW = _env_float("GRID_STRESS_STRESSED_MW", 4500.0)

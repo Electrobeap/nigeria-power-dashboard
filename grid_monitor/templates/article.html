@@ -16,8 +16,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
-    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=articles-20260715" as="style">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=articles-20260715">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=ad-layout-20260716" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=ad-layout-20260716">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
@@ -58,6 +58,11 @@
                 </div>
             </div>
         </header>
+
+        {% set ad_variant = "article-title-banner" %}
+        {% set ad_slot = "article-title-" ~ article.slug %}
+        {% set ad_format = "horizontal" %}
+        {% include "partials/ad_placeholder.html" %}
 
         <div class="article-feature-image" role="img" aria-label="Featured image placeholder for {{ article.title }}">
             <span>{{ article.category }}</span>
@@ -106,6 +111,12 @@
                     </div>
                     {% endif %}
                 </section>
+                {% if loop.index == 2 %}
+                {% set ad_variant = "article-in-content" %}
+                {% set ad_slot = "article-mid-" ~ article.slug %}
+                {% set ad_format = "fluid" %}
+                {% include "partials/ad_placeholder.html" %}
+                {% endif %}
                 {% endfor %}
 
                 <section class="card article-links-card" aria-labelledby="internal-links-title">
@@ -164,6 +175,11 @@
             </div>
         </div>
     </article>
+
+    {% set ad_variant = "article-before-related" %}
+    {% set ad_slot = "article-before-related-" ~ article.slug %}
+    {% set ad_format = "horizontal" %}
+    {% include "partials/ad_placeholder.html" %}
 
     <section class="article-related-section" aria-labelledby="related-title">
         <div class="section-head">
