@@ -224,6 +224,8 @@ def _social(
     title,
     description,
     path,
+    image_path=None,
+    image_alt=None,
     og_type="website",
     published_time=None,
     modified_time=None,
@@ -232,6 +234,8 @@ def _social(
         title=title,
         description=description,
         path=path,
+        image_path=image_path,
+        image_alt=image_alt,
         og_type=og_type,
         published_time=published_time,
         modified_time=modified_time,
@@ -493,6 +497,7 @@ def _article_schema(article, breadcrumbs):
         article_date_published=article["published_at"],
         article_date_modified=article["updated_at"],
         article_keywords=article.get("keywords"),
+        article_image_path=article.get("social_image") or article.get("image"),
         faq_items=article.get("faqs"),
     )
 
@@ -786,6 +791,7 @@ def articles_page():
     category = (request.args.get("category") or "").strip()
     page_number = request.args.get("page", 1, type=int) or 1
     listing = search_articles(query=query, category=category, page=page_number)
+    featured = featured_article()
     title = "Nigeria Power Data Articles"
     description = (
         "Original explainers and research guides on Nigeria's power grid, generation, "
@@ -801,12 +807,18 @@ def articles_page():
         category=category,
         listing=listing,
         categories=article_categories(),
-        featured=featured_article(),
+        featured=featured,
         latest=latest_articles(4),
         popular=popular_articles(5),
         topics=related_topics(),
         breadcrumbs=breadcrumbs,
-        social_meta=_social(title, description, "/articles"),
+        social_meta=_social(
+            title,
+            description,
+            "/articles",
+            image_path=featured.get("social_image") or featured.get("image"),
+            image_alt=featured.get("image_alt"),
+        ),
         structured_data=_schema(
             title,
             description,
@@ -841,6 +853,8 @@ def article_page(slug):
             article["title"],
             article["description"],
             article["url"],
+            image_path=article.get("social_image") or article.get("image"),
+            image_alt=article.get("image_alt"),
             og_type="article",
             published_time=article["published_at"],
             modified_time=article["updated_at"],

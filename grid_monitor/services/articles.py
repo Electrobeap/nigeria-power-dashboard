@@ -20,6 +20,19 @@ ARTICLE_CATEGORIES = (
     "Renewable Energy",
 )
 
+ARTICLE_IMAGE_ALTS = {
+    "understanding-nigerias-national-grid": "Editorial illustration of transmission towers, national grid corridors, and analytics bars for the Nigerian electricity network.",
+    "how-electricity-is-generated-in-nigeria": "Editorial illustration of hydro generation, gas power infrastructure, and grid-connected electricity supply in Nigeria.",
+    "understanding-discos-and-gencos": "Editorial illustration showing the flow from generation companies through transmission to distribution companies and customers.",
+    "what-causes-grid-collapse": "Editorial illustration of a grid stability alert, transmission tower, and outage risk warning.",
+    "understanding-grid-frequency": "Editorial illustration of frequency monitoring, waveform signals, and grid control indicators.",
+    "nigerias-electricity-market-explained": "Editorial illustration of the Nigerian electricity market flow from generators to transmission, distribution, and customers.",
+    "role-of-tcn-in-power-transmission": "Editorial illustration of high-voltage transmission towers, lines, and substation infrastructure.",
+    "electricity-distribution-in-nigeria": "Editorial illustration of distribution transformers, feeder lines, and urban electricity demand.",
+    "power-sector-reforms-explained": "Editorial illustration of power sector reform documents, regulatory milestones, and institutional signals.",
+    "reading-nigeria-power-data-dashboard": "Editorial illustration of the Nigeria Power Data dashboard with KPI cards, trend chart, and live data callouts.",
+}
+
 
 def _section(
     section_id: str,
@@ -61,6 +74,13 @@ def _article(
         "published_at": ARTICLE_PUBLISHED_AT,
         "updated_at": ARTICLE_UPDATED_AT,
         "keywords": keywords,
+        "image": f"/static/images/articles/{slug}.webp",
+        "image_svg": f"/static/images/articles/{slug}.svg",
+        "social_image": f"/static/images/articles/{slug}-social.png",
+        "image_alt": ARTICLE_IMAGE_ALTS.get(
+            slug,
+            f"Editorial illustration for {title} on Nigeria Power Data.",
+        ),
         "sections": sections,
         "faqs": faqs,
         "references": references,

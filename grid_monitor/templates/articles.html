@@ -14,8 +14,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
-    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=ad-layout-20260716" as="style">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=ad-layout-20260716">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=article-images-20260717" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=article-images-20260717">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
@@ -81,9 +81,13 @@
     <section class="articles-layout">
         <div class="articles-main">
             <article class="card article-featured-card">
-                <div class="article-placeholder-image" aria-hidden="true">
-                    <span>{{ featured.category }}</span>
-                </div>
+                <figure class="article-featured-media">
+                    <picture>
+                        <source srcset="{{ featured.image }}" type="image/webp">
+                        <img src="{{ featured.image_svg }}" alt="{{ featured.image_alt }}" width="1280" height="720" loading="eager" decoding="async" fetchpriority="high">
+                    </picture>
+                    <span class="article-image-label">{{ featured.category }}</span>
+                </figure>
                 <div>
                     <p class="eyebrow compact">Featured Article</p>
                     <h2><a href="{{ featured.url }}">{{ featured.title }}</a></h2>
@@ -114,9 +118,13 @@
                     {% for article in listing.articles %}
                     <article class="card article-card">
                         <a class="article-card-link" href="{{ article.url }}" aria-label="Read {{ article.title }}">
-                            <div class="article-card-media" aria-hidden="true">
-                                <span>{{ article.category }}</span>
-                            </div>
+                            <figure class="article-card-media">
+                                <picture>
+                                    <source srcset="{{ article.image }}" type="image/webp">
+                                    <img src="{{ article.image_svg }}" alt="{{ article.image_alt }}" width="1280" height="720" loading="lazy" decoding="async">
+                                </picture>
+                                <span class="article-image-label">{{ article.category }}</span>
+                            </figure>
                             <div class="article-card-body">
                                 <span class="badge blue">{{ article.category }}</span>
                                 <h3>{{ article.title }}</h3>

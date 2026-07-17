@@ -16,8 +16,8 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
-    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=ad-layout-20260716" as="style">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=ad-layout-20260716">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=article-images-20260717" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=article-images-20260717">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
@@ -64,10 +64,13 @@
         {% set ad_format = "horizontal" %}
         {% include "partials/ad_placeholder.html" %}
 
-        <div class="article-feature-image" role="img" aria-label="Featured image placeholder for {{ article.title }}">
-            <span>{{ article.category }}</span>
-            <strong>Nigeria Power Data</strong>
-        </div>
+        <figure class="article-feature-image">
+            <picture>
+                <source srcset="{{ article.image }}" type="image/webp">
+                <img src="{{ article.image_svg }}" alt="{{ article.image_alt }}" width="1280" height="720" loading="eager" decoding="async" fetchpriority="high" itemprop="image">
+            </picture>
+            <figcaption>{{ article.image_alt }}</figcaption>
+        </figure>
 
         <div class="article-layout">
             <aside class="article-toc card" aria-labelledby="toc-title">
@@ -192,9 +195,13 @@
             {% for related in related_articles %}
             <article class="card article-card">
                 <a class="article-card-link" href="{{ related.url }}" aria-label="Read {{ related.title }}">
-                    <div class="article-card-media" aria-hidden="true">
-                        <span>{{ related.category }}</span>
-                    </div>
+                    <figure class="article-card-media">
+                        <picture>
+                            <source srcset="{{ related.image }}" type="image/webp">
+                            <img src="{{ related.image_svg }}" alt="{{ related.image_alt }}" width="1280" height="720" loading="lazy" decoding="async">
+                        </picture>
+                        <span class="article-image-label">{{ related.category }}</span>
+                    </figure>
                     <div class="article-card-body">
                         <span class="badge blue">{{ related.category }}</span>
                         <h3>{{ related.title }}</h3>
