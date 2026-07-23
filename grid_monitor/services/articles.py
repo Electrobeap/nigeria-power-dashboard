@@ -21,17 +21,93 @@ ARTICLE_CATEGORIES = (
 )
 
 ARTICLE_IMAGE_ALTS = {
-    "understanding-nigerias-national-grid": "Editorial illustration of transmission towers, national grid corridors, and analytics bars for the Nigerian electricity network.",
-    "how-electricity-is-generated-in-nigeria": "Editorial illustration of hydro generation, gas power infrastructure, and grid-connected electricity supply in Nigeria.",
-    "understanding-discos-and-gencos": "Editorial illustration showing the flow from generation companies through transmission to distribution companies and customers.",
-    "what-causes-grid-collapse": "Editorial illustration of a grid stability alert, transmission tower, and outage risk warning.",
-    "understanding-grid-frequency": "Editorial illustration of frequency monitoring, waveform signals, and grid control indicators.",
-    "nigerias-electricity-market-explained": "Editorial illustration of the Nigerian electricity market flow from generators to transmission, distribution, and customers.",
-    "role-of-tcn-in-power-transmission": "Editorial illustration of high-voltage transmission towers, lines, and substation infrastructure.",
-    "electricity-distribution-in-nigeria": "Editorial illustration of distribution transformers, feeder lines, and urban electricity demand.",
-    "power-sector-reforms-explained": "Editorial illustration of power sector reform documents, regulatory milestones, and institutional signals.",
-    "reading-nigeria-power-data-dashboard": "Editorial illustration of the Nigeria Power Data dashboard with KPI cards, trend chart, and live data callouts.",
+    "understanding-nigerias-national-grid": "High-voltage substation and transmission lines representing Nigeria's national grid infrastructure.",
+    "how-electricity-is-generated-in-nigeria": "Hydroelectric dam and power station with transmission lines representing electricity generation.",
+    "understanding-discos-and-gencos": "Electrical substation and power lines showing the connection between generation, transmission, and distribution.",
+    "what-causes-grid-collapse": "Power system control room equipment used for monitoring grid stability and restoration.",
+    "understanding-grid-frequency": "Control room monitoring displays used to track power system frequency and grid signals.",
+    "nigerias-electricity-market-explained": "Analyst reviewing charts on a laptop representing electricity market data and settlement flows.",
+    "role-of-tcn-in-power-transmission": "High-voltage transmission substation and overhead lines representing bulk power transfer.",
+    "electricity-distribution-in-nigeria": "Utility pole transformer and distribution lines supporting local electricity supply.",
+    "power-sector-reforms-explained": "Business professionals reviewing policy documents and charts for power-sector reform planning.",
+    "reading-nigeria-power-data-dashboard": "Laptop showing analytics charts representing the Nigeria Power Data dashboard workflow.",
 }
+
+ARTICLE_PHOTO_WIDTHS = (640, 960, 1280, 1600)
+ARTICLE_PHOTOS = {
+    "understanding-nigerias-national-grid": {
+        "base": "https://images.unsplash.com/photo-1509390673020-a5b2450e33f1",
+        "source_url": "https://unsplash.com/photos/gray-metal-power-station-u719UbWj0us",
+        "credit": "American Public Power Association on Unsplash",
+    },
+    "how-electricity-is-generated-in-nigeria": {
+        "base": "https://images.unsplash.com/photo-1746182936577-d8c1b3aedfc1",
+        "source_url": "https://unsplash.com/photos/water-rushes-from-a-dam-with-a-power-plant-uo35YVsMKqM",
+        "credit": "Rino Falstad on Unsplash",
+    },
+    "understanding-discos-and-gencos": {
+        "base": "https://images.unsplash.com/photo-1777734794648-2bd10e93f0b2",
+        "source_url": "https://unsplash.com/photos/electrical-substation-with-power-lines-against-blue-sky-XmpGqQsJxxU",
+        "credit": "janilson furtado on Unsplash",
+    },
+    "what-causes-grid-collapse": {
+        "base": "https://images.unsplash.com/photo-1764195287345-2086f504cb0b",
+        "source_url": "https://unsplash.com/photos/control-room-with-monitors-and-chairs-NSlqiFRyafY",
+        "credit": "Igor Saikin on Unsplash",
+    },
+    "understanding-grid-frequency": {
+        "base": "https://images.unsplash.com/photo-1753153481105-7a979eabe5a9",
+        "source_url": "https://unsplash.com/photos/control-room-displays-ready-for-use-Sp3YykrgnWs",
+        "credit": "Noah Gremmert on Unsplash",
+    },
+    "nigerias-electricity-market-explained": {
+        "base": "https://images.unsplash.com/flagged/photo-1559733404-9b79677fc959",
+        "source_url": "https://unsplash.com/photos/person-analyzing-business-charts-on-laptop-CielzQJR0SQ",
+        "credit": "Loui Kiaer on Unsplash",
+    },
+    "role-of-tcn-in-power-transmission": {
+        "base": "https://images.unsplash.com/photo-1777734794648-2bd10e93f0b2",
+        "source_url": "https://unsplash.com/photos/electrical-substation-with-power-lines-against-blue-sky-XmpGqQsJxxU",
+        "credit": "janilson furtado on Unsplash",
+    },
+    "electricity-distribution-in-nigeria": {
+        "base": "https://images.unsplash.com/photo-1770824931632-afa0bc5caeee",
+        "source_url": "https://unsplash.com/photos/a-utility-pole-with-a-transformer-against-a-cloudy-sky-hT8wbihtOOM",
+        "credit": "Osmany M Leyva Aldana on Unsplash",
+    },
+    "power-sector-reforms-explained": {
+        "base": "https://images.unsplash.com/photo-1758519288480-1489c17b1519",
+        "source_url": "https://unsplash.com/photos/two-businessmen-signing-a-document-at-a-table-FKnEYIEVOyI",
+        "credit": "Vitaly Gariev on Unsplash",
+    },
+    "reading-nigeria-power-data-dashboard": {
+        "base": "https://images.unsplash.com/photo-1753613648191-4771cf76f034",
+        "source_url": "https://unsplash.com/photos/a-laptop-displays-a-statistical-data-table-P9IfvqUJgaI",
+        "credit": "Hasnain Ayaz on Unsplash",
+    },
+}
+
+
+def _photo_url(
+    base_url: str,
+    *,
+    width: int = 1280,
+    height: int | None = None,
+    fmt: str = "webp",
+    quality: int = 76,
+) -> str:
+    height = height or round(width * 9 / 16)
+    return (
+        f"{base_url}?auto=format&fit=crop&crop=entropy&fm={fmt}"
+        f"&ixlib=rb-4.1.0&q={quality}&w={width}&h={height}"
+    )
+
+
+def _photo_srcset(base_url: str) -> str:
+    return ", ".join(
+        f"{_photo_url(base_url, width=width)} {width}w"
+        for width in ARTICLE_PHOTO_WIDTHS
+    )
 
 
 def _section(
@@ -64,6 +140,7 @@ def _article(
     popular_score: int = 50,
 ) -> dict[str, Any]:
     sections = [*sections, _research_notes_section(title, category)]
+    photo = ARTICLE_PHOTOS.get(slug)
     article = {
         "slug": slug,
         "url": f"/articles/{slug}",
@@ -74,13 +151,20 @@ def _article(
         "published_at": ARTICLE_PUBLISHED_AT,
         "updated_at": ARTICLE_UPDATED_AT,
         "keywords": keywords,
-        "image": f"/static/images/articles/{slug}.webp",
-        "image_svg": f"/static/images/articles/{slug}.svg",
-        "social_image": f"/static/images/articles/{slug}-social.png",
+        "image": _photo_url(photo["base"]) if photo else f"/static/images/articles/{slug}.webp",
+        "image_srcset": _photo_srcset(photo["base"]) if photo else "",
+        "image_fallback": _photo_url(photo["base"], fmt="jpg", quality=78)
+        if photo
+        else f"/static/images/articles/{slug}.svg",
+        "social_image": _photo_url(photo["base"], width=1200, height=630, fmt="jpg", quality=82)
+        if photo
+        else f"/static/images/articles/{slug}-social.png",
         "image_alt": ARTICLE_IMAGE_ALTS.get(
             slug,
-            f"Editorial illustration for {title} on Nigeria Power Data.",
+            f"Relevant photo for {title} on Nigeria Power Data.",
         ),
+        "image_source_url": photo["source_url"] if photo else "",
+        "image_credit": photo["credit"] if photo else "",
         "sections": sections,
         "faqs": faqs,
         "references": references,

@@ -22,6 +22,17 @@ def _title_with_site(title: str) -> str:
     return f"{title} | {SITE_NAME}"
 
 
+def _image_type_for(image: str) -> str:
+    normalized = image.lower()
+    if "fm=webp" in normalized or normalized.endswith(".webp"):
+        return "image/webp"
+    if "fm=jpg" in normalized or "fm=jpeg" in normalized or normalized.endswith((".jpg", ".jpeg")):
+        return "image/jpeg"
+    if normalized.endswith(".svg"):
+        return "image/svg+xml"
+    return "image/png"
+
+
 def build_social_meta(
     *,
     title: str,
@@ -47,7 +58,7 @@ def build_social_meta(
         "og_type": og_type,
         "image_width": current_app.config["SOCIAL_IMAGE_WIDTH"],
         "image_height": current_app.config["SOCIAL_IMAGE_HEIGHT"],
-        "image_type": "image/png",
+        "image_type": _image_type_for(image),
         "twitter_card": current_app.config["TWITTER_CARD"],
         "twitter_site": current_app.config.get("TWITTER_SITE"),
         "published_time": published_time or current_app.config["SCHEMA_DATE_PUBLISHED"]

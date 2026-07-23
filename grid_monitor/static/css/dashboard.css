@@ -1815,9 +1815,16 @@ tbody tr:hover {
 
 .article-featured-card {
     display: grid;
-    grid-template-columns: minmax(240px, 0.42fr) minmax(0, 1fr);
-    gap: 18px;
-    align-items: stretch;
+    grid-template-columns: minmax(300px, 0.46fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: center;
+    overflow: hidden;
+}
+
+.article-featured-copy {
+    display: grid;
+    align-content: center;
+    min-width: 0;
 }
 
 .article-featured-card h2,
@@ -1830,6 +1837,7 @@ tbody tr:hover {
 
 .article-featured-card h2 {
     font-size: clamp(24px, 3vw, 34px);
+    overflow-wrap: anywhere;
 }
 
 .article-featured-card h2 a {
@@ -1863,6 +1871,11 @@ tbody tr:hover {
         radial-gradient(circle at 74% 26%, var(--blue-bg), transparent 40%),
         linear-gradient(135deg, color-mix(in srgb, var(--brand-navy), white 5%), color-mix(in srgb, var(--brand-navy), black 10%));
     isolation: isolate;
+}
+
+.article-featured-media {
+    align-self: center;
+    width: 100%;
 }
 
 .article-featured-media picture,
@@ -1942,11 +1955,14 @@ tbody tr:hover {
 
 .article-card {
     padding: 0;
+    overflow: hidden;
 }
 
 .article-card-link {
     display: grid;
+    grid-template-rows: auto 1fr;
     min-height: 100%;
+    min-width: 0;
     color: inherit;
     text-decoration: none;
 }
@@ -1956,21 +1972,27 @@ tbody tr:hover {
 }
 
 .article-card-media {
+    display: block;
+    width: 100%;
     min-height: 0;
     border-width: 0 0 1px;
     border-radius: 8px 8px 0 0;
 }
 
 .article-card-body {
+    position: relative;
+    z-index: 2;
     display: grid;
     align-content: start;
     gap: 8px;
+    min-width: 0;
     padding: 16px;
 }
 
 .article-card h3 {
     margin: 0;
     font-size: 18px;
+    overflow-wrap: anywhere;
 }
 
 .article-list {
