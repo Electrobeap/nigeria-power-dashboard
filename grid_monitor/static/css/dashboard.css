@@ -138,6 +138,39 @@ body.loading .insight-card strong {
     color: transparent;
 }
 
+/* values settle in rather than snapping when a refresh lands. Colour only:
+   transitioning font-size would relayout the card on every frame. */
+.kpi-card strong,
+.dashboard-kpi-card strong,
+.insight-card strong,
+.distribution-kpis strong,
+.mw,
+.trend-change {
+    transition: color 220ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kpi-card strong,
+    .dashboard-kpi-card strong,
+    .insight-card strong,
+    .distribution-kpis strong,
+    .mw,
+    .trend-change,
+    .card,
+    .range-btn,
+    .chart-reset {
+        transition: none;
+    }
+
+    body.loading .skeleton-text::after,
+    body.loading .mini-card strong::after,
+    body.loading .kpi-card strong:not(.mw)::after,
+    body.loading .dashboard-kpi-card strong:not(.mw)::after,
+    body.loading .insight-card strong::after {
+        animation: none;
+    }
+}
+
 body.loading .skeleton-text::after,
 body.loading .mini-card strong::after,
 body.loading .kpi-card strong:not(.mw)::after,
@@ -440,6 +473,8 @@ body.loading .insight-card strong::after {
     display: flex;
     align-items: center;
     gap: 12px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .trend-arrow {
@@ -469,6 +504,7 @@ body.loading .insight-card strong::after {
 
 .trend-change {
     min-width: 0;
+    max-width: 100%;
     color: var(--text);
     font-size: clamp(24px, 3.2vw, 42px);
     font-weight: 950;
@@ -477,6 +513,16 @@ body.loading .insight-card strong::after {
     font-feature-settings: "tnum" 1;
     overflow-wrap: normal;
     word-break: normal;
+    white-space: nowrap;
+}
+
+/* a swing can run to -12,845.22 MW, so scale with the figure's length */
+.trend-change.is-long {
+    font-size: clamp(21px, 2.7vw, 34px);
+}
+
+.trend-change.is-xlong {
+    font-size: clamp(18px, 2.2vw, 28px);
 }
 
 .trend-change.up {
@@ -978,6 +1024,13 @@ h2 {
 .card:hover {
     transform: translateY(-2px);
     border-color: rgba(32, 107, 196, 0.28);
+    box-shadow: 0 10px 30px rgba(11, 31, 58, 0.10);
+}
+
+/* charts are for reading, not for nudging around under the cursor */
+.chart-card:hover,
+.map-preview-card:hover {
+    transform: none;
 }
 
 .primary {
@@ -1030,19 +1083,39 @@ h2 {
     /* keep the figure and its MW unit on one line */
     flex-wrap: nowrap;
     align-items: baseline;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
+    max-width: 100%;
+    padding-right: 4px;
     color: var(--amber);
-    font-size: clamp(32px, 6vw, 66px) !important;
+    font-size: clamp(26px, 4.8vw, 53px) !important;
     font-weight: 900;
+    line-height: 1.08;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
     white-space: nowrap;
 }
 
+/* step down as the figure grows so 12,543.67 MW still fits its card */
+.mw.is-long {
+    font-size: clamp(24px, 4.1vw, 45px) !important;
+}
+
+.mw.is-xlong {
+    font-size: clamp(22px, 3.5vw, 38px) !important;
+}
+
+.mw > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .mw-unit {
     flex: 0 0 auto;
     font-size: 0.42em;
+    font-weight: 800;
+    letter-spacing: 0.04em;
 }
 
 .mw.green {
@@ -1094,9 +1167,101 @@ h2 {
 
 .chart-card {
     display: grid;
-    grid-template-rows: auto minmax(340px, 1fr);
+    grid-template-rows: auto auto minmax(340px, 1fr);
     gap: 14px;
     margin-top: 14px;
+}
+
+.chart-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: -4px;
+}
+
+.chart-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.range-group {
+    display: inline-flex;
+    gap: 2px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card), transparent 20%);
+    padding: 2px;
+}
+
+.range-btn {
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    padding: 6px 12px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: background 160ms ease, color 160ms ease;
+}
+
+.range-btn:hover {
+    background: var(--blue-bg);
+    color: var(--blue);
+}
+
+.range-btn.is-active {
+    background: var(--blue);
+    color: #FFFFFF;
+}
+
+.range-btn:focus-visible,
+.chart-reset:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+}
+
+.chart-hint {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.chart-reset {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    padding: 6px 12px;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.chart-reset:hover {
+    border-color: var(--blue);
+    background: var(--blue-bg);
+    color: var(--blue);
+}
+
+.chart-reset[hidden] {
+    display: none;
+}
+
+@media (max-width: 620px) {
+    .chart-hint {
+        display: none;
+    }
+
+    .chart-toolbar {
+        justify-content: flex-start;
+    }
 }
 
 .distribution-panel {

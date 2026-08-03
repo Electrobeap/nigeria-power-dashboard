@@ -1,9 +1,13 @@
 const REFRESH_MS = 60000;
 const CHART_JS_URL = "https://cdn.jsdelivr.net/npm/chart.js";
+const HAMMER_JS_URL = "https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js";
+const CHART_ZOOM_URL = "https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js";
 const GRID_REFERENCE_DEMAND_MW = 6500;
 const GRID_NOMINAL_FREQUENCY_HZ = 50;
 const GENERATION_CRITICAL_MW = 3000;
-const GENERATION_STRESSED_MW = 4500;
+const GENERATION_WARNING_MW = 4500;
+const HISTORY_LIMIT = 2000;
+let historyHours = 24;
 window.requestAnimationFrame(() => document.body.classList.add("brand-loaded"));
 const chartLabels = [];
 const generationReadings = [];
@@ -30,7 +34,7 @@ const ids = [
     "available-capacity-note", "energy-deficit", "energy-deficit-note",
     "gencos-online", "gencos-online-note", "discos-count", "discos-count-note",
     "last-updated", "last-updated-note", "reporting", "as-at", "moving-average", "sample-count", "chart",
-    "chart-empty", "chart-window", "daily-date", "peak", "off-peak",
+    "chart-empty", "chart-window", "chart-reset", "chart-range", "daily-date", "peak", "off-peak",
     "daily-high", "daily-low", "energy-generated", "energy-sent", "disco-time",
     "genco-time", "discos", "gencos", "grid-health", "grid-health-note",
     "stability-score", "stability-note", "volatility", "volatility-note",
@@ -48,17 +52,35 @@ const ids = [
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
-function loadChartLibrary() {
-    if (window.Chart) return Promise.resolve(window.Chart);
-    if (chartLibraryPromise) return chartLibraryPromise;
-    chartLibraryPromise = new Promise((resolve, reject) => {
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
         const script = document.createElement("script");
-        script.src = CHART_JS_URL;
+        script.src = src;
         script.async = true;
-        script.onload = () => resolve(window.Chart);
+        script.onload = () => resolve();
         script.onerror = () => reject(new Error("Chart library failed to load."));
         document.head.appendChild(script);
     });
+}
+
+// Zoom and pan are progressive: if the plugin or Hammer fails to load the
+// chart still renders, it simply is not interactive.
+function loadZoomPlugin() {
+    if (!window.Chart || window.Chart.registry.plugins.get("zoom")) return Promise.resolve();
+    return loadScript(HAMMER_JS_URL)
+        .catch(() => undefined)
+        .then(() => loadScript(CHART_ZOOM_URL))
+        .then(() => {
+            const plugin = window.ChartZoom || window.chartjsPluginZoom;
+            if (plugin) window.Chart.register(plugin);
+        })
+        .catch(() => undefined);
+}
+
+function loadChartLibrary() {
+    if (chartLibraryPromise) return chartLibraryPromise;
+    const base = window.Chart ? Promise.resolve() : loadScript(CHART_JS_URL);
+    chartLibraryPromise = base.then(() => loadZoomPlugin()).then(() => window.Chart);
     return chartLibraryPromise;
 }
 
@@ -173,6 +195,31 @@ const eventMarkersPlugin = {
     },
 };
 
+// Prints each bar's value just above it so the projection reads without hover.
+const barValueLabelsPlugin = {
+    id: "barValueLabels",
+    afterDatasetsDraw(instance, _args, opts) {
+        if (!opts || opts.enabled === false) return;
+        const meta = instance.getDatasetMeta(opts.datasetIndex || 0);
+        if (!meta || meta.hidden) return;
+        const { ctx, chartArea } = instance;
+        const format = opts.format || ((value) => String(value));
+        ctx.save();
+        ctx.font = "700 11px Inter, system-ui, sans-serif";
+        ctx.fillStyle = opts.color;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        meta.data.forEach((element, index) => {
+            const value = instance.data.datasets[meta.index].data[index];
+            if (value === null || value === undefined || Number.isNaN(Number(value))) return;
+            const y = element.y - 6;
+            if (y < chartArea.top + 4) return;
+            ctx.fillText(format(value), element.x, y);
+        });
+        ctx.restore();
+    },
+};
+
 function analystTooltip(extra) {
     return Object.assign({
         backgroundColor: isDarkTheme() ? "rgba(11, 31, 58, 0.96)" : "rgba(255, 255, 255, 0.98)",
@@ -208,30 +255,69 @@ function analystTicks() {
     return { color: cssVar("--muted", "#5B6B82"), font: { size: 11 } };
 }
 
+// Background regimes only: the band a reading falls in is named in the
+// tooltip, so nothing is painted over the plot area itself.
 function generationBands() {
     return [
-        {
-            from: null,
-            to: GENERATION_CRITICAL_MW,
-            color: "rgba(220, 38, 38, 0.10)",
-            label: "Critical",
-            labelColor: "rgba(220, 38, 38, 0.85)",
-        },
-        {
-            from: GENERATION_CRITICAL_MW,
-            to: GENERATION_STRESSED_MW,
-            color: "rgba(245, 158, 11, 0.10)",
-            label: "Stressed",
-            labelColor: "rgba(180, 110, 8, 0.85)",
-        },
-        {
-            from: GENERATION_STRESSED_MW,
-            to: null,
-            color: "rgba(0, 135, 81, 0.08)",
-            label: "Stable",
-            labelColor: "rgba(0, 118, 71, 0.85)",
-        },
+        { from: null, to: GENERATION_CRITICAL_MW, color: "rgba(220, 38, 38, 0.07)" },
+        { from: GENERATION_CRITICAL_MW, to: GENERATION_WARNING_MW, color: "rgba(245, 158, 11, 0.07)" },
+        { from: GENERATION_WARNING_MW, to: null, color: "rgba(0, 135, 81, 0.055)" },
     ];
+}
+
+function describeWindow(hours) {
+    const value = numericOrNull(hours);
+    if (value === null) return "24 hours";
+    return value >= 48 ? `${Math.round(value / 24)} days` : `${Math.round(value)} hours`;
+}
+
+// Figures grow with the grid: 4,532.18 and -12,845.22 must both sit inside
+// their card, so the type scale steps down with the rendered length.
+// 4,532.18 (6 digits) is the everyday case and keeps the full size; the steps
+// start at 12,543.67 and above.
+function figureScaleClass(text) {
+    const digits = String(text).replace(/[^0-9]/g, "").length;
+    if (digits >= 8) return " is-xlong";
+    if (digits >= 7) return " is-long";
+    return "";
+}
+
+function fullTimestamp(value) {
+    if (!value) return "...";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return parsed.toLocaleString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+
+// The reset control only appears once the view is actually zoomed or panned.
+function syncZoomState() {
+    if (!el["chart-reset"]) return;
+    let active = false;
+    if (chart && typeof chart.isZoomedOrPanned === "function") {
+        active = chart.isZoomedOrPanned();
+    } else if (chart && typeof chart.getZoomLevel === "function") {
+        active = chart.getZoomLevel() !== 1;
+    }
+    el["chart-reset"].hidden = !active;
+}
+
+function resetChartZoom() {
+    if (chart && typeof chart.resetZoom === "function") chart.resetZoom();
+    syncZoomState();
+}
+
+function generationBandName(mw) {
+    const value = numericOrNull(mw);
+    if (value === null) return "unknown";
+    if (value < GENERATION_CRITICAL_MW) return "Critical";
+    if (value < GENERATION_WARNING_MW) return "Warning";
+    return "Healthy";
 }
 
 function lastNumeric(values) {
@@ -250,33 +336,25 @@ function loadingBands(warningSeries, overloadSeries) {
     if (warning === null && overload === null) return [];
     const bands = [];
     if (warning !== null) {
-        bands.push({
-            from: null,
-            to: warning,
-            color: "rgba(0, 135, 81, 0.08)",
-            label: "Within limits",
-            labelColor: "rgba(0, 118, 71, 0.85)",
-        });
+        bands.push({ from: null, to: warning, color: "rgba(0, 135, 81, 0.055)" });
     }
     if (warning !== null && overload !== null && overload > warning) {
-        bands.push({
-            from: warning,
-            to: overload,
-            color: "rgba(245, 158, 11, 0.10)",
-            label: "Warning",
-            labelColor: "rgba(180, 110, 8, 0.85)",
-        });
+        bands.push({ from: warning, to: overload, color: "rgba(245, 158, 11, 0.07)" });
     }
     if (overload !== null) {
-        bands.push({
-            from: overload,
-            to: null,
-            color: "rgba(220, 38, 38, 0.10)",
-            label: "Overload",
-            labelColor: "rgba(220, 38, 38, 0.85)",
-        });
+        bands.push({ from: overload, to: null, color: "rgba(220, 38, 38, 0.07)" });
     }
     return bands;
+}
+
+function loadingBandName(utilization, warning, overload) {
+    const value = numericOrNull(utilization);
+    const warn = numericOrNull(warning);
+    const over = numericOrNull(overload);
+    if (value === null) return "unknown";
+    if (over !== null && value >= over) return "Overload";
+    if (warn !== null && value >= warn) return "Warning";
+    return "Normal";
 }
 
 function loadingHeadroom(utilization, overload) {
@@ -325,6 +403,9 @@ function applyChartTheme(instance) {
     });
     if (instance.options.plugins.legend) {
         instance.options.plugins.legend.labels.color = cssVar("--muted", "#5B6B82");
+    }
+    if (instance.options.plugins.barValueLabels) {
+        instance.options.plugins.barValueLabels.color = cssVar("--muted", "#5B6B82");
     }
 }
 
@@ -497,8 +578,9 @@ function renderTrendBadge(analytics) {
     const directionClass = trend.direction === "up" ? "up" : trend.direction === "down" ? "down" : "neutral";
     el["trend-arrow"].innerHTML = trend.direction === "up" ? "&uarr;" : trend.direction === "down" ? "&darr;" : "&rarr;";
     el["trend-arrow"].className = `trend-arrow ${directionClass}`;
-    el.trend.textContent = `${sign}${formatMW(trend.change_mw)}`;
-    el.trend.className = `trend-change ${directionClass}`;
+    const trendText = `${sign}${formatMW(trend.change_mw)}`;
+    el.trend.textContent = trendText;
+    el.trend.className = `trend-change ${directionClass}${figureScaleClass(trendText)}`;
     el["trend-percent"].textContent = trend.change_percent === null
         ? "No percentage change available"
         : `${sign}${formatNumber(trend.change_percent)}% over stored 24h window`;
@@ -533,8 +615,9 @@ function renderLive(data, analytics) {
     const energyDeficit = Math.max(0, referenceDemand - mw);
     const [statusText, statusClass, insight] = gridStatus(mw, data.stale, analytics?.grid_health);
 
-    el.mw.innerHTML = `<span>${formatNumber(mw)}</span><span class="mw-unit">MW</span>`;
-    el.mw.className = "mw";
+    const mwText = formatNumber(mw);
+    el.mw.innerHTML = `<span>${mwText}</span><span class="mw-unit">MW</span>`;
+    el.mw.className = `mw${figureScaleClass(mwText)}`;
     if (previousMW !== null && mw > previousMW) el.mw.classList.add("green");
     if (previousMW !== null && mw < previousMW) el.mw.classList.add("red");
     previousMW = mw;
@@ -584,7 +667,7 @@ function renderAnalytics(analytics, windows) {
     el["sample-count"].textContent = `${analytics.sample_count} stored readings`;
     el["daily-high"].textContent = formatMW(analytics.highest_daily_generation?.total_generation_mw);
     el["daily-low"].textContent = formatMW(analytics.lowest_daily_generation?.total_generation_mw);
-    el["chart-window"].textContent = `${analytics.window_hours} hours`;
+    el["chart-window"].textContent = describeWindow(analytics.window_hours ?? historyHours);
     renderTrendBadge(analytics);
     renderAdvancedAnalytics(analytics, windows);
 }
@@ -664,16 +747,33 @@ function renderChart(history) {
     const gridColor = cssVar("--line", "rgba(11, 31, 58, 0.14)");
     const markers = outageMarkers(points, history?.analytics?.outage_detection?.events);
     const markerLookup = new Map(markers.map((marker) => [marker.index, marker]));
+    // One consolidated readout: only the generation series drives the tooltip
+    // body, so the rolling average and its delta are not repeated twice.
     const tooltipCallbacks = {
-        title: (items) => (items.length ? items[0].label : ""),
-        label: (context) => `${context.dataset.label}: ${formatMW(context.parsed.y)}`,
+        title: (items) => (items.length ? fullTimestamp(points[items[0].dataIndex]?.timestamp) : ""),
+        label: (context) => {
+            if (context.datasetIndex !== 0) return "";
+            return `Generation: ${formatMW(context.parsed.y)}`;
+        },
         afterBody: (items) => {
             if (!items.length) return "";
-            const marker = markerLookup.get(items[0].dataIndex);
-            if (!marker) return "";
-            return marker.type === "critical_generation"
-                ? "Event: generation below critical threshold"
-                : "Event: sharp generation drop";
+            const index = items[0].dataIndex;
+            const value = numericOrNull(generationReadings[index]);
+            const average = numericOrNull(movingAverageReadings[index]);
+            const lines = [];
+            lines.push(`Rolling average: ${average === null ? "not available" : formatMW(average)}`);
+            if (value !== null && average !== null) {
+                const delta = value - average;
+                lines.push(`Difference: ${delta >= 0 ? "+" : "-"}${formatMW(Math.abs(delta))}`);
+            }
+            lines.push(`Operating band: ${generationBandName(value)}`);
+            const marker = markerLookup.get(index);
+            if (marker) {
+                lines.push(marker.type === "critical_generation"
+                    ? "Event: below critical threshold"
+                    : "Event: sharp generation drop");
+            }
+            return lines;
         },
     };
 
@@ -687,8 +787,9 @@ function renderChart(history) {
                         label: "Generation",
                         data: generationReadings,
                         borderColor: "#2563EB",
-                        backgroundColor: "rgba(37, 99, 235, 0.10)",
-                        borderWidth: 2,
+                        // faint: the operating bands behind must stay readable
+                        backgroundColor: "rgba(37, 99, 235, 0.035)",
+                        borderWidth: 1.8,
                         tension: 0.25,
                         pointRadius: 0,
                         pointHoverRadius: 4,
@@ -699,11 +800,12 @@ function renderChart(history) {
                         order: 2,
                     },
                     {
+                        // held back visually: the average is context, not the signal
                         label: "Rolling average",
                         data: movingAverageReadings,
-                        borderColor: "#008751",
-                        borderDash: [6, 4],
-                        borderWidth: 2,
+                        borderColor: "rgba(0, 135, 81, 0.55)",
+                        borderDash: [5, 5],
+                        borderWidth: 1.2,
                         tension: 0.25,
                         pointRadius: 0,
                         pointHoverRadius: 0,
@@ -724,10 +826,26 @@ function renderChart(history) {
                     tooltip: analystTooltip({ callbacks: tooltipCallbacks }),
                     operatingBands: { axis: "y", bands: generationBands() },
                     eventMarkers: { markers },
+                    zoom: {
+                        limits: { x: { min: "original", max: "original", minRange: 4 } },
+                        pan: { enabled: true, mode: "x", modifierKey: null, onPanComplete: syncZoomState },
+                        zoom: {
+                            wheel: { enabled: true, speed: 0.08 },
+                            pinch: { enabled: true },
+                            drag: { enabled: false },
+                            mode: "x",
+                            onZoomComplete: syncZoomState,
+                        },
+                    },
                 },
                 scales: {
                     x: {
-                        ticks: Object.assign(analystTicks(), { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }),
+                        ticks: Object.assign(analystTicks(), {
+                            maxRotation: 0,
+                            autoSkip: true,
+                            autoSkipPadding: 24,
+                            maxTicksLimit: 6,
+                        }),
                         grid: { display: false },
                         border: { color: gridColor },
                     },
@@ -902,16 +1020,34 @@ function renderDistributionChart(payload, activeDisco = null) {
     distributionOverload.splice(0, distributionOverload.length, ...points.map((point) => numericOrNull(point.overload_threshold_percent)));
 
     const gridColor = cssVar("--line", "rgba(11, 31, 58, 0.14)");
-    const pointRadius = distributionUtilization.length <= 2 ? 5 : 0;
+    const basePointRadius = distributionUtilization.length <= 2 ? 5 : 0;
     const utilizationLabel = activeDisco ? `${activeDisco.company} utilization` : "Portfolio utilization";
     const bands = loadingBands(distributionWarning, distributionOverload);
+    // Readings at or above the overload threshold get a visible red dot.
+    const overloadFlags = distributionUtilization.map((value, index) => {
+        const current = numericOrNull(value);
+        const limit = numericOrNull(distributionOverload[index]);
+        return current !== null && limit !== null && current >= limit;
+    });
+    const pointRadius = overloadFlags.map((flag) => (flag ? 4.5 : basePointRadius));
+    const pointColors = overloadFlags.map((flag) => (flag ? "#DC2626" : "#16a66a"));
     const tooltipCallbacks = {
-        title: (items) => (items.length ? items[0].label : ""),
-        label: (context) => `${context.dataset.label}: ${formatNumber(context.parsed.y)}%`,
+        title: (items) => (items.length ? fullTimestamp(points[items[0].dataIndex]?.timestamp) : ""),
+        label: (context) => {
+            if (context.datasetIndex !== 0) return "";
+            return `${context.dataset.label}: ${formatNumber(context.parsed.y)}%`;
+        },
         afterBody: (items) => {
-            const utilization = items.find((item) => item.datasetIndex === 0);
-            if (!utilization) return "";
-            return `Headroom to overload: ${loadingHeadroom(utilization.parsed.y, distributionOverload[utilization.dataIndex])}`;
+            if (!items.length) return "";
+            const index = items[0].dataIndex;
+            const value = distributionUtilization[index];
+            const warning = distributionWarning[index];
+            const overload = distributionOverload[index];
+            const lines = [`Status: ${loadingBandName(value, warning, overload)}`];
+            if (numericOrNull(warning) !== null) lines.push(`Warning at ${formatNumber(warning, 0)}%`);
+            if (numericOrNull(overload) !== null) lines.push(`Overload at ${formatNumber(overload, 0)}%`);
+            lines.push(`Headroom to overload: ${loadingHeadroom(value, overload)}`);
+            return lines;
         },
     };
 
@@ -929,9 +1065,12 @@ function renderDistributionChart(payload, activeDisco = null) {
                         borderWidth: 2,
                         tension: 0.25,
                         pointRadius,
-                        pointHoverRadius: 4,
+                        pointBackgroundColor: pointColors,
+                        pointBorderColor: "#FFFFFF",
+                        pointBorderWidth: 1.5,
+                        pointHoverRadius: 5,
                         pointHoverBorderWidth: 2,
-                        pointHoverBackgroundColor: "#16a66a",
+                        pointHoverBackgroundColor: pointColors,
                         pointHoverBorderColor: "#FFFFFF",
                         fill: true,
                         order: 3,
@@ -939,9 +1078,9 @@ function renderDistributionChart(payload, activeDisco = null) {
                     {
                         label: "Warning threshold",
                         data: distributionWarning,
-                        borderColor: "rgba(245, 158, 11, 0.75)",
-                        borderDash: [6, 4],
-                        borderWidth: 1.5,
+                        borderColor: "#F59E0B",
+                        borderDash: [7, 3],
+                        borderWidth: 2,
                         pointRadius: 0,
                         pointHoverRadius: 0,
                         fill: false,
@@ -950,9 +1089,9 @@ function renderDistributionChart(payload, activeDisco = null) {
                     {
                         label: "Overload threshold",
                         data: distributionOverload,
-                        borderColor: "rgba(220, 38, 38, 0.75)",
-                        borderDash: [3, 4],
-                        borderWidth: 1.5,
+                        borderColor: "#DC2626",
+                        borderDash: [2, 3],
+                        borderWidth: 2,
                         pointRadius: 0,
                         pointHoverRadius: 0,
                         fill: false,
@@ -995,6 +1134,8 @@ function renderDistributionChart(payload, activeDisco = null) {
         distributionChart.data.datasets[1].data = distributionWarning;
         distributionChart.data.datasets[2].data = distributionOverload;
         distributionChart.data.datasets[0].pointRadius = pointRadius;
+        distributionChart.data.datasets[0].pointBackgroundColor = pointColors;
+        distributionChart.data.datasets[0].pointHoverBackgroundColor = pointColors;
         distributionChart.options.plugins.operatingBands.bands = bands;
         distributionChart.options.plugins.tooltip.callbacks = tooltipCallbacks;
         applyChartTheme(distributionChart);
@@ -1042,10 +1183,17 @@ function renderSettlementChart(payload, activeDisco = null) {
 
     const gridColor = cssVar("--line", "rgba(11, 31, 58, 0.14)");
     const settlementTooltip = {
-        title: (items) => (items.length ? items[0].label : ""),
+        title: (items) => (items.length ? `Horizon: ${items[0].label}` : ""),
         label: (context) => (context.dataset.yAxisID === "stress"
-            ? `${context.dataset.label}: ${formatNumber(context.parsed.y, 1)}/100`
+            ? `${context.dataset.label}: ${formatNumber(context.parsed.y, 1)} / 100`
             : `${context.dataset.label}: ${formatMW(context.parsed.y)}`),
+        afterBody: (items) => {
+            if (!items.length) return "";
+            const stress = numericOrNull(settlementStress[items[0].dataIndex]);
+            if (stress === null) return "";
+            const level = stress >= 70 ? "Elevated" : stress >= 45 ? "Moderate" : "Contained";
+            return `Stress level: ${level}`;
+        },
     };
     if (!settlementChart) {
         settlementChart = new Chart(el["settlement-chart"].getContext("2d"), {
@@ -1056,7 +1204,8 @@ function renderSettlementChart(payload, activeDisco = null) {
                         type: "bar",
                         label: activeDisco ? `${activeDisco.company} load growth` : "Projected load growth",
                         data: settlementGrowth,
-                        backgroundColor: "rgba(37, 99, 235, 0.20)",
+                        backgroundColor: "rgba(37, 99, 235, 0.42)",
+                        hoverBackgroundColor: "rgba(37, 99, 235, 0.58)",
                         borderColor: "#2563EB",
                         borderWidth: 1,
                         borderRadius: 4,
@@ -1070,9 +1219,9 @@ function renderSettlementChart(payload, activeDisco = null) {
                         data: settlementStress,
                         borderColor: "#F59E0B",
                         backgroundColor: "rgba(245, 158, 11, 0.14)",
-                        borderWidth: 2,
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
                         pointBackgroundColor: "#F59E0B",
                         pointBorderColor: "#FFFFFF",
                         pointBorderWidth: 1.5,
@@ -1082,16 +1231,22 @@ function renderSettlementChart(payload, activeDisco = null) {
                     },
                 ],
             },
-            plugins: [operatingBandsPlugin],
+            plugins: [operatingBandsPlugin, barValueLabelsPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
                 normalized: true,
+                layout: { padding: { top: 18 } },
                 interaction: { intersect: false, mode: "index" },
                 plugins: {
                     legend: analystLegend(),
                     tooltip: analystTooltip({ callbacks: settlementTooltip }),
+                    barValueLabels: {
+                        datasetIndex: 0,
+                        color: cssVar("--muted", "#5B6B82"),
+                        format: (value) => formatNumber(value, 0),
+                    },
                     // stress index is a 0-100 scale, so the elevated zone is fixed
                     operatingBands: {
                         axis: "stress",
@@ -1183,7 +1338,7 @@ async function refresh() {
 
     const settled = await Promise.allSettled([
         fetchJSON("/api/latest"),
-        fetchJSON("/api/history?hours=24&limit=288"),
+        fetchJSON(`/api/history?hours=${historyHours}&limit=${HISTORY_LIMIT}`),
         fetchJSON("/api/health"),
         fetchJSON("/api/distribution?hours=168&limit=336"),
     ]);
@@ -1224,9 +1379,33 @@ async function refresh() {
     }
 }
 
+// Range switching only changes the window requested from the existing history
+// endpoint; the stored data model is untouched.
+function selectHistoryRange(hours, button) {
+    if (historyHours === hours) return;
+    historyHours = hours;
+    [...el["chart-range"].querySelectorAll(".range-btn")].forEach((node) => {
+        const active = node === button;
+        node.classList.toggle("is-active", active);
+        node.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    el["chart-window"].textContent = describeWindow(hours);
+    const title = document.getElementById("generation-title");
+    if (title) title.textContent = `${describeWindow(hours)} of generation and moving average`;
+    resetChartZoom();
+    refresh().catch((error) => setBanner(error.message));
+}
+
 initTheme();
 el["theme-toggle"].addEventListener("click", toggleTheme);
 el["distribution-back"].addEventListener("click", clearDiscoSelection);
+if (el["chart-reset"]) el["chart-reset"].addEventListener("click", resetChartZoom);
+if (el["chart-range"]) {
+    el["chart-range"].addEventListener("click", (event) => {
+        const button = event.target.closest(".range-btn");
+        if (button) selectHistoryRange(Number(button.dataset.hours), button);
+    });
+}
 refresh().catch((error) => {
     setBanner(error.message);
     el.status.textContent = "Source unavailable";
