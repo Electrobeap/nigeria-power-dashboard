@@ -468,11 +468,15 @@ body.loading .insight-card strong::after {
 }
 
 .trend-change {
+    min-width: 0;
     color: var(--text);
-    font-size: clamp(28px, 4vw, 42px);
+    font-size: clamp(24px, 3.2vw, 42px);
     font-weight: 950;
-    line-height: 1;
-    overflow-wrap: anywhere;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .trend-change.up {
@@ -536,6 +540,10 @@ body.loading .insight-card strong::after {
 .hero-mini-metrics strong {
     color: var(--text);
     font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .dashboard-kpi-row,
@@ -549,6 +557,7 @@ body.loading .insight-card strong::after {
     display: grid;
     align-content: start;
     gap: 10px;
+    min-width: 0;
     min-height: 176px;
 }
 
@@ -609,10 +618,16 @@ body.loading .insight-card strong::after {
 .dashboard-kpi-card strong,
 .insight-card strong {
     display: block;
+    min-width: 0;
     color: var(--text);
-    font-size: clamp(24px, 3vw, 36px);
-    line-height: 1.05;
-    overflow-wrap: anywhere;
+    font-size: clamp(22px, 2.2vw, 34px);
+    line-height: 1.12;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    /* never break inside a figure such as 4,532.18 */
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
 }
 
 .dashboard-kpi-card.primary strong {
@@ -934,7 +949,7 @@ h2 {
 }
 
 .kpi-grid {
-    grid-template-columns: 1.4fr repeat(3, 1fr);
+    grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
 }
 
 .insight-grid {
@@ -943,7 +958,7 @@ h2 {
 }
 
 .content-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     margin-top: 14px;
 }
 
@@ -979,7 +994,10 @@ h2 {
 }
 
 .kpi-card {
-    min-height: 170px;
+    display: grid;
+    align-content: start;
+    min-width: 0;
+    min-height: 176px;
 }
 
 .kpi-card span,
@@ -996,23 +1014,34 @@ h2 {
 .mini-card strong,
 .side-card strong {
     display: block;
+    min-width: 0;
     margin-top: 10px;
-    font-size: clamp(22px, 3vw, 34px);
-    line-height: 1.05;
-    overflow-wrap: anywhere;
+    font-size: clamp(22px, 2.2vw, 34px);
+    line-height: 1.12;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
 }
 
 .mw {
     display: flex !important;
-    flex-wrap: wrap;
+    /* keep the figure and its MW unit on one line */
+    flex-wrap: nowrap;
     align-items: baseline;
     gap: 10px;
+    min-width: 0;
     color: var(--amber);
-    font-size: clamp(42px, 5vw, 66px) !important;
+    font-size: clamp(32px, 6vw, 66px) !important;
     font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    white-space: nowrap;
 }
 
 .mw-unit {
+    flex: 0 0 auto;
     font-size: 0.42em;
 }
 
@@ -1082,6 +1111,10 @@ h2 {
 }
 
 .distribution-kpis article {
+    display: grid;
+    align-content: start;
+    min-width: 0;
+    min-height: 148px;
     border: 1px solid var(--line);
     border-radius: 8px;
     background: color-mix(in srgb, var(--card), transparent 12%);
@@ -1097,9 +1130,15 @@ h2 {
 
 .distribution-kpis strong {
     display: block;
+    min-width: 0;
     margin-top: 8px;
-    font-size: clamp(24px, 3vw, 34px);
-    line-height: 1;
+    font-size: clamp(22px, 2.2vw, 34px);
+    line-height: 1.12;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
 }
 
 .distribution-kpis p {
@@ -1111,7 +1150,7 @@ h2 {
 
 .distribution-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(330px, 0.85fr);
+    grid-template-columns: minmax(0, 1.35fr) minmax(min(330px, 100%), 0.85fr);
     gap: 14px;
 }
 
@@ -2682,7 +2721,9 @@ tbody tr:hover {
         font-size: 24px;
     }
 
-    .dashboard-kpi-card {
+    .dashboard-kpi-card,
+    .kpi-card,
+    .distribution-kpis article {
         min-height: 142px;
     }
 

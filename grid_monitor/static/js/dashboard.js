@@ -2,6 +2,8 @@ const REFRESH_MS = 60000;
 const CHART_JS_URL = "https://cdn.jsdelivr.net/npm/chart.js";
 const GRID_REFERENCE_DEMAND_MW = 6500;
 const GRID_NOMINAL_FREQUENCY_HZ = 50;
+const GENERATION_CRITICAL_MW = 3000;
+const GENERATION_STRESSED_MW = 4500;
 window.requestAnimationFrame(() => document.body.classList.add("brand-loaded"));
 const chartLabels = [];
 const generationReadings = [];
@@ -94,6 +96,238 @@ function scheduleChartWork(target, callback) {
     window.setTimeout(run, 3500);
 }
 
+function cssVar(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+}
+
+function isDarkTheme() {
+    return document.documentElement.dataset.theme === "dark";
+}
+
+// Shades the regime a reading sits in, so the series can be judged without
+// tracing back to the axis. Drawn behind the datasets.
+const operatingBandsPlugin = {
+    id: "operatingBands",
+    beforeDatasetsDraw(instance, _args, opts) {
+        const bands = opts && opts.bands;
+        if (!bands || !bands.length) return;
+        const { ctx, chartArea, scales } = instance;
+        const scale = scales[(opts && opts.axis) || "y"];
+        if (!scale || !chartArea) return;
+        const width = chartArea.right - chartArea.left;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(chartArea.left, chartArea.top, width, chartArea.bottom - chartArea.top);
+        ctx.clip();
+        bands.forEach((band) => {
+            const from = band.from === null || band.from === undefined ? scale.min : band.from;
+            const to = band.to === null || band.to === undefined ? scale.max : band.to;
+            if (to <= scale.min || from >= scale.max) return;
+            const yFrom = scale.getPixelForValue(Math.max(from, scale.min));
+            const yTo = scale.getPixelForValue(Math.min(to, scale.max));
+            const top = Math.min(yFrom, yTo);
+            const height = Math.abs(yFrom - yTo);
+            if (height <= 0.5) return;
+            ctx.fillStyle = band.color;
+            ctx.fillRect(chartArea.left, top, width, height);
+            if (band.label && height >= 18) {
+                ctx.fillStyle = band.labelColor;
+                ctx.font = "700 10px Inter, system-ui, sans-serif";
+                ctx.textAlign = "right";
+                ctx.textBaseline = "top";
+                ctx.fillText(band.label, chartArea.right - 8, top + 4);
+            }
+        });
+        ctx.restore();
+    },
+};
+
+// Flags stored outage events on the time axis. Drawn above the datasets.
+const eventMarkersPlugin = {
+    id: "eventMarkers",
+    afterDatasetsDraw(instance, _args, opts) {
+        const markers = opts && opts.markers;
+        if (!markers || !markers.length) return;
+        const { ctx, chartArea, scales } = instance;
+        const xScale = scales.x;
+        if (!xScale || !chartArea) return;
+        ctx.save();
+        markers.forEach((marker) => {
+            const x = xScale.getPixelForValue(marker.index);
+            if (!Number.isFinite(x) || x < chartArea.left || x > chartArea.right) return;
+            ctx.beginPath();
+            ctx.setLineDash([4, 3]);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = marker.color;
+            ctx.moveTo(x, chartArea.top);
+            ctx.lineTo(x, chartArea.bottom);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.fillStyle = marker.color;
+            ctx.arc(x, chartArea.top + 5, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+    },
+};
+
+function analystTooltip(extra) {
+    return Object.assign({
+        backgroundColor: isDarkTheme() ? "rgba(11, 31, 58, 0.96)" : "rgba(255, 255, 255, 0.98)",
+        titleColor: cssVar("--text", "#0B1F3A"),
+        bodyColor: cssVar("--text", "#0B1F3A"),
+        borderColor: cssVar("--line", "rgba(11, 31, 58, 0.14)"),
+        borderWidth: 1,
+        padding: 12,
+        cornerRadius: 8,
+        usePointStyle: true,
+        boxPadding: 6,
+        titleFont: { size: 12, weight: "700" },
+        bodyFont: { size: 12, weight: "600" },
+    }, extra || {});
+}
+
+function analystLegend() {
+    return {
+        position: "bottom",
+        labels: {
+            boxWidth: 10,
+            boxHeight: 10,
+            usePointStyle: true,
+            pointStyle: "circle",
+            padding: 14,
+            color: cssVar("--muted", "#5B6B82"),
+            font: { size: 11, weight: "700" },
+        },
+    };
+}
+
+function analystTicks() {
+    return { color: cssVar("--muted", "#5B6B82"), font: { size: 11 } };
+}
+
+function generationBands() {
+    return [
+        {
+            from: null,
+            to: GENERATION_CRITICAL_MW,
+            color: "rgba(220, 38, 38, 0.10)",
+            label: "Critical",
+            labelColor: "rgba(220, 38, 38, 0.85)",
+        },
+        {
+            from: GENERATION_CRITICAL_MW,
+            to: GENERATION_STRESSED_MW,
+            color: "rgba(245, 158, 11, 0.10)",
+            label: "Stressed",
+            labelColor: "rgba(180, 110, 8, 0.85)",
+        },
+        {
+            from: GENERATION_STRESSED_MW,
+            to: null,
+            color: "rgba(0, 135, 81, 0.08)",
+            label: "Stable",
+            labelColor: "rgba(0, 118, 71, 0.85)",
+        },
+    ];
+}
+
+function lastNumeric(values) {
+    for (let index = values.length - 1; index >= 0; index -= 1) {
+        const value = numericOrNull(values[index]);
+        if (value !== null) return value;
+    }
+    return null;
+}
+
+// Transformer loading bands are data-driven: the API supplies the warning and
+// overload thresholds per reading, so fall back to nothing when absent.
+function loadingBands(warningSeries, overloadSeries) {
+    const warning = lastNumeric(warningSeries);
+    const overload = lastNumeric(overloadSeries);
+    if (warning === null && overload === null) return [];
+    const bands = [];
+    if (warning !== null) {
+        bands.push({
+            from: null,
+            to: warning,
+            color: "rgba(0, 135, 81, 0.08)",
+            label: "Within limits",
+            labelColor: "rgba(0, 118, 71, 0.85)",
+        });
+    }
+    if (warning !== null && overload !== null && overload > warning) {
+        bands.push({
+            from: warning,
+            to: overload,
+            color: "rgba(245, 158, 11, 0.10)",
+            label: "Warning",
+            labelColor: "rgba(180, 110, 8, 0.85)",
+        });
+    }
+    if (overload !== null) {
+        bands.push({
+            from: overload,
+            to: null,
+            color: "rgba(220, 38, 38, 0.10)",
+            label: "Overload",
+            labelColor: "rgba(220, 38, 38, 0.85)",
+        });
+    }
+    return bands;
+}
+
+function loadingHeadroom(utilization, overload) {
+    const current = numericOrNull(utilization);
+    const limit = numericOrNull(overload);
+    if (current === null || limit === null) return "not available";
+    const margin = limit - current;
+    return margin >= 0 ? `${formatNumber(margin, 1)} pts` : `exceeded by ${formatNumber(Math.abs(margin), 1)} pts`;
+}
+
+// Maps stored outage events onto chart indices via their timestamps.
+function outageMarkers(points, events) {
+    if (!points || !points.length || !events || !events.length) return [];
+    const indexByTime = new Map();
+    points.forEach((point, index) => {
+        const parsed = Date.parse(point?.timestamp);
+        if (!Number.isNaN(parsed)) indexByTime.set(parsed, index);
+    });
+    const markers = [];
+    const seen = new Set();
+    events.forEach((event) => {
+        const parsed = Date.parse(event?.timestamp);
+        if (Number.isNaN(parsed) || !indexByTime.has(parsed)) return;
+        const index = indexByTime.get(parsed);
+        if (seen.has(index)) return;
+        seen.add(index);
+        markers.push({
+            index,
+            type: event.type,
+            color: event.type === "critical_generation" ? "rgba(220, 38, 38, 0.75)" : "rgba(245, 158, 11, 0.8)",
+        });
+    });
+    return markers;
+}
+
+function applyChartTheme(instance) {
+    if (!instance) return;
+    const gridColor = cssVar("--line", "rgba(11, 31, 58, 0.14)");
+    Object.values(instance.options.scales || {}).forEach((scale) => {
+        if (scale.grid && scale.grid.display !== false) scale.grid.color = gridColor;
+        if (scale.ticks) scale.ticks.color = cssVar("--muted", "#5B6B82");
+    });
+    // rebuild from theme defaults, keeping only the chart-specific callbacks
+    instance.options.plugins.tooltip = analystTooltip({
+        callbacks: (instance.options.plugins.tooltip || {}).callbacks,
+    });
+    if (instance.options.plugins.legend) {
+        instance.options.plugins.legend.labels.color = cssVar("--muted", "#5B6B82");
+    }
+}
+
 function initTheme() {
     const stored = localStorage.getItem("grid-theme");
     const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -107,9 +341,11 @@ function toggleTheme() {
     document.documentElement.dataset.theme = next;
     localStorage.setItem("grid-theme", next);
     el["theme-toggle"].textContent = next === "dark" ? "Light" : "Dark";
-    if (chart) chart.update("none");
-    if (distributionChart) distributionChart.update("none");
-    if (settlementChart) settlementChart.update("none");
+    [chart, distributionChart, settlementChart].forEach((instance) => {
+        if (!instance) return;
+        applyChartTheme(instance);
+        instance.update("none");
+    });
 }
 
 function formatNumber(value, digits = 2) {
@@ -425,7 +661,22 @@ function renderChart(history) {
 
     if (!window.Chart || !hasPoints) return;
 
-    const gridColor = getComputedStyle(document.documentElement).getPropertyValue("--line").trim();
+    const gridColor = cssVar("--line", "rgba(11, 31, 58, 0.14)");
+    const markers = outageMarkers(points, history?.analytics?.outage_detection?.events);
+    const markerLookup = new Map(markers.map((marker) => [marker.index, marker]));
+    const tooltipCallbacks = {
+        title: (items) => (items.length ? items[0].label : ""),
+        label: (context) => `${context.dataset.label}: ${formatMW(context.parsed.y)}`,
+        afterBody: (items) => {
+            if (!items.length) return "";
+            const marker = markerLookup.get(items[0].dataIndex);
+            if (!marker) return "";
+            return marker.type === "critical_generation"
+                ? "Event: generation below critical threshold"
+                : "Event: sharp generation drop";
+        },
+    };
+
     if (!chart) {
         chart = new Chart(el.chart.getContext("2d"), {
             type: "line",
@@ -433,51 +684,67 @@ function renderChart(history) {
                 labels: chartLabels,
                 datasets: [
                     {
-                        label: "Generation MW",
+                        label: "Generation",
                         data: generationReadings,
                         borderColor: "#2563EB",
-                        backgroundColor: "rgba(37, 99, 235, 0.13)",
-                        borderWidth: 3,
-                        tension: 0.32,
-                        pointRadius: 2,
+                        backgroundColor: "rgba(37, 99, 235, 0.10)",
+                        borderWidth: 2,
+                        tension: 0.25,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        pointHoverBorderWidth: 2,
+                        pointHoverBackgroundColor: "#2563EB",
+                        pointHoverBorderColor: "#FFFFFF",
                         fill: true,
+                        order: 2,
                     },
                     {
-                        label: "Moving average",
+                        label: "Rolling average",
                         data: movingAverageReadings,
                         borderColor: "#008751",
                         borderDash: [6, 4],
                         borderWidth: 2,
-                        tension: 0.28,
+                        tension: 0.25,
                         pointRadius: 0,
+                        pointHoverRadius: 0,
                         fill: false,
+                        order: 1,
                     },
                 ],
             },
+            plugins: [operatingBandsPlugin, eventMarkersPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
+                normalized: true,
                 interaction: { intersect: false, mode: "index" },
                 plugins: {
-                    legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
-                    tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${formatMW(context.parsed.y)}` } },
+                    legend: analystLegend(),
+                    tooltip: analystTooltip({ callbacks: tooltipCallbacks }),
+                    operatingBands: { axis: "y", bands: generationBands() },
+                    eventMarkers: { markers },
                 },
                 scales: {
                     x: {
-                        ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+                        ticks: Object.assign(analystTicks(), { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }),
                         grid: { display: false },
+                        border: { color: gridColor },
                     },
                     y: {
                         beginAtZero: false,
-                        ticks: { callback: (value) => formatNumber(value, 0) },
-                        grid: { color: gridColor },
+                        ticks: Object.assign(analystTicks(), { callback: (value) => formatNumber(value, 0), maxTicksLimit: 6 }),
+                        grid: { color: gridColor, drawTicks: false },
+                        border: { display: false },
+                        title: { display: true, text: "MW", color: cssVar("--muted", "#5B6B82"), font: { size: 11, weight: "700" } },
                     },
                 },
             },
         });
     } else {
-        chart.options.scales.y.grid.color = gridColor;
+        chart.options.plugins.eventMarkers.markers = markers;
+        chart.options.plugins.tooltip.callbacks = tooltipCallbacks;
+        applyChartTheme(chart);
         chart.update("none");
     }
 }
@@ -634,9 +901,20 @@ function renderDistributionChart(payload, activeDisco = null) {
     distributionWarning.splice(0, distributionWarning.length, ...points.map((point) => numericOrNull(point.warning_threshold_percent)));
     distributionOverload.splice(0, distributionOverload.length, ...points.map((point) => numericOrNull(point.overload_threshold_percent)));
 
-    const gridColor = getComputedStyle(document.documentElement).getPropertyValue("--line").trim();
-    const pointRadius = distributionUtilization.length <= 2 ? 5 : 3;
+    const gridColor = cssVar("--line", "rgba(11, 31, 58, 0.14)");
+    const pointRadius = distributionUtilization.length <= 2 ? 5 : 0;
     const utilizationLabel = activeDisco ? `${activeDisco.company} utilization` : "Portfolio utilization";
+    const bands = loadingBands(distributionWarning, distributionOverload);
+    const tooltipCallbacks = {
+        title: (items) => (items.length ? items[0].label : ""),
+        label: (context) => `${context.dataset.label}: ${formatNumber(context.parsed.y)}%`,
+        afterBody: (items) => {
+            const utilization = items.find((item) => item.datasetIndex === 0);
+            if (!utilization) return "";
+            return `Headroom to overload: ${loadingHeadroom(utilization.parsed.y, distributionOverload[utilization.dataIndex])}`;
+        },
+    };
+
     if (!distributionChart) {
         distributionChart = new Chart(el["distribution-chart"].getContext("2d"), {
             type: "line",
@@ -647,43 +925,66 @@ function renderDistributionChart(payload, activeDisco = null) {
                         label: utilizationLabel,
                         data: distributionUtilization,
                         borderColor: "#16a66a",
-                        backgroundColor: "rgba(22, 166, 106, 0.12)",
-                        borderWidth: 3,
-                        tension: 0.3,
+                        backgroundColor: "rgba(22, 166, 106, 0.10)",
+                        borderWidth: 2,
+                        tension: 0.25,
                         pointRadius,
-                        pointHoverRadius: 6,
+                        pointHoverRadius: 4,
+                        pointHoverBorderWidth: 2,
+                        pointHoverBackgroundColor: "#16a66a",
+                        pointHoverBorderColor: "#FFFFFF",
                         fill: true,
+                        order: 3,
                     },
                     {
-                        label: "Warning",
+                        label: "Warning threshold",
                         data: distributionWarning,
-                        borderColor: "#F59E0B",
+                        borderColor: "rgba(245, 158, 11, 0.75)",
                         borderDash: [6, 4],
-                        borderWidth: 2,
-                        pointRadius: 2,
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        fill: false,
+                        order: 2,
                     },
                     {
-                        label: "Overload",
+                        label: "Overload threshold",
                         data: distributionOverload,
-                        borderColor: "#DC2626",
+                        borderColor: "rgba(220, 38, 38, 0.75)",
                         borderDash: [3, 4],
-                        borderWidth: 2,
-                        pointRadius: 2,
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        fill: false,
+                        order: 1,
                     },
                 ],
             },
+            plugins: [operatingBandsPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
+                normalized: true,
                 interaction: { intersect: false, mode: "index" },
                 plugins: {
-                    legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
-                    tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${formatNumber(context.parsed.y)}%` } },
+                    legend: analystLegend(),
+                    tooltip: analystTooltip({ callbacks: tooltipCallbacks }),
+                    operatingBands: { axis: "y", bands },
                 },
                 scales: {
-                    x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }, grid: { display: false } },
-                    y: { suggestedMin: 40, suggestedMax: 110, ticks: { callback: (value) => `${value}%` }, grid: { color: gridColor } },
+                    x: {
+                        ticks: Object.assign(analystTicks(), { maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }),
+                        grid: { display: false },
+                        border: { color: gridColor },
+                    },
+                    y: {
+                        suggestedMin: 40,
+                        suggestedMax: 110,
+                        ticks: Object.assign(analystTicks(), { callback: (value) => `${value}%`, maxTicksLimit: 6 }),
+                        grid: { color: gridColor, drawTicks: false },
+                        border: { display: false },
+                    },
                 },
             },
         });
@@ -694,7 +995,9 @@ function renderDistributionChart(payload, activeDisco = null) {
         distributionChart.data.datasets[1].data = distributionWarning;
         distributionChart.data.datasets[2].data = distributionOverload;
         distributionChart.data.datasets[0].pointRadius = pointRadius;
-        distributionChart.options.scales.y.grid.color = gridColor;
+        distributionChart.options.plugins.operatingBands.bands = bands;
+        distributionChart.options.plugins.tooltip.callbacks = tooltipCallbacks;
+        applyChartTheme(distributionChart);
         distributionChart.update("none");
     }
 }
@@ -737,7 +1040,13 @@ function renderSettlementChart(payload, activeDisco = null) {
     settlementGrowth.splice(0, settlementGrowth.length, ...points.map((point) => numericOrNull(point.projected_load_growth_mw)));
     settlementStress.splice(0, settlementStress.length, ...points.map((point) => numericOrNull(point.settlement_stress_index)));
 
-    const gridColor = getComputedStyle(document.documentElement).getPropertyValue("--line").trim();
+    const gridColor = cssVar("--line", "rgba(11, 31, 58, 0.14)");
+    const settlementTooltip = {
+        title: (items) => (items.length ? items[0].label : ""),
+        label: (context) => (context.dataset.yAxisID === "stress"
+            ? `${context.dataset.label}: ${formatNumber(context.parsed.y, 1)}/100`
+            : `${context.dataset.label}: ${formatMW(context.parsed.y)}`),
+    };
     if (!settlementChart) {
         settlementChart = new Chart(el["settlement-chart"].getContext("2d"), {
             data: {
@@ -747,54 +1056,73 @@ function renderSettlementChart(payload, activeDisco = null) {
                         type: "bar",
                         label: activeDisco ? `${activeDisco.company} load growth` : "Projected load growth",
                         data: settlementGrowth,
-                        backgroundColor: "rgba(37, 99, 235, 0.22)",
+                        backgroundColor: "rgba(37, 99, 235, 0.20)",
                         borderColor: "#2563EB",
                         borderWidth: 1,
                         borderRadius: 4,
+                        maxBarThickness: 56,
                         yAxisID: "mw",
+                        order: 2,
                     },
                     {
                         type: "line",
                         label: activeDisco ? `${activeDisco.company} stress` : "Settlement stress",
                         data: settlementStress,
                         borderColor: "#F59E0B",
-                        backgroundColor: "rgba(245, 158, 11, 0.16)",
-                        borderWidth: 3,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
+                        backgroundColor: "rgba(245, 158, 11, 0.14)",
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: "#F59E0B",
+                        pointBorderColor: "#FFFFFF",
+                        pointBorderWidth: 1.5,
                         tension: 0.25,
                         yAxisID: "stress",
+                        order: 1,
                     },
                 ],
             },
+            plugins: [operatingBandsPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
+                normalized: true,
                 interaction: { intersect: false, mode: "index" },
                 plugins: {
-                    legend: { position: "bottom", labels: { boxWidth: 12, usePointStyle: true } },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => context.dataset.yAxisID === "stress"
-                                ? `${context.dataset.label}: ${formatNumber(context.parsed.y, 1)}/100`
-                                : `${context.dataset.label}: ${formatMW(context.parsed.y)}`,
-                        },
+                    legend: analystLegend(),
+                    tooltip: analystTooltip({ callbacks: settlementTooltip }),
+                    // stress index is a 0-100 scale, so the elevated zone is fixed
+                    operatingBands: {
+                        axis: "stress",
+                        bands: [
+                            {
+                                from: 70,
+                                to: null,
+                                color: "rgba(220, 38, 38, 0.08)",
+                                label: "Elevated stress",
+                                labelColor: "rgba(220, 38, 38, 0.85)",
+                            },
+                        ],
                     },
                 },
                 scales: {
-                    x: { grid: { display: false } },
+                    x: { ticks: analystTicks(), grid: { display: false }, border: { color: gridColor } },
                     mw: {
                         beginAtZero: true,
-                        ticks: { callback: (value) => formatNumber(value, 0) },
-                        grid: { color: gridColor },
+                        ticks: Object.assign(analystTicks(), { callback: (value) => formatNumber(value, 0), maxTicksLimit: 6 }),
+                        grid: { color: gridColor, drawTicks: false },
+                        border: { display: false },
+                        title: { display: true, text: "MW", color: cssVar("--muted", "#5B6B82"), font: { size: 11, weight: "700" } },
                     },
                     stress: {
                         position: "right",
                         beginAtZero: true,
                         suggestedMax: 100,
-                        ticks: { callback: (value) => `${value}` },
+                        ticks: Object.assign(analystTicks(), { callback: (value) => `${value}`, maxTicksLimit: 6 }),
                         grid: { drawOnChartArea: false },
+                        border: { display: false },
+                        title: { display: true, text: "Stress", color: cssVar("--muted", "#5B6B82"), font: { size: 11, weight: "700" } },
                     },
                 },
             },
@@ -805,7 +1133,8 @@ function renderSettlementChart(payload, activeDisco = null) {
         settlementChart.data.datasets[1].label = activeDisco ? `${activeDisco.company} stress` : "Settlement stress";
         settlementChart.data.datasets[0].data = settlementGrowth;
         settlementChart.data.datasets[1].data = settlementStress;
-        settlementChart.options.scales.mw.grid.color = gridColor;
+        settlementChart.options.plugins.tooltip.callbacks = settlementTooltip;
+        applyChartTheme(settlementChart);
         settlementChart.update("none");
     }
 }
