@@ -1165,12 +1165,17 @@ h2 {
     background: var(--blue-bg);
 }
 
+/* Flex column rather than fixed grid rows: the marker legend appears only
+   when events exist, and row counting breaks when a child is display:none. */
 .chart-card {
-    display: grid;
-    /* head, toolbar, stats strip, plot */
-    grid-template-rows: auto auto auto minmax(340px, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 14px;
     margin-top: 14px;
+}
+
+.chart-card > .chart-wrap {
+    flex: 1 1 auto;
 }
 
 .chart-toolbar {
@@ -3337,5 +3342,194 @@ body.modal-open {
     .chart-tool,
     .modal-close {
         transition: none;
+    }
+}
+
+/* ---------- wider generation chart (approx 80/20 against the map) ---------- */
+
+@media (min-width: 1200px) {
+    .dashboard-main-row > [class*="col-"]:first-child {
+        flex: 0 0 auto;
+        width: 80%;
+    }
+
+    .dashboard-main-row > [class*="col-"]:last-child {
+        flex: 0 0 auto;
+        width: 20%;
+    }
+}
+
+/* Shorter plot. The global canvas floor of 320px would otherwise pin the
+   height, so it is cleared for this wrapper only. */
+/* Capped as well as floored: the card stretches to the map's height in the
+   same row, and without a ceiling the plot absorbs all of the slack. */
+.generation-chart-wrap {
+    min-height: clamp(260px, 30vw, 360px);
+    max-height: 380px;
+}
+
+.generation-chart-wrap canvas {
+    min-height: 0 !important;
+}
+
+.chart-card:fullscreen .generation-chart-wrap {
+    max-height: none;
+}
+
+/* the map column is narrow at 20%, so let its internals shrink with it */
+@media (min-width: 1200px) {
+    .map-preview-card {
+        grid-template-rows: auto minmax(240px, 1fr) auto;
+    }
+
+    .nigeria-map-placeholder {
+        min-height: 260px;
+    }
+
+    .map-preview-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* ---------- event marker legend ---------- */
+
+.chart-legend-note {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 16px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.chart-legend-note .marker-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chart-legend-note .marker-swatch {
+    display: inline-block;
+    width: 2px;
+    height: 13px;
+    border-radius: 1px;
+}
+
+.chart-legend-note .marker-swatch.critical {
+    background: repeating-linear-gradient(180deg, rgba(220, 38, 38, 0.85) 0 3px, transparent 3px 6px);
+}
+
+.chart-legend-note .marker-swatch.drop {
+    background: repeating-linear-gradient(180deg, rgba(245, 158, 11, 0.9) 0 3px, transparent 3px 6px);
+}
+
+/* ---------- disco table controls ---------- */
+
+.table-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.table-filter {
+    display: inline-flex;
+    min-width: 0;
+}
+
+.table-filter input,
+.table-filter select {
+    min-width: 0;
+    max-width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    padding: 6px 10px;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.table-filter input {
+    width: 150px;
+}
+
+.table-filter input:focus-visible,
+.table-filter select:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 1px;
+}
+
+.table-count {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.th-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+}
+
+.th-sort:hover {
+    color: var(--blue);
+}
+
+.th-sort.is-sorted {
+    color: var(--blue);
+}
+
+.th-sort.is-sorted::after {
+    content: "\25BE";
+    font-size: 9px;
+}
+
+.th-sort.is-sorted[aria-sort="ascending"]::after {
+    content: "\25B4";
+}
+
+.th-sort:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+}
+
+/* ---------- full-screen chart ---------- */
+
+.chart-card:fullscreen {
+    margin: 0;
+    border-radius: 0;
+    background: var(--bg);
+    padding: 24px;
+}
+
+.chart-card:fullscreen .chart-wrap {
+    min-height: 0;
+}
+
+@media (max-width: 620px) {
+    .table-controls {
+        gap: 6px;
+    }
+
+    .table-filter input {
+        width: 100%;
+    }
+
+    .table-count {
+        margin-left: 0;
     }
 }
