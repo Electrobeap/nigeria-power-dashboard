@@ -17,11 +17,11 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
-    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=chart-zoom-20260803" as="style">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=drilldown-20260804" as="style">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=chart-zoom-20260803">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=drilldown-20260804">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
@@ -106,13 +106,21 @@
 
     <section class="row g-3 dashboard-kpi-row" aria-label="Live grid key performance indicators">
         <div class="col-12 col-md-6 col-xl-3">
-            <article class="card dashboard-kpi-card primary h-100">
-                <div class="kpi-heading">
-                    <span>Current Generation</span>
-                    <span class="kpi-icon" aria-hidden="true">MW</span>
-                </div>
-                <strong class="mw skeleton-text" id="mw">...</strong>
-                <p id="insight">Waiting for the first live reading.</p>
+            <article class="card dashboard-kpi-card primary h-100 is-drillable">
+                <button type="button" class="kpi-drill-trigger" id="generation-drill"
+                        aria-haspopup="dialog" aria-controls="generation-modal"
+                        aria-label="Current generation. Open generation analytics">
+                    <div class="kpi-heading">
+                        <span>Current Generation</span>
+                        <span class="kpi-icon" aria-hidden="true">MW</span>
+                    </div>
+                    <strong class="mw skeleton-text" id="mw">...</strong>
+                    <div class="kpi-sparkline" aria-hidden="true">
+                        <canvas id="generation-sparkline" width="260" height="44"></canvas>
+                    </div>
+                    <p id="insight">Waiting for the first live reading.</p>
+                    <span class="kpi-drill-hint">View analytics</span>
+                </button>
             </article>
         </div>
         <div class="col-12 col-md-6 col-xl-3">
@@ -192,12 +200,23 @@
                     <div class="range-group" id="chart-range" role="group" aria-label="Generation chart time range">
                         <button type="button" class="range-btn is-active" data-hours="24" aria-pressed="true">24H</button>
                         <button type="button" class="range-btn" data-hours="168" aria-pressed="false">7D</button>
+                        <button type="button" class="range-btn" data-hours="720" aria-pressed="false">30D</button>
+                        <button type="button" class="range-btn" data-hours="2160" aria-pressed="false">90D</button>
+                        <button type="button" class="range-btn" data-hours="8760" aria-pressed="false">1Y</button>
                     </div>
                     <div class="chart-toolbar-actions">
-                        <span class="chart-hint">Scroll or drag to inspect</span>
+                        <button type="button" class="chart-tool" id="chart-brush" aria-pressed="false"
+                                title="Drag across the chart to select a range">Brush select</button>
                         <button type="button" class="chart-reset" id="chart-reset" hidden>Reset zoom</button>
                     </div>
                 </div>
+                <dl class="chart-stats" id="chart-stats" aria-label="Statistics for the visible range">
+                    <div><dt>Average</dt><dd id="stat-avg">...</dd></div>
+                    <div><dt>Peak</dt><dd id="stat-max">...</dd></div>
+                    <div><dt>Low</dt><dd id="stat-min">...</dd></div>
+                    <div><dt>Volatility</dt><dd id="stat-sd">...</dd></div>
+                    <div><dt>Readings</dt><dd id="stat-n">...</dd></div>
+                </dl>
                 <div class="chart-wrap generation-chart-wrap">
                     <canvas id="chart" width="720" height="340" aria-label="Generation trend chart"></canvas>
                     <div class="empty-state" id="chart-empty">Collecting historical readings.</div>
@@ -470,6 +489,74 @@
     </nav>
 </footer>
 
-<script src="{{ url_for('static', filename='js/dashboard.min.js') }}?v=chart-zoom-20260803" defer></script>
+<div class="modal-backdrop" id="generation-modal" role="dialog" aria-modal="true"
+     aria-labelledby="generation-modal-title" hidden>
+    <div class="modal-panel" role="document">
+        <header class="modal-head">
+            <div>
+                <p class="eyebrow compact">Generation Analytics</p>
+                <h2 id="generation-modal-title">Current generation breakdown</h2>
+            </div>
+            <button type="button" class="modal-close" id="generation-modal-close" aria-label="Close analytics">&times;</button>
+        </header>
+        <div class="modal-body">
+            <div class="modal-metric-grid">
+                <article>
+                    <span>Current Output</span>
+                    <strong id="modal-current">...</strong>
+                    <p id="modal-current-note">Latest stored reading.</p>
+                </article>
+                <article>
+                    <span>Capacity Utilization</span>
+                    <strong id="modal-utilization">...</strong>
+                    <p id="modal-utilization-note">Output against available capacity.</p>
+                </article>
+                <article>
+                    <span>vs Yesterday</span>
+                    <strong id="modal-yesterday">...</strong>
+                    <p id="modal-yesterday-note">Same time, previous day.</p>
+                </article>
+                <article>
+                    <span>vs Last Week</span>
+                    <strong id="modal-lastweek">...</strong>
+                    <p id="modal-lastweek-note">Same time, seven days back.</p>
+                </article>
+            </div>
+
+            <section class="modal-section">
+                <h3>Historical trend</h3>
+                <div class="chart-wrap modal-chart-wrap">
+                    <canvas id="modal-trend-chart" width="720" height="240" aria-label="Generation history"></canvas>
+                    <div class="empty-state" id="modal-trend-empty">Collecting historical readings.</div>
+                </div>
+                <p class="method-note" id="modal-trend-note">Stored readings across the selected window.</p>
+            </section>
+
+            <div class="modal-split">
+                <section class="modal-section">
+                    <h3>GenCo contribution</h3>
+                    <div class="table-wrap modal-table-wrap">
+                        <table>
+                            <thead><tr><th scope="col">Plant</th><th scope="col">Output</th></tr></thead>
+                            <tbody id="modal-genco-rows">
+                                <tr><td colspan="2">No GenCo output available.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <section class="modal-section">
+                    <h3>Fuel mix</h3>
+                    <div class="modal-unavailable" id="modal-fuel">
+                        <p><strong>Not captured upstream.</strong></p>
+                        <p>The source publishes plant name and output only. No fuel or technology
+                           field is stored, so a fuel mix cannot be derived from live data.</p>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.min.js') }}?v=drilldown-20260804" defer></script>
 </body>
 </html>

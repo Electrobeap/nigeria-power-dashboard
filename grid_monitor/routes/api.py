@@ -134,6 +134,11 @@ def handle_unexpected_error(exc: Exception):
     return _error("Internal server error", 500, "internal_error")
 
 
+# One year. Windows deeper than stored history simply return everything
+# available; response shapes are unchanged.
+MAX_HISTORY_HOURS = 8760
+
+
 @api_bp.get("/data")
 def legacy_data():
     try:
@@ -243,7 +248,7 @@ def latest():
 
 @api_bp.get("/api/generation")
 def generation():
-    hours = bounded_float(request.args.get("hours"), 24, 1, 168)
+    hours = bounded_float(request.args.get("hours"), 24, 1, MAX_HISTORY_HOURS)
     limit = bounded_int(request.args.get("limit"), 288, 1, 2000)
 
     def load_payload():
@@ -311,7 +316,7 @@ def market_data():
 
 @api_bp.get("/api/history")
 def history():
-    hours = bounded_float(request.args.get("hours"), 24, 1, 168)
+    hours = bounded_float(request.args.get("hours"), 24, 1, MAX_HISTORY_HOURS)
     limit = bounded_int(request.args.get("limit"), 288, 1, 2000)
 
     def load_payload():
@@ -372,7 +377,7 @@ def gencos():
 
 @api_bp.get("/api/analytics")
 def analytics():
-    hours = bounded_float(request.args.get("hours"), 24, 1, 168)
+    hours = bounded_float(request.args.get("hours"), 24, 1, MAX_HISTORY_HOURS)
     limit = bounded_int(request.args.get("limit"), 288, 1, 2000)
 
     def load_payload():
