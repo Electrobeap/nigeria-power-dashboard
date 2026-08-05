@@ -1,6 +1,9 @@
+import logging
+import time
 from copy import deepcopy
 
 from flask import Blueprint, Response, abort, current_app, render_template, request, send_from_directory
+from werkzeug.exceptions import HTTPException
 
 from grid_monitor.services.articles import (
     adjacent_articles,
@@ -33,6 +36,7 @@ from grid_monitor.services.state_intelligence import (
     state_intelligence,
 )
 from grid_monitor.services.structured_data import build_structured_data
+from grid_monitor.utils.logging import log_event
 
 
 web_bp = Blueprint("web", __name__)
@@ -782,6 +786,32 @@ def hierarchy_detail_page(level, slug):
 
 @web_bp.get("/state/<slug>")
 def state_page(slug):
+    started = time.perf_counter()
+    try:
+        response = _render_state_page(slug)
+    except HTTPException:
+        raise  # 404 for an unknown slug is a normal outcome, not a failure
+    except Exception as exc:
+        # Record the exact exception before anything can swallow it, then let
+        # the generic handler take over rather than masking a real fault.
+        current_app.logger.exception({
+            "event": "state_page_failed",
+            "slug": slug,
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+            "elapsed_ms": round((time.perf_counter() - started) * 1000, 1),
+        })
+        raise
+    log_event(
+        "state_page_served",
+        logging.INFO,
+        slug=slug,
+        elapsed_ms=round((time.perf_counter() - started) * 1000, 1),
+    )
+    return response
+
+
+def _render_state_page(slug):
     seo = _geo_seo_context("state", slug)
     return render_template(
         "geo.html",

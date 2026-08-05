@@ -11,7 +11,11 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-fileConfig(config.config_file_name)
+# disable_existing_loggers must stay False: migrations run during app startup,
+# and the default (True) switches off every logger created before this point,
+# including Flask's app.logger. That silently suppressed all application
+# logging in production.
+fileConfig(config.config_file_name, disable_existing_loggers=False)
 logger = logging.getLogger('alembic.env')
 
 

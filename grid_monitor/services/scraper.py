@@ -39,10 +39,12 @@ def _cached(key: str, loader: Callable[[], dict[str, Any]]) -> dict[str, Any]:
     current_ts = time.time()
     ttl = current_app.config["GRID_CACHE_TTL_SECONDS"]
     max_entries = current_app.config["GRID_CACHE_MAX_ENTRIES"]
+    # Expired entries are deliberately kept. They are never served as fresh
+    # (the TTL check below decides that), but they are the only thing the
+    # stale fallback can return when upstream parsing is failing. Evicting on
+    # expiry meant a source outage lasting longer than one TTL left nothing to
+    # fall back to, turning a recoverable failure into a hard error.
     with _cache_lock:
-        for cache_key in list(_cache):
-            if current_ts - _cache[cache_key]["loaded_at"] >= ttl:
-                _cache.pop(cache_key, None)
         cached = _cache.get(key)
         if cached and current_ts - cached["loaded_at"] < ttl:
             _cache.move_to_end(key)
@@ -208,11 +210,34 @@ def _load_dashboard() -> dict[str, Any]:
     source_url = current_app.config["NIGGRID_DASHBOARD_URL"]
     html = _fetch_text(source_url)
     text = _page_text(html)
+
+    # Realtime generation is the one section the snapshot cannot exist without,
+    # so it stays fatal. Everything below it degrades to a partial payload:
+    # losing the GenCo table used to discard the whole reading, which stopped
+    # capture entirely and starved every downstream page of data.
     realtime = _extract_realtime(text)
+    warnings: list[str] = []
+
+    try:
+        gencos = _extract_gencos(text)
+    except SourceUnavailable as exc:
+        gencos = []
+        warnings.append(f"gencos: {exc}")
+        log_event("genco_table_unavailable", logging.WARNING, error=str(exc), source_url=source_url)
+
+    try:
+        daily = _extract_daily_performance(text)
+    except SourceUnavailable as exc:
+        daily = {}
+        warnings.append(f"daily: {exc}")
+        log_event("daily_performance_unavailable", logging.WARNING, error=str(exc), source_url=source_url)
+
     return {
         **realtime,
-        "daily": _extract_daily_performance(text),
-        "gencos": _extract_gencos(text),
+        "daily": daily,
+        "gencos": gencos,
+        "partial": bool(warnings),
+        "warnings": warnings,
         "source": "NISO NIGGRID 24hr Grid Performance Dashboard",
         "source_url": source_url,
         "fetched_at": utc_now_iso(),
