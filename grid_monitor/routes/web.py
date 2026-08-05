@@ -25,6 +25,7 @@ from grid_monitor.services.geographic_hierarchy import hierarchy_counts
 from grid_monitor.services.site_urls import public_url_entries
 from grid_monitor.services.social_meta import build_social_meta
 from grid_monitor.services.state_intelligence import (
+    STATE_PROFILES,
     GeographyNotFound,
     list_regions,
     list_states,
@@ -386,11 +387,55 @@ def _entity_seo_context(entity_type, slug):
     }
 
 
+def _geo_fallback_context(scope, slug):
+    """Minimal, data-free page context.
+
+    Used when the intelligence layer fails unexpectedly. The dashboard itself
+    is client-rendered from /api, so the page still loads and shows its own
+    placeholder states rather than the request failing outright.
+    """
+    known = STATE_PROFILES.get(slug) if scope == "state" else None
+    name = (known or {}).get("name") or slug.replace("-", " ").title()
+    scope_label = "State" if scope == "state" else "Regional"
+    canonical_path = f"/{'state' if scope == 'state' else 'region'}/{slug}"
+    title = f"{name} Power Data: Allocation, Demand Growth & Grid Reliability"
+    description = (
+        f"{name} {scope_label.lower()} electricity intelligence. Detailed metrics are "
+        "temporarily unavailable and will return once stored readings are processed."
+    )
+    return {
+        "title": title,
+        "description": description,
+        "content": {
+            "heading": f"{name} electricity intelligence",
+            "intro": "Detailed metrics are temporarily unavailable for this area. "
+                     "Live values load automatically once the platform reprocesses stored readings.",
+            "facts": [],
+            "sections": [],
+        },
+        "canonical_path": canonical_path,
+        "breadcrumbs": [
+            {"name": "Home", "path": "/"},
+            {"name": "States" if scope == "state" else "Regions",
+             "path": "/states" if scope == "state" else "/regions"},
+            {"name": name, "path": canonical_path},
+        ],
+        "sections": ["Allocation trend", "Demand growth", "Transformer risk", "Reliability ranking"],
+        "faq_items": [],
+    }
+
+
 def _geo_seo_context(scope, slug):
     try:
         payload = state_intelligence(slug) if scope == "state" else region_intelligence(slug)
     except GeographyNotFound:
         abort(404)
+    except Exception:
+        # An unknown area is a 404; a broken one must not take the page down.
+        current_app.logger.exception(
+            {"event": "geo_context_failed", "scope": scope, "slug": slug}
+        )
+        return _geo_fallback_context(scope, slug)
 
     entity = payload["entity"]
     name = entity.get("short_name") or entity["name"]
