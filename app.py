@@ -6,6 +6,7 @@ import sys
 import traceback
 
 from flask import Flask, jsonify
+from markupsafe import escape
 
 
 _startup_stage = "import_app"
@@ -62,21 +63,51 @@ def _log_startup_failure(error: Exception, stage: str, traceback_text: str) -> N
     )
 
 
+_FALLBACK_PAGE = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Nigeria Power Data | Temporarily unavailable</title>
+<style>
+ body{{margin:0;background:#F8FAFC;color:#0B1F3A;
+      font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}}
+ main{{max-width:640px;margin:0 auto;padding:64px 20px}}
+ h1{{font-size:24px;margin:0 0 12px}}
+ p{{color:#5B6B82;margin:0 0 16px}}
+ code{{background:#EEF2F7;border-radius:4px;padding:2px 6px;font-size:13px}}
+ a{{color:#2563EB}}
+</style></head><body><main>
+<h1>Nigeria Power Data is starting up</h1>
+<p>The service could not initialise, so live grid metrics are unavailable for
+   <code>{path}</code> right now. This page will work again once the deployment
+   recovers.</p>
+<p>Startup stage: <code>{stage}</code></p>
+<p><a href="/api/health">Health diagnostics</a> &middot; <a href="/">Dashboard</a></p>
+</main></body></html>"""
+
+
 def _startup_fallback_app(error: Exception, stage: str, traceback_text: str) -> Flask:
     fallback = Flask(__name__)
     error_payload = _startup_error_payload(error, stage, traceback_text)
 
-    @fallback.get("/")
-    def startup_failure():
-        return (
-            "Nigeria Power Data startup failed. Check Render logs and /api/health.",
-            503,
-            {"Content-Type": "text/plain; charset=utf-8"},
-        )
-
     @fallback.get("/api/health")
     def startup_health():
         return jsonify(error_payload), 503
+
+    # Catch-all. Without it only "/" answered and every other URL - including
+    # /state/<slug> - returned a bare 404, which hides a total startup failure
+    # behind what looks like a routing bug.
+    @fallback.get("/", defaults={"path": ""})
+    @fallback.get("/<path:path>")
+    def startup_failure(path):
+        if path.startswith("api/"):
+            return jsonify(error_payload), 503
+        body = _FALLBACK_PAGE.format(path=escape(f"/{path}"), stage=escape(stage))
+        return body, 503, {
+            "Content-Type": "text/html; charset=utf-8",
+            "Retry-After": "60",
+            "Cache-Control": "no-store",
+        }
 
     return fallback
 
