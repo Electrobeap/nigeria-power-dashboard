@@ -3350,12 +3350,12 @@ body.modal-open {
 @media (min-width: 1200px) {
     .dashboard-main-row > [class*="col-"]:first-child {
         flex: 0 0 auto;
-        width: 80%;
+        width: 70%;
     }
 
     .dashboard-main-row > [class*="col-"]:last-child {
         flex: 0 0 auto;
-        width: 20%;
+        width: 30%;
     }
 }
 
@@ -3364,8 +3364,8 @@ body.modal-open {
 /* Capped as well as floored: the card stretches to the map's height in the
    same row, and without a ceiling the plot absorbs all of the slack. */
 .generation-chart-wrap {
-    min-height: clamp(260px, 30vw, 360px);
-    max-height: 380px;
+    min-height: clamp(350px, 40vw, 520px);
+    max-height: 520px;
 }
 
 .generation-chart-wrap canvas {
@@ -3379,16 +3379,11 @@ body.modal-open {
 /* the map column is narrow at 20%, so let its internals shrink with it */
 @media (min-width: 1200px) {
     .map-preview-card {
-        grid-template-rows: auto minmax(240px, 1fr) auto;
+        grid-template-rows: auto minmax(330px, 1fr) auto;
     }
 
     .nigeria-map-placeholder {
-        min-height: 260px;
-    }
-
-    .map-preview-actions {
-        flex-direction: column;
-        align-items: stretch;
+        min-height: 340px;
     }
 }
 
@@ -3411,19 +3406,21 @@ body.modal-open {
     gap: 6px;
 }
 
+/* triangles, matching the discrete glyphs drawn on the plot */
 .chart-legend-note .marker-swatch {
     display: inline-block;
-    width: 2px;
-    height: 13px;
-    border-radius: 1px;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
 }
 
 .chart-legend-note .marker-swatch.critical {
-    background: repeating-linear-gradient(180deg, rgba(220, 38, 38, 0.85) 0 3px, transparent 3px 6px);
+    border-top: 8px solid rgba(220, 38, 38, 0.85);
 }
 
 .chart-legend-note .marker-swatch.drop {
-    background: repeating-linear-gradient(180deg, rgba(245, 158, 11, 0.9) 0 3px, transparent 3px 6px);
+    border-top: 8px solid rgba(245, 158, 11, 0.9);
 }
 
 /* ---------- disco table controls ---------- */
@@ -3531,5 +3528,46 @@ body.modal-open {
 
     .table-count {
         margin-left: 0;
+    }
+}
+
+/* ---------- DisCo rankings panel ---------- */
+
+/* One grid item holding title, filters and list, so the pair sits beside the
+   charts instead of wrapping to a row of its own. */
+.disco-panel {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 10px;
+    min-width: 0;
+    min-height: 0;
+}
+
+.disco-panel .table-controls {
+    margin-bottom: 0;
+}
+
+/* fills the column height rather than leaving dead space below the list */
+.disco-panel .distribution-table-wrap {
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+}
+
+.distribution-grid {
+    align-items: stretch;
+}
+
+.distribution-chart-stack {
+    min-width: 0;
+}
+
+@media (max-width: 1199.98px) {
+    .disco-panel {
+        grid-template-rows: auto auto auto;
+    }
+
+    .disco-panel .distribution-table-wrap {
+        max-height: 420px;
     }
 }

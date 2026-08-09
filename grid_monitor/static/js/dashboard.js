@@ -16,6 +16,9 @@ let modalReturnFocus = null;
 let latestRegionRows = [];
 const regionSort = { key: "estimated_utilization_percent", direction: "desc" };
 let modalHours = 24;
+let fullPoints = [];
+let plottedIndices = [];
+let plotWindow = { from: 0, to: null };
 let modalPoints = [];
 const modalReadings = [];
 
@@ -214,21 +217,26 @@ const eventMarkersPlugin = {
         const { ctx, chartArea, scales } = instance;
         const xScale = scales.x;
         if (!xScale || !chartArea) return;
+        // Discrete glyphs pinned to the top of the plot plus a narrow tint,
+        // rather than full-height rules. Dense event columns were reading as
+        // a striped background and drowning the series itself.
         ctx.save();
+        ctx.beginPath();
+        ctx.rect(chartArea.left, chartArea.top, chartArea.right - chartArea.left,
+                 chartArea.bottom - chartArea.top);
+        ctx.clip();
         markers.forEach((marker) => {
             const x = xScale.getPixelForValue(marker.index);
             if (!Number.isFinite(x) || x < chartArea.left || x > chartArea.right) return;
+            ctx.fillStyle = marker.tint || "rgba(220, 38, 38, 0.07)";
+            ctx.fillRect(x - 3, chartArea.top, 6, chartArea.bottom - chartArea.top);
+            const top = chartArea.top + 7;
             ctx.beginPath();
-            ctx.setLineDash([4, 3]);
-            ctx.lineWidth = 1.5;
-            ctx.strokeStyle = marker.color;
-            ctx.moveTo(x, chartArea.top);
-            ctx.lineTo(x, chartArea.bottom);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.beginPath();
+            ctx.moveTo(x, top + 6);
+            ctx.lineTo(x - 4.5, top - 2);
+            ctx.lineTo(x + 4.5, top - 2);
+            ctx.closePath();
             ctx.fillStyle = marker.color;
-            ctx.arc(x, chartArea.top + 5, 3.5, 0, Math.PI * 2);
             ctx.fill();
         });
         ctx.restore();
@@ -305,6 +313,62 @@ function generationBands() {
     ];
 }
 
+// Largest-Triangle-Three-Buckets. Chosen over naive stride sampling because it
+// keeps the extremes of each bucket, so collapses and spikes survive at low
+// point counts instead of being averaged away. Returns source indices.
+function downsampleIndices(values, target) {
+    const n = values.length;
+    if (target >= n || target < 3) return values.map((_, i) => i);
+    const out = [0];
+    const every = (n - 2) / (target - 2);
+    let a = 0;
+    for (let i = 0; i < target - 2; i += 1) {
+        const rangeStart = Math.floor((i + 1) * every) + 1;
+        const rangeEnd = Math.min(Math.floor((i + 2) * every) + 1, n);
+        let avgX = 0;
+        let avgY = 0;
+        let count = 0;
+        for (let j = rangeStart; j < rangeEnd; j += 1) {
+            const v = numericOrNull(values[j]);
+            if (v === null) continue;
+            avgX += j;
+            avgY += v;
+            count += 1;
+        }
+        if (count) {
+            avgX /= count;
+            avgY /= count;
+        }
+        const bucketStart = Math.floor(i * every) + 1;
+        const bucketEnd = Math.floor((i + 1) * every) + 1;
+        const ax = a;
+        const ay = numericOrNull(values[a]) ?? 0;
+        let best = bucketStart;
+        let bestArea = -1;
+        for (let j = bucketStart; j < Math.min(bucketEnd, n); j += 1) {
+            const v = numericOrNull(values[j]);
+            if (v === null) continue;
+            const area = Math.abs((ax - avgX) * (v - ay) - (ax - j) * (avgY - ay));
+            if (area > bestArea) {
+                bestArea = area;
+                best = j;
+            }
+        }
+        out.push(best);
+        a = best;
+    }
+    out.push(n - 1);
+    return out;
+}
+
+// How many points are worth drawing at the current canvas width. Roughly one
+// per 2 device pixels: denser than that is not resolvable on screen.
+function plotBudget() {
+    const width = el.chart ? el.chart.getBoundingClientRect().width : 0;
+    const usable = width > 0 ? width : (window.innerWidth || 1024);
+    return Math.max(60, Math.min(600, Math.round(usable / 2)));
+}
+
 // Summary statistics for whatever slice of the series is currently in view.
 function seriesStats(values) {
     const clean = values.map(numericOrNull).filter((v) => v !== null);
@@ -322,6 +386,12 @@ function seriesStats(values) {
 }
 
 function visibleStats(tools) {
+    // The main chart reports over the full-resolution window rather than the
+    // thinned series, so the figures do not change with viewport width.
+    if (tools === mainChartTools && fullPoints.length) {
+        const [from, to] = visibleFullRange();
+        return seriesStats(fullPoints.slice(from, to + 1).map((p) => numericOrNull(p.total_generation_mw)));
+    }
     const values = tools.values();
     const instance = tools.instance;
     if (!instance || !instance.scales || !instance.scales.x) return seriesStats(values);
@@ -330,6 +400,36 @@ function visibleStats(tools) {
     const to = Math.min(values.length - 1, Math.floor(scale.max));
     if (to < from) return seriesStats(values);
     return seriesStats(values.slice(from, to + 1));
+}
+
+// Maps the chart's visible plotted indices back to indices in the full series.
+function visibleFullRange() {
+    if (!plottedIndices.length) return [plotWindow.from, plotWindow.to ?? 0];
+    let lo = 0;
+    let hi = plottedIndices.length - 1;
+    if (chart && chart.scales && chart.scales.x) {
+        lo = Math.max(0, Math.ceil(chart.scales.x.min));
+        hi = Math.min(plottedIndices.length - 1, Math.floor(chart.scales.x.max));
+        if (hi < lo) {
+            lo = 0;
+            hi = plottedIndices.length - 1;
+        }
+    }
+    return [plottedIndices[lo], plottedIndices[hi]];
+}
+
+// Zooming narrows the window and re-samples it, so detail increases instead of
+// simply magnifying the thinned line.
+function resampleToVisible() {
+    if (!chart || !fullPoints.length) return;
+    const [from, to] = visibleFullRange();
+    if (to - from < 8) return;
+    const unchanged = from === plotWindow.from && to === plotWindow.to;
+    plotWindow = { from, to };
+    if (!unchanged) {
+        renderChart(latestHistory);
+        if (typeof chart.resetZoom === "function") chart.resetZoom();
+    }
 }
 
 function renderChartStats(tools) {
@@ -476,10 +576,17 @@ function syncChartTools(tools) {
     } else if (instance && typeof instance.getZoomLevel === "function") {
         active = instance.getZoomLevel() !== 1;
     }
+    // The main chart re-samples on zoom and then clears Chart.js's own zoom
+    // state, so a narrowed plot window is what "zoomed" actually means here.
+    if (tools === mainChartTools && fullPoints.length) {
+        const narrowed = plotWindow.from > 0 || (plotWindow.to !== null && plotWindow.to < fullPoints.length - 1);
+        active = active || narrowed;
+    }
     button.hidden = !active;
 }
 
 function syncZoomState() {
+    resampleToVisible();
     syncChartTools(mainChartTools);
 }
 
@@ -494,6 +601,8 @@ function resetZoomFor(tools) {
 }
 
 function resetChartZoom() {
+    plotWindow = { from: 0, to: fullPoints.length ? fullPoints.length - 1 : null };
+    if (latestHistory) renderChart(latestHistory);
     resetZoomFor(mainChartTools);
 }
 
@@ -597,7 +706,10 @@ function outageMarkers(points, events) {
         markers.push({
             index,
             type: event.type,
-            color: event.type === "critical_generation" ? "rgba(220, 38, 38, 0.75)" : "rgba(245, 158, 11, 0.8)",
+            color: event.type === "critical_generation" ? "rgba(220, 38, 38, 0.85)" : "rgba(245, 158, 11, 0.9)",
+            tint: event.type === "critical_generation"
+                ? "rgba(220, 38, 38, 0.10)"
+                : "rgba(245, 158, 11, 0.10)",
         });
     });
     return markers;
@@ -953,18 +1065,32 @@ function renderAdvancedAnalytics(analytics, windows) {
 }
 
 function renderChart(history) {
-    const points = history?.history || [];
-    const hasPoints = points.length > 0;
+    fullPoints = history?.history || fullPoints;
+    const hasPoints = fullPoints.length > 0;
     el["chart-empty"].classList.toggle("visible", !hasPoints);
+    if (!hasPoints) return;
 
+    // plotWindow indexes the FULL series. Everything drawn is a downsample of
+    // that window; the full resolution stays available for tooltips, stats and
+    // export, and zooming re-samples the window rather than losing detail.
+    if (plotWindow.to === null || plotWindow.to > fullPoints.length - 1) {
+        plotWindow = { from: 0, to: fullPoints.length - 1 };
+    }
+    const window_ = fullPoints.slice(plotWindow.from, plotWindow.to + 1);
+    const rawValues = window_.map((p) => numericOrNull(p.total_generation_mw));
+    const picks = downsampleIndices(rawValues, plotBudget());
+    plottedIndices = picks.map((i) => plotWindow.from + i);
+
+    const points = plottedIndices.map((i) => fullPoints[i]);
     chartLabels.splice(0, chartLabels.length, ...points.map((point) => formatTimestamp(point.timestamp)));
     generationReadings.splice(0, generationReadings.length, ...points.map((point) => point.total_generation_mw));
     movingAverageReadings.splice(0, movingAverageReadings.length, ...points.map((point) => point.moving_average_mw));
 
-    if (!window.Chart || !hasPoints) return;
+    if (!window.Chart) return;
 
     const gridColor = cssVar("--line", "rgba(11, 31, 58, 0.14)");
-    const markers = outageMarkers(points, history?.analytics?.outage_detection?.events);
+    const markers = outageMarkers(points, history?.analytics?.outage_detection?.events
+        ?? latestHistory?.analytics?.outage_detection?.events);
     const markerLookup = new Map(markers.map((marker) => [marker.index, marker]));
     // One consolidated readout: only the generation series drives the tooltip
     // body, so the rolling average and its delta are not repeated twice.
@@ -1003,13 +1129,14 @@ function renderChart(history) {
                 labels: chartLabels,
                 datasets: [
                     {
+                        // context, not the headline: thin and translucent so
+                        // the trend reads first
                         label: "Generation",
                         data: generationReadings,
-                        borderColor: "#2563EB",
-                        // faint: the operating bands behind must stay readable
-                        backgroundColor: "rgba(37, 99, 235, 0.035)",
-                        borderWidth: 1.8,
-                        tension: 0.25,
+                        borderColor: "rgba(37, 99, 235, 0.42)",
+                        backgroundColor: "rgba(37, 99, 235, 0.03)",
+                        borderWidth: 1,
+                        tension: 0.3,
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         pointHoverBorderWidth: 2,
@@ -1019,13 +1146,12 @@ function renderChart(history) {
                         order: 2,
                     },
                     {
-                        // held back visually: the average is context, not the signal
+                        // the primary read
                         label: "Rolling average",
                         data: movingAverageReadings,
-                        borderColor: "rgba(0, 135, 81, 0.55)",
-                        borderDash: [5, 5],
-                        borderWidth: 1.2,
-                        tension: 0.25,
+                        borderColor: "#008751",
+                        borderWidth: 2.6,
+                        tension: 0.3,
                         pointRadius: 0,
                         pointHoverRadius: 0,
                         fill: false,
@@ -1907,15 +2033,10 @@ function toggleBrush() {
 
 // Exports whatever slice of the generation series is currently in view.
 function exportVisibleCsv() {
-    const instance = chart;
-    let from = 0;
-    let to = generationReadings.length - 1;
-    if (instance && instance.scales && instance.scales.x) {
-        from = Math.max(0, Math.ceil(instance.scales.x.min));
-        to = Math.min(to, Math.floor(instance.scales.x.max));
-    }
+    // full resolution for the visible window, never the thinned plot series
+    const [from, to] = visibleFullRange();
     if (to < from) return;
-    const points = (latestHistory?.history || []).slice(from, to + 1);
+    const points = fullPoints.slice(from, to + 1);
     if (!points.length) return;
     const rows = [["timestamp", "generation_mw", "moving_average_mw"]];
     points.forEach((point) => {
