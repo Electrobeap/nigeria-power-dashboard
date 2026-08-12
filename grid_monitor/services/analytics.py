@@ -3,6 +3,9 @@ from typing import Any
 
 from flask import current_app
 
+from grid_monitor.services.storage import get_latest_genco_snapshot
+from grid_monitor.utils.time import to_iso
+
 
 def _round(value: float | None, digits: int = 2) -> float | None:
     if value is None:
@@ -293,6 +296,18 @@ def history_analytics(points: list[dict[str, Any]], hours: float, latest_snapsho
     total_generation = latest_snapshot.get("total_generation_mw") or points[-1]["total_generation_mw"]
     latest_discos = (latest_snapshot.get("disco_profile") or {}).get("discos") or []
     latest_gencos = latest_snapshot.get("gencos") or []
+    # The upstream GenCo table can go missing while generation still reports.
+    # Fall back to the last stored reading that had one, carrying its own
+    # timestamp so the UI can label it rather than imply it is current.
+    genco_as_at = None
+    if not latest_gencos:
+        fallback = get_latest_genco_snapshot()
+        if fallback is not None:
+            latest_gencos = [
+                {"plant": row.plant, "generation_mw": row.generation_mw}
+                for row in fallback.genco_data
+            ]
+            genco_as_at = to_iso(fallback.reading_timestamp)
 
     return {
         "window_hours": hours,
@@ -315,6 +330,7 @@ def history_analytics(points: list[dict[str, Any]], hours: float, latest_snapsho
         "rolling_health_score": rolling_health_score(points),
         "disco_load_concentration": disco_load_concentration(latest_discos),
         "top_performing_gencos": top_performing_gencos(latest_gencos, total_generation),
+        "top_gencos_as_at": genco_as_at,
         "grid_health": classify_grid_health(total_generation),
     }
 

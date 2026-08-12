@@ -680,6 +680,104 @@ body.loading .insight-card strong::after {
     color: var(--amber);
 }
 
+/* A timestamp is longer than the figures beside it and wrapped onto two lines
+   in the tablet column, so this one reads a step smaller. */
+#last-updated {
+    font-size: clamp(18px, 1.55vw, 26px);
+}
+
+/* A figure the upstream source is not publishing. Reads as a deliberate
+   state rather than a missing value, and never as a number. */
+.insight-card strong.is-unavailable {
+    color: var(--muted);
+    font-size: clamp(17px, 1.5vw, 22px);
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+
+/* Grid Analytics cards lead somewhere. The affordance stays quiet until the
+   card is hovered or the button takes focus, so the figures still read first. */
+.insight-card.is-drillable {
+    cursor: pointer;
+}
+
+.insight-drill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    /* keeps the hit area at the 24px minimum without moving the label */
+    min-height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--blue);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+    text-align: left;
+    opacity: 0.6;
+    transition: opacity 160ms ease;
+}
+
+.insight-drill span {
+    transition: transform 160ms ease;
+}
+
+.insight-card.is-drillable:hover .insight-drill,
+.insight-drill:focus-visible {
+    opacity: 1;
+}
+
+.insight-card.is-drillable:hover .insight-drill span {
+    transform: translateX(3px);
+}
+
+.insight-drill:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+}
+
+/* The sticky topbar would otherwise sit over whatever we jumped to. */
+#generation,
+#distribution,
+.disco-panel,
+.distribution-chart-stack,
+.generation-chart-wrap {
+    scroll-margin-top: 92px;
+}
+
+/* Momentary ring so the reader lands on the block the card pointed at. */
+.is-drill-target {
+    animation: drill-flash 2.4s ease-out 1;
+}
+
+@keyframes drill-flash {
+    0%,
+    55% {
+        box-shadow: 0 0 0 2px var(--blue), 0 0 0 9px var(--blue-bg);
+    }
+    100% {
+        box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .insight-drill,
+    .insight-drill span {
+        transition: none;
+    }
+
+    .is-drill-target {
+        animation: none;
+        outline: 2px solid var(--blue);
+        outline-offset: 4px;
+    }
+}
+
 .dashboard-main-row .chart-card,
 .dashboard-main-row .map-preview-card {
     margin-top: 0;

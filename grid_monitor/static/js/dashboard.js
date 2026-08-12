@@ -432,6 +432,58 @@ function resampleToVisible() {
     }
 }
 
+// Re-sampling clears Chart.js's own zoom state, so its pan handler has nothing
+// left to move once a window is drawn at full extent. Dragging a narrowed plot
+// therefore slides the window itself across the full series.
+let windowPan = null;
+let windowPanFrame = null;
+
+function windowPanRender() {
+    if (windowPanFrame) return;
+    windowPanFrame = window.requestAnimationFrame(() => {
+        windowPanFrame = null;
+        if (latestHistory) renderChart(latestHistory);
+    });
+}
+
+function beginWindowPan(event) {
+    if (!chart || mainChartTools.brushOn || event.button !== 0 || !fullPoints.length) return;
+    const span = plotWindow.to === null ? 0 : plotWindow.to - plotWindow.from;
+    if (span <= 0 || span >= fullPoints.length - 1) return;
+    const area = chart.chartArea;
+    if (!area || event.offsetX < area.left || event.offsetX > area.right) return;
+    windowPan = {
+        x: event.clientX,
+        from: plotWindow.from,
+        span,
+        perPixel: span / Math.max(1, area.right - area.left),
+        pointerId: event.pointerId,
+        moved: false,
+    };
+    if (chart.canvas.setPointerCapture) chart.canvas.setPointerCapture(event.pointerId);
+}
+
+function moveWindowPan(event) {
+    if (!windowPan) return;
+    const shift = Math.round((windowPan.x - event.clientX) * windowPan.perPixel);
+    const limit = Math.max(0, fullPoints.length - 1 - windowPan.span);
+    const from = Math.min(Math.max(0, windowPan.from + shift), limit);
+    if (from === plotWindow.from) return;
+    windowPan.moved = true;
+    plotWindow = { from, to: from + windowPan.span };
+    windowPanRender();
+}
+
+function endWindowPan() {
+    if (!windowPan) return;
+    const { moved, pointerId } = windowPan;
+    if (chart && chart.canvas.releasePointerCapture && chart.canvas.hasPointerCapture(pointerId)) {
+        chart.canvas.releasePointerCapture(pointerId);
+    }
+    windowPan = null;
+    if (moved) syncChartTools(mainChartTools);
+}
+
 function renderChartStats(tools) {
     const stats = visibleStats(tools);
     const [avg, max, min, sd, n] = tools.stats;
@@ -581,6 +633,7 @@ function syncChartTools(tools) {
     if (tools === mainChartTools && fullPoints.length) {
         const narrowed = plotWindow.from > 0 || (plotWindow.to !== null && plotWindow.to < fullPoints.length - 1);
         active = active || narrowed;
+        if (el.chart) el.chart.style.cursor = narrowed && !tools.brushOn ? "grab" : "";
     }
     button.hidden = !active;
 }
@@ -1022,8 +1075,10 @@ function renderAdvancedAnalytics(analytics, windows) {
         el["volatility-note"].textContent = "Awaiting historical readings.";
         el["load-concentration"].textContent = "...";
         el["load-note"].textContent = "Awaiting DisCo profile.";
-        el["top-genco"].textContent = "...";
-        el["top-genco-note"].textContent = "Awaiting GenCo output.";
+        el["top-genco"].textContent = "Unavailable";
+        el["top-genco"].classList.add("is-unavailable");
+        el["top-genco-note"].textContent =
+            "Plant-level output has not been published yet. It appears automatically once the source reports one.";
         el["outage-status"].textContent = "...";
         el["outage-note"].textContent = "Awaiting trend data.";
         return;
@@ -1048,10 +1103,22 @@ function renderAdvancedAnalytics(analytics, windows) {
     el["load-note"].textContent = load.top_company
         ? `${load.top_company}: ${formatNumber(load.top_share_percent)}% of latest allocation`
         : "No DisCo concentration data.";
-    el["top-genco"].textContent = top?.plant || "...";
-    el["top-genco-note"].textContent = top
-        ? `${formatMW(top.generation_mw)}${top.share_percent ? `, ${formatNumber(top.share_percent)}% share` : ""}`
-        : "No GenCo output data.";
+    // Three distinct states: current data, real stored data from an earlier
+    // reading (labelled, never presented as live), and genuinely unavailable.
+    const gencoAsAt = analytics?.top_gencos_as_at;
+    if (top?.plant) {
+        el["top-genco"].textContent = top.plant;
+        el["top-genco"].classList.remove("is-unavailable");
+        const output = `${formatMW(top.generation_mw)}${top.share_percent ? `, ${formatNumber(top.share_percent)}% share` : ""}`;
+        el["top-genco-note"].textContent = gencoAsAt
+            ? `${output} — last reported ${fullTimestamp(gencoAsAt)}`
+            : output;
+    } else {
+        el["top-genco"].textContent = "Unavailable";
+        el["top-genco"].classList.add("is-unavailable");
+        el["top-genco-note"].textContent =
+            "The source is not publishing a GenCo output table. Plant-level output returns automatically once it does.";
+    }
     el["outage-status"].textContent = outage.classification || "unknown";
     el["outage-note"].textContent = outage.detected
         ? `${outage.event_count} event${outage.event_count === 1 ? "" : "s"} detected`
@@ -1990,7 +2057,9 @@ function selectModalRange(hours, button) {
         .catch((error) => setBanner(error.message));
 }
 
-function openGenerationModal() {
+// options.hours preselects a range; options.section scrolls the dialog to the
+// part of the analysis the caller came from.
+function openGenerationModal(options = {}) {
     const modal = el["generation-modal"];
     if (!modal) return;
     modalReturnFocus = document.activeElement;
@@ -1998,7 +2067,41 @@ function openGenerationModal() {
     document.body.classList.add("modal-open");
     scheduleChartWork(el["modal-trend-chart"], renderGenerationModal);
     renderGenerationModal();
-    if (el["generation-modal-close"]) el["generation-modal-close"].focus();
+    if (options.hours && el["modal-range"]) {
+        const button = el["modal-range"].querySelector(`.range-btn[data-hours="${options.hours}"]`);
+        if (button) selectModalRange(options.hours, button);
+    }
+    if (el["generation-modal-close"]) {
+        el["generation-modal-close"].focus({ preventScroll: Boolean(options.section) });
+    }
+    const section = options.section ? document.getElementById(options.section) : null;
+    if (section) {
+        window.requestAnimationFrame(() => section.scrollIntoView({ block: "start" }));
+    }
+}
+
+// Grid Analytics cards are entry points rather than dead-end figures: each one
+// routes to the existing view that explains it, so nothing new is duplicated.
+function revealSection(targetSelector, focusSelector) {
+    const target = targetSelector ? document.querySelector(targetSelector) : null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    const flash = (focusSelector && document.querySelector(focusSelector)) || target;
+    flash.classList.add("is-drill-target");
+    window.setTimeout(() => flash.classList.remove("is-drill-target"), 2400);
+}
+
+function runInsightDrill(button) {
+    if (button.dataset.drill === "modal") {
+        openGenerationModal({
+            hours: Number(button.dataset.drillHours) || null,
+            section: button.dataset.drillSection,
+        });
+        return;
+    }
+    if (button.dataset.drill === "section") {
+        revealSection(button.dataset.drillTarget, button.dataset.drillFocus);
+    }
 }
 
 function closeGenerationModal() {
@@ -2131,7 +2234,25 @@ if (el["chart-range"]) {
         if (button && !button.disabled) selectHistoryRange(Number(button.dataset.hours), button);
     });
 }
-if (el["generation-drill"]) el["generation-drill"].addEventListener("click", openGenerationModal);
+if (el.chart) {
+    el.chart.addEventListener("pointerdown", beginWindowPan);
+    el.chart.addEventListener("pointermove", moveWindowPan);
+    el.chart.addEventListener("pointerup", endWindowPan);
+    el.chart.addEventListener("pointercancel", endWindowPan);
+}
+if (el["generation-drill"]) el["generation-drill"].addEventListener("click", () => openGenerationModal());
+// The whole card is clickable, but the button carries the accessible name so
+// keyboard users get one focus stop per card rather than a bare div.
+document.addEventListener("click", (event) => {
+    const drill = event.target.closest(".insight-drill");
+    if (drill) {
+        runInsightDrill(drill);
+        return;
+    }
+    const card = event.target.closest(".insight-card.is-drillable");
+    const inner = card && card.querySelector(".insight-drill");
+    if (inner) runInsightDrill(inner);
+});
 if (el["generation-modal-close"]) el["generation-modal-close"].addEventListener("click", closeGenerationModal);
 if (el["generation-modal"]) {
     el["generation-modal"].addEventListener("click", (event) => {

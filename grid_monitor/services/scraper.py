@@ -189,17 +189,45 @@ def _extract_daily_performance(text: str) -> dict[str, Any]:
     }
 
 
+# The exact strings the dashboard has always used come first, so a page that
+# still parses today keeps parsing exactly as it did. The rest are only tried
+# once the original markers are absent, which is when the old code raised.
+_GENCO_START_MARKERS = ("Gencos", "GenCos", "Generation Companies", "Genco Performance")
+_GENCO_END_MARKERS = ("date_range", "Discos", "Daily Energy")
+
+
+def _find_genco_block(text: str) -> tuple[str, str] | None:
+    for start_marker in _GENCO_START_MARKERS:
+        start = text.find(start_marker)
+        if start == -1:
+            continue
+        offset = start + len(start_marker)
+        for end_marker in _GENCO_END_MARKERS:
+            end = text.find(end_marker, offset)
+            if end != -1:
+                return text[offset:end], f"{start_marker}..{end_marker}"
+    return None
+
+
 def _extract_gencos(text: str) -> list[dict[str, Any]]:
-    start = text.find("Gencos")
-    end = text.find("date_range", start)
-    if start == -1 or end == -1:
+    found = _find_genco_block(text)
+    if found is None:
         raise SourceUnavailable("Could not locate GenCo table on NIGGRID.")
 
-    block = text[start + len("Gencos") : end]
+    block, markers = found
     plants = re.findall(
         r"\b\d{1,2}\s+(.+?)\s+(\d[\d,.]*)\s+(?=\d{1,2}\s+|$)",
         block,
     )
+    if not plants:
+        # Distinguishable in production from a missing section: the markers were
+        # there, so it is the row layout that changed (or the table was empty).
+        log_event(
+            "genco_table_empty",
+            logging.WARNING,
+            markers=markers,
+            block_length=len(block),
+        )
     return [
         {"plant": plant.strip(), "generation_mw": _clean_number(mw)}
         for plant, mw in plants
