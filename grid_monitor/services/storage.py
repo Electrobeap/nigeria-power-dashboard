@@ -240,6 +240,21 @@ def get_latest_snapshot_model() -> GridSnapshot | None:
     )
 
 
+def get_latest_genco_snapshot() -> GridSnapshot | None:
+    """Most recent snapshot that actually carries GenCo rows.
+
+    The newest snapshot can legitimately have none when the upstream GenCo
+    table is missing, so the KPI falls back to the last reading that did,
+    labelled with its own timestamp rather than presented as current.
+    """
+    return (
+        GridSnapshot.query.options(selectinload(GridSnapshot.genco_data))
+        .join(GencoData, GencoData.snapshot_id == GridSnapshot.id)
+        .order_by(GridSnapshot.reading_timestamp.desc())
+        .first()
+    )
+
+
 def get_latest_snapshot() -> dict[str, Any] | None:
     snapshot = get_latest_snapshot_model()
     return snapshot_to_payload(snapshot) if snapshot else None
