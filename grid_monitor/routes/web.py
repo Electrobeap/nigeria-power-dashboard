@@ -5,6 +5,7 @@ from copy import deepcopy
 from flask import Blueprint, Response, abort, current_app, render_template, request, send_from_directory
 from werkzeug.exceptions import HTTPException
 
+from grid_monitor.services.cache import get_cached
 from grid_monitor.services.articles import (
     adjacent_articles,
     article_categories,
@@ -28,8 +29,11 @@ from grid_monitor.services.geographic_hierarchy import hierarchy_counts
 from grid_monitor.services.site_urls import public_url_entries
 from grid_monitor.services.social_meta import build_social_meta
 from grid_monitor.services.state_intelligence import (
+    GEOGRAPHY_DEFAULT_HOURS,
+    GEOGRAPHY_DEFAULT_LIMIT,
     STATE_PROFILES,
     GeographyNotFound,
+    geography_cache_key,
     list_regions,
     list_states,
     region_intelligence,
@@ -430,8 +434,19 @@ def _geo_fallback_context(scope, slug):
 
 
 def _geo_seo_context(scope, slug):
+    # The page used to run the intelligence layer inline on every request while
+    # the JSON API behind the same page served it from cache. On a stale
+    # database that is a full limit=1000 snapshot load per hit, which is what
+    # saturates the worker. Same key as the API, so one run serves both.
+    loader = state_intelligence if scope == "state" else region_intelligence
     try:
-        payload = state_intelligence(slug) if scope == "state" else region_intelligence(slug)
+        payload = get_cached(
+            geography_cache_key(
+                scope, slug, GEOGRAPHY_DEFAULT_HOURS, GEOGRAPHY_DEFAULT_LIMIT
+            ),
+            current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+            lambda: loader(slug, GEOGRAPHY_DEFAULT_HOURS, GEOGRAPHY_DEFAULT_LIMIT),
+        )
     except GeographyNotFound:
         abort(404)
     except Exception:
@@ -787,10 +802,26 @@ def hierarchy_detail_page(level, slug):
 @web_bp.get("/state/<slug>")
 def state_page(slug):
     started = time.perf_counter()
+    # A gunicorn WORKER TIMEOUT kills the process mid-request, so nothing after
+    # this point would ever be written. A start line with no matching
+    # state_page_served is therefore the signature of a killed worker, and is
+    # what separates "the request timed out inside Python" from "the request
+    # never reached Python at all" when reading a 502 in the platform logs.
+    log_event("state_page_started", logging.INFO, slug=slug)
     try:
         response = _render_state_page(slug)
-    except HTTPException:
-        raise  # 404 for an unknown slug is a normal outcome, not a failure
+    except HTTPException as exc:
+        # 404 for an unknown slug is a normal outcome, not a failure - but it
+        # still has to close out its start line, or a 404 looks exactly like a
+        # killed worker to anyone reading the log.
+        log_event(
+            "state_page_rejected",
+            logging.INFO,
+            slug=slug,
+            status=exc.code,
+            elapsed_ms=round((time.perf_counter() - started) * 1000, 1),
+        )
+        raise
     except Exception as exc:
         # Record the exact exception before anything can swallow it, then let
         # the generic handler take over rather than masking a real fault.
