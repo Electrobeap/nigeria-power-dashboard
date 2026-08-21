@@ -3,11 +3,24 @@ from datetime import timedelta
 from statistics import mean, pstdev
 from typing import Any
 
+from flask import current_app
+
 from grid_monitor.extensions import db
 from grid_monitor.models import GridSnapshot
+from grid_monitor.services.cache import get_cached
 from grid_monitor.services.entity_intelligence import slugify_entity
 from grid_monitor.utils.time import parse_iso_datetime, to_iso, utc_now, utc_now_iso
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import noload, selectinload
+
+
+# The HTML page and the JSON API for the same area ask for the same window, so
+# they share one cache entry instead of each paying for the intelligence run.
+GEOGRAPHY_DEFAULT_HOURS = 168
+GEOGRAPHY_DEFAULT_LIMIT = 1000
+
+
+def geography_cache_key(scope: str, slug: str, hours: float, limit: int) -> str:
+    return f"geography:{scope}:{slug}:{hours}:{limit}"
 
 
 DISCO_LABELS = {
@@ -255,17 +268,24 @@ def _moving_average(history: list[dict[str, Any]], window_size: int = 6) -> list
 
 
 def _snapshot_rows(hours: float, limit: int) -> list[GridSnapshot]:
+    # GridSnapshot.genco_data is lazy="selectin", so it loads on every snapshot
+    # query by default. Nothing in the geography layer reads plant output, and
+    # at limit=1000 that was another ~13,000 rows fetched and discarded per
+    # request, so it is switched off explicitly here.
+    options = (selectinload(GridSnapshot.disco_data), noload(GridSnapshot.genco_data))
     since = utc_now() - timedelta(hours=hours)
     rows = (
-        GridSnapshot.query.options(selectinload(GridSnapshot.disco_data))
+        GridSnapshot.query.options(*options)
         .filter(GridSnapshot.reading_timestamp >= since)
         .order_by(GridSnapshot.reading_timestamp.desc())
         .limit(limit)
         .all()
     )
     if not rows:
+        # Capture that has been broken for longer than the window leaves this
+        # branch serving every request, so it is the hot path, not the rare one.
         rows = (
-            GridSnapshot.query.options(selectinload(GridSnapshot.disco_data))
+            GridSnapshot.query.options(*options)
             .order_by(GridSnapshot.reading_timestamp.desc())
             .limit(limit)
             .all()
@@ -273,15 +293,32 @@ def _snapshot_rows(hours: float, limit: int) -> list[GridSnapshot]:
     return list(reversed(rows))
 
 
+def _allocation_series(hours: float, limit: int) -> list[tuple[str | None, str | None, dict[str, float]]]:
+    """DisCo allocation per stored reading, independent of any one area.
+
+    Every state and region derives its history from exactly the same snapshots;
+    only the profile weighting differs. Loading them once per window instead of
+    once per area is what keeps a 37-page crawl off the worker's back.
+    """
+    return get_cached(
+        f"geography:allocations:{hours}:{limit}",
+        current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+        lambda: [
+            (to_iso(row.reading_timestamp), to_iso(row.captured_at), _snapshot_allocations(row))
+            for row in _snapshot_rows(hours, limit)
+        ],
+    )
+
+
 def _history_for_profile(profile: dict[str, Any], hours: float, limit: int) -> list[dict[str, Any]]:
     history = []
-    for snapshot in _snapshot_rows(hours, limit):
-        allocation, components = _estimate_allocation(profile, _snapshot_allocations(snapshot))
+    for reading_timestamp, captured_at, allocations in _allocation_series(hours, limit):
+        allocation, components = _estimate_allocation(profile, allocations)
         metrics = _metrics(profile, allocation)
         history.append(
             {
-                "timestamp": to_iso(snapshot.reading_timestamp),
-                "captured_at": to_iso(snapshot.captured_at),
+                "timestamp": reading_timestamp,
+                "captured_at": captured_at,
                 "estimated_allocation_mw": _round(allocation),
                 "estimated_peak_demand_mw": metrics["estimated_peak_demand_mw"],
                 "power_availability_estimate_percent": metrics["power_availability_estimate_percent"],
@@ -427,7 +464,13 @@ def state_intelligence(slug: str, hours: float = 168, limit: int = 1000) -> dict
     history = _history_for_profile(profile, hours, limit)
     stats = _stats(history)
     metrics = _metrics(profile, stats["latest_mw"])
-    latest_snapshot = GridSnapshot.query.order_by(GridSnapshot.reading_timestamp.desc()).first()
+    latest_snapshot = (
+        GridSnapshot.query.options(
+            selectinload(GridSnapshot.disco_data), noload(GridSnapshot.genco_data)
+        )
+        .order_by(GridSnapshot.reading_timestamp.desc())
+        .first()
+    )
     allocation, components = _estimate_allocation(profile, _snapshot_allocations(latest_snapshot)) if latest_snapshot else (None, [])
     trend = _trend(history)
     forecast = _forecast(history)
@@ -468,7 +511,13 @@ def region_intelligence(slug: str, hours: float = 168, limit: int = 1000) -> dic
     metrics = _metrics(profile, stats["latest_mw"])
     trend = _trend(history)
     forecast = _forecast(history)
-    latest_snapshot = GridSnapshot.query.order_by(GridSnapshot.reading_timestamp.desc()).first()
+    latest_snapshot = (
+        GridSnapshot.query.options(
+            selectinload(GridSnapshot.disco_data), noload(GridSnapshot.genco_data)
+        )
+        .order_by(GridSnapshot.reading_timestamp.desc())
+        .first()
+    )
     allocation, components = _estimate_allocation(profile, _snapshot_allocations(latest_snapshot)) if latest_snapshot else (None, [])
     rankings = {
         "allocation_rank": None,

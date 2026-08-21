@@ -22,7 +22,10 @@ from grid_monitor.services.indexnow import (
 from grid_monitor.services.scheduler import scheduler_status
 from grid_monitor.services.scraper import get_dashboard_payload, get_disco_profile, get_live_grid_payload
 from grid_monitor.services.state_intelligence import (
+    GEOGRAPHY_DEFAULT_HOURS,
+    GEOGRAPHY_DEFAULT_LIMIT,
     GeographyNotFound,
+    geography_cache_key,
     list_regions,
     list_states,
     region_intelligence,
@@ -86,13 +89,13 @@ def _entity_response(entity_type: str, slug: str):
 
 
 def _geography_response(scope: str, slug: str):
-    hours = bounded_float(request.args.get("hours"), 168, 1, 720)
-    limit = bounded_int(request.args.get("limit"), 1000, 1, 5000)
+    hours = bounded_float(request.args.get("hours"), GEOGRAPHY_DEFAULT_HOURS, 1, 720)
+    limit = bounded_int(request.args.get("limit"), GEOGRAPHY_DEFAULT_LIMIT, 1, 5000)
     loader = state_intelligence if scope == "state" else region_intelligence
     try:
         return _json(
             get_cached(
-                f"geography:{scope}:{slug}:{hours}:{limit}",
+                geography_cache_key(scope, slug, hours, limit),
                 current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
                 lambda: loader(slug, hours, limit),
             )
