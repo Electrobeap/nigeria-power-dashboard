@@ -17,11 +17,11 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
-    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=drilldown-20260812" as="style">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=chart-readability-20260821" as="style">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=drilldown-20260812">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=chart-readability-20260821">
     {% include "partials/structured_data.html" %}
     {% include "partials/google_analytics.html" %}
     {% include "partials/microsoft_clarity.html" %}
@@ -646,6 +646,6 @@
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/dashboard.min.js') }}?v=drilldown-20260812" defer></script>
+<script src="{{ url_for('static', filename='js/dashboard.min.js') }}?v=chart-readability-20260821" defer></script>
 </body>
 </html>

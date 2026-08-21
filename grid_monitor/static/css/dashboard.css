@@ -3461,9 +3461,12 @@ body.modal-open {
    height, so it is cleared for this wrapper only. */
 /* Capped as well as floored: the card stretches to the map's height in the
    same row, and without a ceiling the plot absorbs all of the slack. */
+/* A little more vertical room so the trend has amplitude to read against,
+   without turning the card into a full-screen chart. The map card beside it is
+   h-100, so it gains the same height rather than being squeezed. */
 .generation-chart-wrap {
-    min-height: clamp(350px, 40vw, 520px);
-    max-height: 520px;
+    min-height: clamp(360px, 42vw, 560px);
+    max-height: 560px;
 }
 
 .generation-chart-wrap canvas {
