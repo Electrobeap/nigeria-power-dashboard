@@ -44,8 +44,14 @@ def test_all_state_and_region_pages_render_without_history_calculations(client, 
         assert "geo.min.js?v=geo-fast-20261012" in body
 
 
-def test_representative_geography_apis_return_timed_payloads(client):
-    for path in ("/api/states/lagos", "/api/states/edo", "/api/regions/north-central"):
+def test_all_state_and_region_apis_return_timed_payloads(client):
+    state_paths = [f"/api/states/{state['slug']}" for state in list_states()]
+    region_paths = [f"/api/regions/{region['slug']}" for region in list_regions()]
+    paths = state_paths + region_paths
+    assert len(state_paths) == 37
+    assert len(region_paths) == 6
+
+    for path in paths:
         response = client.get(f"{path}?hours=168&limit=336")
         payload = response.get_json()
         assert response.status_code == 200, path
@@ -54,6 +60,17 @@ def test_representative_geography_apis_return_timed_payloads(client):
         assert "response_timestamp" in payload
         assert payload["performance"]["elapsed_ms"] >= 0
         assert isinstance(payload["history"], list)
+
+
+def test_representative_problem_geographies_are_covered(client):
+    for path in ("/state/lagos", "/state/edo", "/region/north-central"):
+        response = client.get(path)
+        assert response.status_code == 200, path
+
+    for path in ("/api/states/lagos", "/api/states/edo", "/api/regions/north-central"):
+        response = client.get(f"{path}?hours=168&limit=336")
+        assert response.status_code == 200, path
+        assert response.get_json()["performance"]["elapsed_ms"] >= 0
 
 
 def test_geography_api_returns_static_fallback_when_history_loader_fails(client, monkeypatch):
