@@ -6,21 +6,29 @@ from typing import Any
 from flask import current_app
 
 from grid_monitor.extensions import db
-from grid_monitor.models import GridSnapshot
+from grid_monitor.models import DiscoData, GridSnapshot
 from grid_monitor.services.cache import get_cached
 from grid_monitor.services.entity_intelligence import slugify_entity
 from grid_monitor.utils.time import parse_iso_datetime, to_iso, utc_now, utc_now_iso
-from sqlalchemy.orm import noload, selectinload
 
 
-# The HTML page and the JSON API for the same area ask for the same window, so
-# they share one cache entry instead of each paying for the intelligence run.
+# The HTML page now renders from static geography metadata first; detailed JSON
+# analytics use this shared window and cache key after first paint.
 GEOGRAPHY_DEFAULT_HOURS = 168
-GEOGRAPHY_DEFAULT_LIMIT = 1000
+GEOGRAPHY_DEFAULT_LIMIT = 336
+GEOGRAPHY_QUERY_MAX_LIMIT = 1200
+
+
+def _effective_limit(limit: int | float | None) -> int:
+    try:
+        parsed = int(limit or GEOGRAPHY_DEFAULT_LIMIT)
+    except (TypeError, ValueError):
+        parsed = GEOGRAPHY_DEFAULT_LIMIT
+    return max(1, min(parsed, GEOGRAPHY_QUERY_MAX_LIMIT))
 
 
 def geography_cache_key(scope: str, slug: str, hours: float, limit: int) -> str:
-    return f"geography:{scope}:{slug}:{hours}:{limit}"
+    return f"geography:{scope}:{slug}:{hours}:{_effective_limit(limit)}"
 
 
 DISCO_LABELS = {
@@ -118,15 +126,6 @@ def _responsible_discos(profile: dict[str, Any]) -> list[dict[str, Any]]:
         {"name": DISCO_LABELS[key], "share_of_disco_percent": _round(share * 100, 1)}
         for key, share in profile["discos"].items()
     ]
-
-
-def _snapshot_allocations(snapshot: GridSnapshot) -> dict[str, float]:
-    allocations: dict[str, float] = {}
-    for row in snapshot.disco_data:
-        key = _disco_key(row.company)
-        if key and row.load_allocation_mw is not None:
-            allocations[key] = allocations.get(key, 0.0) + float(row.load_allocation_mw)
-    return allocations
 
 
 def _estimate_allocation(profile: dict[str, Any], allocations: dict[str, float]) -> tuple[float | None, list[dict[str, Any]]]:
@@ -267,46 +266,118 @@ def _moving_average(history: list[dict[str, Any]], window_size: int = 6) -> list
     return enriched
 
 
-def _snapshot_rows(hours: float, limit: int) -> list[GridSnapshot]:
-    # GridSnapshot.genco_data is lazy="selectin", so it loads on every snapshot
-    # query by default. Nothing in the geography layer reads plant output, and
-    # at limit=1000 that was another ~13,000 rows fetched and discarded per
-    # request, so it is switched off explicitly here.
-    options = (selectinload(GridSnapshot.disco_data), noload(GridSnapshot.genco_data))
-    since = utc_now() - timedelta(hours=hours)
-    rows = (
-        GridSnapshot.query.options(*options)
-        .filter(GridSnapshot.reading_timestamp >= since)
-        .order_by(GridSnapshot.reading_timestamp.desc())
-        .limit(limit)
+def _allocation_rows(hours: float, limit: int, require_window: bool):
+    effective_limit = _effective_limit(limit)
+    snapshot_query = db.session.query(
+        GridSnapshot.id.label("snapshot_id"),
+        GridSnapshot.reading_timestamp.label("reading_timestamp"),
+        GridSnapshot.captured_at.label("captured_at"),
+    )
+    if require_window:
+        snapshot_query = snapshot_query.filter(GridSnapshot.reading_timestamp >= utc_now() - timedelta(hours=hours))
+    snapshot_subquery = (
+        snapshot_query.order_by(GridSnapshot.reading_timestamp.desc())
+        .limit(effective_limit)
+        .subquery()
+    )
+    return (
+        db.session.query(
+            snapshot_subquery.c.snapshot_id,
+            snapshot_subquery.c.reading_timestamp,
+            snapshot_subquery.c.captured_at,
+            DiscoData.company,
+            DiscoData.load_allocation_mw,
+        )
+        .outerjoin(DiscoData, DiscoData.snapshot_id == snapshot_subquery.c.snapshot_id)
+        .order_by(snapshot_subquery.c.reading_timestamp.asc(), DiscoData.company.asc())
         .all()
     )
-    if not rows:
-        # Capture that has been broken for longer than the window leaves this
-        # branch serving every request, so it is the hot path, not the rare one.
-        rows = (
-            GridSnapshot.query.options(*options)
-            .order_by(GridSnapshot.reading_timestamp.desc())
-            .limit(limit)
-            .all()
+
+
+def _series_from_allocation_rows(rows) -> list[tuple[str | None, str | None, dict[str, float]]]:
+    ordered_ids = []
+    by_snapshot: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        snapshot_id = row.snapshot_id
+        if snapshot_id not in by_snapshot:
+            ordered_ids.append(snapshot_id)
+            by_snapshot[snapshot_id] = {
+                "reading_timestamp": to_iso(row.reading_timestamp),
+                "captured_at": to_iso(row.captured_at),
+                "allocations": {},
+            }
+        key = _disco_key(row.company)
+        if key and row.load_allocation_mw is not None:
+            allocations = by_snapshot[snapshot_id]["allocations"]
+            allocations[key] = allocations.get(key, 0.0) + float(row.load_allocation_mw)
+    return [
+        (
+            by_snapshot[snapshot_id]["reading_timestamp"],
+            by_snapshot[snapshot_id]["captured_at"],
+            by_snapshot[snapshot_id]["allocations"],
         )
-    return list(reversed(rows))
+        for snapshot_id in ordered_ids
+    ]
+
+
+def _load_allocation_series(hours: float, limit: int) -> list[tuple[str | None, str | None, dict[str, float]]]:
+    rows = _allocation_rows(hours, limit, require_window=True)
+    if not rows:
+        rows = _allocation_rows(hours, limit, require_window=False)
+    return _series_from_allocation_rows(rows)
 
 
 def _allocation_series(hours: float, limit: int) -> list[tuple[str | None, str | None, dict[str, float]]]:
     """DisCo allocation per stored reading, independent of any one area.
 
-    Every state and region derives its history from exactly the same snapshots;
-    only the profile weighting differs. Loading them once per window instead of
-    once per area is what keeps a 37-page crawl off the worker's back.
+    This intentionally selects only snapshot timestamps and DisCo rows. It avoids
+    materializing full GridSnapshot ORM objects or plant-level GenCo rows during
+    state/region requests, which keeps cold-cache geography pages from stalling
+    the worker on Render free tier.
     """
+    effective_limit = _effective_limit(limit)
     return get_cached(
-        f"geography:allocations:{hours}:{limit}",
+        f"geography:allocations:{hours}:{effective_limit}",
         current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
-        lambda: [
-            (to_iso(row.reading_timestamp), to_iso(row.captured_at), _snapshot_allocations(row))
-            for row in _snapshot_rows(hours, limit)
-        ],
+        lambda: _load_allocation_series(hours, effective_limit),
+    )
+
+
+def _load_latest_allocation_context() -> dict[str, Any] | None:
+    latest = (
+        db.session.query(
+            GridSnapshot.id.label("snapshot_id"),
+            GridSnapshot.reading_timestamp.label("reading_timestamp"),
+            GridSnapshot.captured_at.label("captured_at"),
+        )
+        .order_by(GridSnapshot.reading_timestamp.desc())
+        .first()
+    )
+    if not latest:
+        return None
+    allocations: dict[str, float] = {}
+    rows = (
+        db.session.query(DiscoData.company, DiscoData.load_allocation_mw)
+        .filter(DiscoData.snapshot_id == latest.snapshot_id)
+        .all()
+    )
+    for row in rows:
+        key = _disco_key(row.company)
+        if key and row.load_allocation_mw is not None:
+            allocations[key] = allocations.get(key, 0.0) + float(row.load_allocation_mw)
+    return {
+        "snapshot_id": latest.snapshot_id,
+        "reading_timestamp": to_iso(latest.reading_timestamp),
+        "captured_at": to_iso(latest.captured_at),
+        "allocations": allocations,
+    }
+
+
+def _latest_allocation_context() -> dict[str, Any] | None:
+    return get_cached(
+        "geography:latest_allocation",
+        current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+        _load_latest_allocation_context,
     )
 
 
@@ -330,13 +401,12 @@ def _history_for_profile(profile: dict[str, Any], hours: float, limit: int) -> l
     return _moving_average(history)
 
 
-def _rankings(target_slug: str, latest_snapshot: GridSnapshot | None) -> dict[str, Any]:
-    if not latest_snapshot:
+def _rankings(target_slug: str, latest_allocations: dict[str, float] | None) -> dict[str, Any]:
+    if not latest_allocations:
         return {"allocation_rank": None, "stress_rank": None, "reliability_rank": None, "peer_count": len(STATE_PROFILES)}
-    allocations = _snapshot_allocations(latest_snapshot)
     rows = []
     for slug, profile in STATE_PROFILES.items():
-        allocation, _ = _estimate_allocation(profile, allocations)
+        allocation, _ = _estimate_allocation(profile, latest_allocations)
         metrics = _metrics(profile, allocation)
         rows.append(
             {
@@ -389,6 +459,14 @@ def _analysis_summary(name: str, scope: str, stats: dict[str, Any], metrics: dic
         f"Infrastructure stress is {stress if stress is not None else 'unknown'} and reliability is "
         f"{reliability if reliability is not None else 'unknown'}, producing a {risk} geography risk classification. "
         f"This is an automated planning-grade summary from DisCo allocation shares, population assumptions, and public grid readings."
+    )
+
+
+def _static_analysis_summary(name: str, scope: str) -> str:
+    return (
+        f"{name} {scope.lower()} intelligence renders immediately from static franchise-area, population, demand-growth, "
+        "and settlement-growth profiles. Live allocation trends, reliability movement, transformer risk, and peer rankings "
+        "load asynchronously from stored public DisCo allocation readings when the analytics API responds."
     )
 
 
@@ -456,25 +534,98 @@ def list_regions() -> list[dict[str, Any]]:
     return regions
 
 
-def state_intelligence(slug: str, hours: float = 168, limit: int = 1000) -> dict[str, Any]:
+def static_geography_context(scope: str, slug: str) -> dict[str, Any]:
+    scope = slugify_entity(scope)
+    slug = slugify_entity(slug)
+    states_payload = None
+    if scope == "state":
+        profile = STATE_PROFILES.get(slug)
+        if not profile:
+            raise GeographyNotFound(f"State not found: {slug}")
+        entity = {
+            "name": profile["name"],
+            "short_name": _profile_display(profile),
+            "slug": slug,
+            "region": REGION_LABELS[profile["region"]],
+            "region_slug": profile["region"],
+            "url": f"/state/{slug}",
+        }
+        related = list_states()
+        peer_count = len(STATE_PROFILES)
+        scope_label = "State"
+    elif scope == "region":
+        state_slugs = _region_state_slugs(slug)
+        profile = _combined_profile(REGION_LABELS[slug], slug, state_slugs)
+        entity = {
+            "name": REGION_LABELS[slug],
+            "short_name": REGION_LABELS[slug],
+            "slug": slug,
+            "region": REGION_LABELS[slug],
+            "region_slug": slug,
+            "url": f"/region/{slug}",
+        }
+        states_payload = [
+            {"name": STATE_PROFILES[state_slug]["name"], "slug": state_slug, "url": f"/state/{state_slug}"}
+            for state_slug in state_slugs
+        ]
+        related = list_regions()
+        peer_count = len(REGION_LABELS)
+        scope_label = "Region"
+    else:
+        raise GeographyNotFound(f"Geography scope not found: {scope}")
+
+    stats = _stats([])
+    metrics = _metrics(profile, None)
+    trend = _trend([])
+    forecast = _forecast([])
+    payload = {
+        "scope": scope,
+        "entity": entity,
+        "generated_at": utc_now_iso(),
+        "window_hours": GEOGRAPHY_DEFAULT_HOURS,
+        "sample_count": 0,
+        "responsible_discos": _responsible_discos(profile),
+        "current_allocation_components": [],
+        "statistics": stats,
+        "metrics": metrics,
+        "trend": trend,
+        "forecast": forecast,
+        "rankings": {
+            "allocation_rank": None,
+            "stress_rank": None,
+            "reliability_rank": None,
+            "peer_count": peer_count,
+        },
+        "risk": {"classification": "pending", "primary_driver": "historical_allocation_pending"},
+        "history": [],
+        "analysis_summary": _static_analysis_summary(entity["short_name"], scope_label),
+        "related": related,
+        "data_status": {
+            "ok": False,
+            "source": "static_geography_profile",
+            "message": "Historical allocation analytics load asynchronously from the geography API.",
+        },
+    }
+    if states_payload is not None:
+        payload["states"] = states_payload
+    return payload
+
+
+def state_intelligence(slug: str, hours: float = GEOGRAPHY_DEFAULT_HOURS, limit: int = GEOGRAPHY_DEFAULT_LIMIT) -> dict[str, Any]:
     slug = slugify_entity(slug)
     profile = STATE_PROFILES.get(slug)
     if not profile:
         raise GeographyNotFound(f"State not found: {slug}")
-    history = _history_for_profile(profile, hours, limit)
+    effective_limit = _effective_limit(limit)
+    history = _history_for_profile(profile, hours, effective_limit)
     stats = _stats(history)
     metrics = _metrics(profile, stats["latest_mw"])
-    latest_snapshot = (
-        GridSnapshot.query.options(
-            selectinload(GridSnapshot.disco_data), noload(GridSnapshot.genco_data)
-        )
-        .order_by(GridSnapshot.reading_timestamp.desc())
-        .first()
-    )
-    allocation, components = _estimate_allocation(profile, _snapshot_allocations(latest_snapshot)) if latest_snapshot else (None, [])
+    latest_context = _latest_allocation_context()
+    latest_allocations = latest_context["allocations"] if latest_context else None
+    allocation, components = _estimate_allocation(profile, latest_allocations or {}) if latest_allocations else (None, [])
     trend = _trend(history)
     forecast = _forecast(history)
-    rankings = _rankings(slug, latest_snapshot)
+    rankings = _rankings(slug, latest_allocations)
     return {
         "scope": "state",
         "entity": {
@@ -499,26 +650,23 @@ def state_intelligence(slug: str, hours: float = 168, limit: int = 1000) -> dict
         "history": history,
         "analysis_summary": _analysis_summary(profile["name"], "State", stats, metrics, trend, rankings),
         "related": list_states(),
+        "data_status": {"ok": True, "source": "stored_disco_allocation_history"},
     }
 
 
-def region_intelligence(slug: str, hours: float = 168, limit: int = 1000) -> dict[str, Any]:
+def region_intelligence(slug: str, hours: float = GEOGRAPHY_DEFAULT_HOURS, limit: int = GEOGRAPHY_DEFAULT_LIMIT) -> dict[str, Any]:
     slug = slugify_entity(slug)
     state_slugs = _region_state_slugs(slug)
     profile = _combined_profile(REGION_LABELS[slug], slug, state_slugs)
-    history = _history_for_profile(profile, hours, limit)
+    effective_limit = _effective_limit(limit)
+    history = _history_for_profile(profile, hours, effective_limit)
     stats = _stats(history)
     metrics = _metrics(profile, stats["latest_mw"])
     trend = _trend(history)
     forecast = _forecast(history)
-    latest_snapshot = (
-        GridSnapshot.query.options(
-            selectinload(GridSnapshot.disco_data), noload(GridSnapshot.genco_data)
-        )
-        .order_by(GridSnapshot.reading_timestamp.desc())
-        .first()
-    )
-    allocation, components = _estimate_allocation(profile, _snapshot_allocations(latest_snapshot)) if latest_snapshot else (None, [])
+    latest_context = _latest_allocation_context()
+    latest_allocations = latest_context["allocations"] if latest_context else None
+    allocation, components = _estimate_allocation(profile, latest_allocations or {}) if latest_allocations else (None, [])
     rankings = {
         "allocation_rank": None,
         "stress_rank": None,
@@ -526,11 +674,10 @@ def region_intelligence(slug: str, hours: float = 168, limit: int = 1000) -> dic
         "peer_count": len(REGION_LABELS),
     }
     region_rows = []
-    if latest_snapshot:
-        allocations = _snapshot_allocations(latest_snapshot)
+    if latest_allocations:
         for region_slug, region_name in REGION_LABELS.items():
             combined = _combined_profile(region_name, region_slug, _region_state_slugs(region_slug))
-            estimated, _ = _estimate_allocation(combined, allocations)
+            estimated, _ = _estimate_allocation(combined, latest_allocations)
             row_metrics = _metrics(combined, estimated)
             region_rows.append(
                 {
@@ -574,4 +721,5 @@ def region_intelligence(slug: str, hours: float = 168, limit: int = 1000) -> dic
         "history": history,
         "analysis_summary": _analysis_summary(REGION_LABELS[slug], "Region", stats, metrics, trend, rankings),
         "related": list_regions(),
+        "data_status": {"ok": True, "source": "stored_disco_allocation_history"},
     }
