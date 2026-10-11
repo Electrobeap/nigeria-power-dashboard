@@ -37,7 +37,7 @@ def public_url_entries(base_url: str) -> list[dict[str, str]]:
             "changefreq": "daily",
             "priority": "0.8",
         }
-        for path in ("/states", "/regions", "/geography", "/discos", "/gencos", "/articles")
+        for path in ("/states", "/regions", "/geography", "/discos", "/gencos", "/articles", "/pricing")
     )
     entries.extend(
         {
