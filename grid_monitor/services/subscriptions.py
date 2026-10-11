@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Iterable
@@ -260,7 +261,7 @@ def seed_subscription_pricing() -> None:
         log_event("subscription_pricing_seeded")
     except SQLAlchemyError as exc:
         db.session.rollback()
-        log_event("subscription_pricing_seed_failed", level="warning", error=str(exc))
+        log_event("subscription_pricing_seed_failed", level=logging.WARNING, error=str(exc))
 
 
 def pricing_payload(currency: str | None = None) -> dict:
