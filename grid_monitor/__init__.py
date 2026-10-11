@@ -9,10 +9,12 @@ from flask import Flask, current_app, request
 from grid_monitor.config import Config
 from grid_monitor.extensions import db, migrate
 from grid_monitor.routes.api import api_bp
+from grid_monitor.routes.subscriptions import subscription_bp
 from grid_monitor.routes.web import web_bp
 from grid_monitor.services.indexnow import start_indexnow_startup_notification
 from grid_monitor.services.scheduler import start_scheduler, stop_scheduler
 from grid_monitor.services.storage import _ensure_sqlite_parent, init_database
+from grid_monitor.services.subscriptions import seed_subscription_pricing
 from grid_monitor.utils.logging import configure_logging, log_event
 
 
@@ -29,6 +31,15 @@ COMPRESSIBLE_MIMETYPES = {
     "text/plain",
     "text/xml",
 }
+
+PRIVATE_CACHE_PREFIXES = (
+    "/account",
+    "/billing",
+    "/login",
+    "/logout",
+    "/register",
+    "/api/billing",
+)
 
 
 def _alembic_config(app: Flask):
@@ -92,7 +103,12 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         if app.config["RUN_MIGRATIONS_ON_STARTUP"] and not is_flask_db_command:
             run_startup_migrations()
         init_database()
+        try:
+            seed_subscription_pricing()
+        except Exception as exc:
+            log_event("subscription_pricing_seed_skipped", level=logging.WARNING, error=str(exc))
 
+    app.register_blueprint(subscription_bp)
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
 
@@ -112,7 +128,9 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     def add_production_headers(response):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        if request.path.startswith("/static/"):
+        if request.path.startswith(PRIVATE_CACHE_PREFIXES):
+            response.headers["Cache-Control"] = "private, no-store"
+        elif request.path.startswith("/static/"):
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         elif request.path in {"/favicon.svg", "/robots.txt", "/sitemap.xml"}:
             response.headers["Cache-Control"] = "public, max-age=3600"
