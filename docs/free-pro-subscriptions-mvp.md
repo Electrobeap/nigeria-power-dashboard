@@ -39,6 +39,22 @@ This phase targets individual Pro accounts only. Multi-seat organizations, comme
 - When implementing PR A, **do not integrate or activate live payments**. Implement a secure schema and pricing UI with disabled USD actions only. PR C should implement NGN test-mode charges first, USD test support only after verified provider capabilities; live USD is a separate future go-live decision.
 - Test NGN and USD prices separately, currency tampering (e.g. client sends USD while claiming NGN plan), plan-ID mismatch, duplicate webhook events, and currency-specific entitlement / refund reconciliation. Update the earlier single-currency spec as needed, without rebuilding the site or changing the current public dashboard.
 
+## Priority production blocker — state and regional drill-down timeouts (2026-10-11)
+
+**Do this before merging or activating subscriptions.** In August, `/state/lagos` returned 502 in production even when the homepage worked. All 37 state routes once passed local tests after an optimization, but production verification was incomplete. On 2026-10-11 the public `/states` directory and homepage loaded while external fetches of `/state/lagos`, `/state/edo`, and `/region/north-central` timed out. This is a **reproduction signal, not a confirmed root cause or HTTP status for today's failures**.
+
+Read `grid_monitor/routes/web.py` `_geo_seo_context()`, `state_page()`, `region_page()`, `grid_monitor/services/state_intelligence.py` `_allocation_series()`, `_snapshot_rows()`, `state_intelligence()`, and the state/region JSON routes in `grid_monitor/routes/api.py`.
+
+**Hypothesis to test:** server-side HTML rendering awaits expensive cached-or-uncached historical intelligence and SQLAlchemy snapshot loading; when it stalls, pages never render. Existing start/served/failed request log events can show whether Flask receives and finishes requests. Inspect actual Render logs for `state_page_started` without matching `state_page_served`, `WORKER TIMEOUT`, SIGKILL/OOM, tracebacks, database query timeouts, connection pool saturation, and worker restarts. Compare production `/state/lagos`, `/state/edo`, `/region/north-central` and JSON `/api/states/lagos`/`/api/regions/north-central`; measure response timing and SQL execution time. Verify custom-domain vs Render service URL only if warranted.
+
+**Fix requirements:**
+- Avoid any costly historical DB query blocking the initial state/region HTML. Prefer fast metadata generated from existing static `STATE_PROFILES` / `REGION_LABELS`, with async client-side analytics API fetch and transparent loading/error states. Keep accurate SEO descriptions while labelling estimates honestly.
+- Optimize API historical queries and SQL loading, fallbacks, caches, query bounds and concurrency; avoid reintroducing N+1, large unbounded joins, or synchronous retries.
+- Remain responsive if historical data is missing, stale, slow, or unavailable; do not render fake/placeholder figures as measurements.
+- Verify 37/37 states, six regions, representative geo hierarchy drill-downs, and corresponding APIs; unknown slugs must 404 correctly. Test warm/cold cache, realistic production-like PostgreSQL volume, and concurrent access. Include elapsed request timings.
+- Do not change production `main` until reviewed and deployed through the normal process. Do not hide errors by increasing Gunicorn timeout alone.
+- **Stop/go:** No release of subscriptions/payment gating until the production drill-down routes reliably respond and analytics failures are gracefully handled.
+
 ## Development order
 
 ### PR A — Readiness and account system (no live charges)
