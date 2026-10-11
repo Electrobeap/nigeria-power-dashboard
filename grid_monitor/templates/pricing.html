@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ description }}">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0B1F3A">
+    {% include "partials/social_meta.html" %}
+    <title>{{ title }} | Nigeria Power Data</title>
+    <link rel="canonical" href="{{ config.APP_BASE_URL }}{{ canonical_path }}">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=chart-readability-20260821" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=chart-readability-20260821">
+    <style>
+        .pricing-shell { padding-bottom: clamp(3rem, 8vw, 6rem); }
+        .pricing-hero { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: clamp(1.25rem, 4vw, 2rem); align-items: end; }
+        .pricing-note { border: 1px solid rgba(37, 99, 235, .18); background: rgba(37, 99, 235, .07); color: var(--text, #0b1f3a); border-radius: 18px; padding: 1rem; }
+        .pricing-note strong { display: block; margin-bottom: .35rem; color: #0b1f3a; }
+        .currency-switcher { display: inline-flex; gap: .35rem; padding: .35rem; border: 1px solid rgba(11, 31, 58, .12); border-radius: 999px; background: rgba(255,255,255,.75); box-shadow: 0 10px 25px rgba(11,31,58,.06); }
+        .currency-switcher a { min-width: 4.25rem; text-align: center; padding: .65rem .95rem; border-radius: 999px; color: inherit; text-decoration: none; font-weight: 700; }
+        .currency-switcher a.active { background: #0b1f3a; color: #fff; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+        .pricing-card { position: relative; display: flex; flex-direction: column; gap: 1rem; min-height: 100%; padding: clamp(1rem, 2vw, 1.4rem); border: 1px solid rgba(11,31,58,.1); border-radius: 20px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)); box-shadow: 0 18px 45px rgba(11,31,58,.08); }
+        .pricing-card.featured { border-color: rgba(0,135,81,.32); box-shadow: 0 22px 55px rgba(0,135,81,.14); }
+        .pricing-badge { align-self: flex-start; border-radius: 999px; background: rgba(0,135,81,.1); color: #008751; font-size: .78rem; font-weight: 800; padding: .35rem .65rem; text-transform: uppercase; letter-spacing: .04em; }
+        .pricing-card h2 { margin: 0; font-size: clamp(1.2rem, 2vw, 1.5rem); }
+        .pricing-tier { color: var(--muted, #64748b); margin: -.7rem 0 0; font-weight: 700; }
+        .pricing-price { display: flex; align-items: baseline; gap: .4rem; margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .pricing-price strong { font-size: clamp(2rem, 5vw, 3rem); letter-spacing: 0; color: #0b1f3a; }
+        .pricing-price span { color: var(--muted, #64748b); font-weight: 700; }
+        .pricing-description { color: var(--muted, #64748b); min-height: 4.2rem; }
+        .pricing-features { display: grid; gap: .6rem; padding: 0; margin: 0; list-style: none; }
+        .pricing-features li { display: grid; grid-template-columns: auto 1fr; gap: .5rem; align-items: start; color: #334155; }
+        .pricing-features li::before { content: ""; width: .5rem; height: .5rem; margin-top: .5rem; border-radius: 999px; background: #008751; }
+        .pricing-action { margin-top: auto; display: inline-flex; align-items: center; justify-content: center; min-height: 2.8rem; border: 0; border-radius: 12px; padding: .7rem 1rem; background: #0b1f3a; color: #fff; font-weight: 800; text-decoration: none; }
+        .pricing-action.secondary { background: rgba(11,31,58,.08); color: #0b1f3a; }
+        .pricing-action[aria-disabled="true"] { cursor: not-allowed; opacity: .72; }
+        .pricing-footnote { color: var(--muted, #64748b); font-size: .88rem; margin: 0; }
+        .billing-guardrails { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: 1.25rem; }
+        .billing-guardrail { border: 1px solid rgba(11,31,58,.1); border-radius: 16px; padding: 1rem; background: rgba(255,255,255,.74); }
+        .billing-guardrail h3 { margin: 0 0 .45rem; font-size: 1rem; }
+        .billing-guardrail p { margin: 0; color: var(--muted, #64748b); }
+        html[data-theme="dark"] .pricing-note, html[data-theme="dark"] .pricing-card, html[data-theme="dark"] .billing-guardrail, html[data-theme="dark"] .currency-switcher { background: rgba(15,23,42,.78); border-color: rgba(148,163,184,.2); }
+        html[data-theme="dark"] .pricing-note strong, html[data-theme="dark"] .pricing-price strong, html[data-theme="dark"] .pricing-card h2, html[data-theme="dark"] .pricing-action.secondary { color: #f8fafc; }
+        html[data-theme="dark"] .pricing-features li { color: #cbd5e1; }
+        html[data-theme="dark"] .currency-switcher a.active { background: #008751; }
+        @media (max-width: 1100px) { .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pricing-hero, .billing-guardrails { grid-template-columns: 1fr; } }
+        @media (max-width: 640px) { .pricing-grid { grid-template-columns: 1fr; } .currency-switcher { display: grid; grid-template-columns: repeat(2, 1fr); width: 100%; } }
+    </style>
+    {% include "partials/structured_data.html" %}
+    {% include "partials/google_analytics.html" %}
+    {% include "partials/microsoft_clarity.html" %}
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="/" aria-label="Nigeria Power Data home">
+        <picture>
+            <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+            <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76" decoding="async" fetchpriority="high">
+        </picture>
+    </a>
+    {% include "partials/nav.html" %}
+    <div class="topbar-actions">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+    </div>
+</header>
+
+<main class="shell pricing-shell">
+    <section class="hero-copy content-hero pricing-hero" aria-labelledby="pricing-title">
+        <div>
+            <p class="eyebrow">Subscription readiness</p>
+            <h1 id="pricing-title">Pricing built for Nigerian and international energy analysts.</h1>
+            <p class="hero-lede">Community access remains free. Pro pricing is prepared as separate NGN and USD price catalogs, with live payment collection and access restrictions disabled until review.</p>
+            <div class="currency-switcher" aria-label="Select billing currency">
+                {% for option in currencies %}
+                <a href="/pricing?currency={{ option }}" class="{% if option == currency %}active{% endif %}" aria-current="{{ 'page' if option == currency else 'false' }}">{{ option }}</a>
+                {% endfor %}
+            </div>
+        </div>
+        <aside class="pricing-note" aria-label="Billing status">
+            <strong>No live billing is active.</strong>
+            <p>NGN checkout is prepared for Paystack sandbox testing only. USD checkout stays disabled until Jirow Technologies Limited has approved corporate USD settlement and provider eligibility.</p>
+        </aside>
+    </section>
+
+    <section class="pricing-grid" aria-label="Subscription plans">
+        {% for plan in pricing.plans %}
+        <article class="pricing-card {% if plan.plan_code == 'pro' %}featured{% endif %}">
+            {% if plan.badge %}<span class="pricing-badge">{{ plan.badge }}</span>{% endif %}
+            <h2>{{ plan.display_name }}</h2>
+            <p class="pricing-tier">{{ plan.tier }}</p>
+            <p class="pricing-price"><strong>{{ plan.formatted_price }}</strong>{% if plan.interval %}<span>/ {{ plan.interval }}</span>{% endif %}</p>
+            <p class="pricing-description">{{ plan.description }}</p>
+            <ul class="pricing-features">
+                {% for feature in plan.features %}<li>{{ feature }}</li>{% endfor %}
+            </ul>
+            {% if plan.cta_mode == 'public' %}
+            <a class="pricing-action secondary" href="/">{{ plan.cta_label }}</a>
+            {% elif plan.cta_mode == 'contact-sales' %}
+            <a class="pricing-action secondary" href="/contact">{{ plan.cta_label }}</a>
+            {% elif plan.checkout_enabled %}
+            <button class="pricing-action" type="button" aria-disabled="true" title="Sandbox checkout endpoint is server-ready; UI activation is deferred until account flows are complete.">{{ plan.cta_label }}</button>
+            {% else %}
+            <span class="pricing-action secondary" aria-disabled="true">{{ plan.cta_label }}</span>
+            {% endif %}
+            {% if plan.footnote %}<p class="pricing-footnote">{{ plan.footnote }}</p>{% endif %}
+        </article>
+        {% endfor %}
+    </section>
+
+    <section class="billing-guardrails" aria-label="Billing guardrails">
+        <article class="billing-guardrail">
+            <h3>Separate currency catalogs</h3>
+            <p>NGN and USD amounts are configured independently in minor units. The app does not convert prices using exchange rates.</p>
+        </article>
+        <article class="billing-guardrail">
+            <h3>Provider boundary</h3>
+            <p>Paystack is isolated behind a service layer for NGN test mode, so another eligible provider can be added later.</p>
+        </article>
+        <article class="billing-guardrail">
+            <h3>Public access preserved</h3>
+            <p>Dashboards, data collection, public routes, and historical records are not restricted in this readiness phase.</p>
+        </article>
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div>
+        <a class="footer-brand" href="/" aria-label="Nigeria Power Data home">
+            <picture>
+                <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+                <img class="footer-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" loading="lazy" decoding="async" width="230" height="83">
+            </picture>
+        </a>
+        <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
+    </div>
+    <nav aria-label="Footer navigation">
+        <a href="/privacy-policy">Privacy</a>
+        <a href="/terms-of-use">Terms</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/discos">DisCos</a>
+        <a href="/gencos">GenCos</a>
+        <a href="/sitemap.xml">Sitemap</a>
+    </nav>
+</footer>
+
+<script>
+    const storedTheme = localStorage.getItem("grid-theme");
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = storedTheme || (prefersDark ? "dark" : "light");
+    document.documentElement.dataset.theme = theme;
+    const themeToggle = document.getElementById("theme-toggle");
+    themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
+    themeToggle.addEventListener("click", () => {
+        const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        localStorage.setItem("grid-theme", next);
+        themeToggle.textContent = next === "dark" ? "Light" : "Dark";
+    });
+</script>
+</body>
+</html>
