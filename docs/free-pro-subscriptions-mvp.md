@@ -1,0 +1,78 @@
+# NigeriaPowerData — Free + Pro Subscription MVP
+
+Status: **implementation specification only; no billing or access control is live**  
+Target branch: `feature/free-pro-subscriptions-20261011`  
+Product owner: Jirow Technologies Limited  
+Draft date: 2026-10-11
+
+## Existing codebase — verified
+
+- Production app is Flask 3 with server-rendered Jinja templates, Bootstrap, vanilla JavaScript, SQLAlchemy, Flask-Migrate, PostgreSQL and Render.
+- App factory: `grid_monitor/__init__.py`; API blueprint: `grid_monitor/routes/api.py`; pages: `grid_monitor/routes/web.py`.
+- Models: `grid_monitor/models.py`; current navigation: `grid_monitor/templates/partials/nav.html`; main site UI: `grid_monitor/templates/index.html`; chart client: `grid_monitor/static/js/dashboard.js`.
+- Current endpoints `/api/history`, `/api/generation`, and `/api/analytics` accept historical windows up to **8760 hours**, while entity endpoints accept up to **720 hours**. Dashboard buttons expose 24h, 7d, 30d, 90d, and 1y windows.
+- CSV export currently runs client-side using data already returned from the API. Merely hiding the export button or long-range buttons is **not** authorization.
+- Current `grid_monitor/models.py` and `requirements.txt` have no user, subscription or Paystack models/integration. Existing privacy copy currently says accounts are not used.
+- `render.yaml` has `autoDeploy: true`; do not commit work directly to `main`.
+
+## Scope and pricing (to be validated by founder)
+
+**Community — Free:** preserve existing live dashboards, current metrics, 24h/7d generation views, publicly intended entity summaries, and public articles. Do not remove an existing public 7d view without explicit product approval. Basic 24h export can remain free if needed for continuity.
+
+**Pro — ₦7,500/month, price hypothesis:** 30d/90d/1y generation and historical analytics (subject to actual data availability), premium full-range CSV export, and authenticated premium access. No guarantee that the database already contains one year of history; show actual available coverage.
+
+**Business and Enterprise:** `Contact Sales` placeholders only; no automated billing or promises of unbuilt features in this MVP.
+
+This phase targets individual Pro accounts only. Multi-seat organizations, commercial API-key billing, scheduled reports and Paystack annual plans are deferred.
+
+## Development order
+
+### PR A — Readiness and account system (no live charges)
+1. Run repository tests, map all public historical routes and any JSON embedded in rendered HTML; identify bypasses. Add a short written report.
+2. Build a responsive `/pricing` page, `/register`, `/login`, `/logout`, `/account`, and a clear upgrade flow using the site's current design language. Add a Pricing nav link.
+3. Add database models and proper Alembic migrations for users, plan entitlements, and subscriptions. Use server-controlled plan assignment; default new accounts to free.
+4. Use established Flask authentication patterns (secure password hashing, CSRF-protected forms, secure signed session cookies, login throttling, password reset/email verification where delivery is configured). Do not expose credentials, tokens or personally identifying data in logs.
+5. Set authenticated/account responses to `Cache-Control: private, no-store`, while preserving public caching strategy.
+6. Centralize permissions in a server-side entitlement service, rather than checking the displayed pricing plan in JavaScript.
+7. Keep `SUBSCRIPTIONS_ENABLED=false` by default. With this setting off, existing public API behavior and dashboard must not regress.
+8. Update privacy, terms, and documentation for customer accounts before production signup.
+9. Add tests for account creation/login/logout, authentication failures, migrations and current public dashboard behavior.
+
+### PR B — Server-side Pro authorization (feature-flagged)
+1. Establish a **single, documented permission matrix** for every endpoint capable of returning historical data: `/api/history`, `/api/generation`, `/api/analytics`, and entity/state/region drill-down endpoints; check other aliases and rendered HTML payloads too.
+2. When the feature flag is enabled, allow anonymous/Free requests for the public baseline (up to 168 hours where already public); require active Pro for greater ranges. Return a consistent `403` JSON error with code `subscription_required` and an upgrade URL; do not silently truncate premium queries or return premium data.
+3. Protect CSV datasets with the same authorization as their underlying queries. Limit the free 24h/7d export as product-approved; premium data must not be downloadable from a direct endpoint or alternate route.
+4. Adapt 30d/90d/1y dashboard range buttons to display a login/upgrade action when unauthorised. Do not break 24h or 7d charts and other public widgets.
+5. Test anonymous/Free/Pro/expired subscription access, API aliases, out-of-range inputs, cached responses and protection against bypass through alternate endpoints.
+6. Preserve collection scheduler, scraping, data persistence, article pages, SEO, and the current health endpoint.
+
+### PR C — Paystack **test mode** billing (no live charges)
+1. Add payment initiation for Pro monthly subscription using the **server-side configured** Paystack plan code. Never accept an arbitrary amount, currency or plan code from a browser request.
+2. Use Paystack test credentials supplied through environment variables. Never hardcode secrets, expose secret keys to browsers, or commit an `.env` file.
+3. Verify each transaction server-side with Paystack and authenticate webhook payloads via Paystack's documented HMAC-SHA512 signature process. Make webhook processing **idempotent**, with unique provider event/payment references.
+4. Activate or renew Pro only after independently verified successful payment events. Model pending, active, overdue, cancelled and expired states with explicit expiry and payment reconciliation.
+5. Implement account billing status, renewal/cancel paths and clear customer-facing errors; preserve Pro until the paid-through date when appropriate.
+6. Do not enable Paystack live mode, public signup or gating in production until product owner signs off on tests, data rights and operational readiness.
+7. Provide manual sandbox test instructions: success, declined charge, repeated webhook, forged webhook, missing callback, delayed event, cancellation, renewal, expired plan and refund/dispute.
+
+## Deployment guardrails
+
+- Work only on a feature branch and open a reviewable pull request. Never merge automatically or enable live charges.
+- Paystack secret must remain server-only. All user input and webhooks require validation.
+- Set a strong production `SECRET_KEY` securely via hosting environment. Ensure robust session cookie defaults for HTTPS.
+- Do not use robots.txt, CSS or client JavaScript as access control.
+- Check contractual/redistribution rights for NISO/NIGGRID data and distinguish real measurements from planning-grade estimates before monetizing datasets.
+- Existing `/<page_slug>` content route must not swallow new named auth/pricing routes.
+- Ensure migrations do not drop historical grid data, and consider existing startup migration behavior.
+- Update sitemap to include public `/pricing`, while excluding auth/account/payment URLs.
+- Document environment variables, setup, rollback and monitoring.
+
+## Acceptance criteria
+
+- Site remains functional with feature flags off and no Paystack configuration.
+- Existing public pages and 24h/7d charts remain available when gating is enabled.
+- Direct HTTP API requests cannot access >7d historical data without an active Pro entitlement.
+- Authenticated users can inspect their plan and never access another user's billing information.
+- No live payment processing is possible before explicit go-live configuration and review.
+- Tests cover entitlement expiry, forged/repeated webhooks, pagination and multiple possible data routes.
+- Final PR includes a changed-files summary, migration notes, test commands/results, rollout steps and remaining risks.
