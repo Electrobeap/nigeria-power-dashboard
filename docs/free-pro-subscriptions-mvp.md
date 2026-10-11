@@ -19,11 +19,25 @@ Draft date: 2026-10-11
 
 **Community — Free:** preserve existing live dashboards, current metrics, 24h/7d generation views, publicly intended entity summaries, and public articles. Do not remove an existing public 7d view without explicit product approval. Basic 24h export can remain free if needed for continuity.
 
-**Pro — ₦7,500/month, price hypothesis:** 30d/90d/1y generation and historical analytics (subject to actual data availability), premium full-range CSV export, and authenticated premium access. No guarantee that the database already contains one year of history; show actual available coverage.
+**Pro — ₦7,500/month in NGN and proposed $9/month in USD (separate, provisional market prices):** 30d/90d/1y generation and historical analytics (subject to actual data availability), premium full-range CSV export, and authenticated premium access. No guarantee that the database already contains one year of history; show actual available coverage. USD is display/architecture-ready only until settlement capability is separately approved.
 
 **Business and Enterprise:** `Contact Sales` placeholders only; no automated billing or promises of unbuilt features in this MVP.
 
 This phase targets individual Pro accounts only. Multi-seat organizations, commercial API-key billing, scheduled reports and Paystack annual plans are deferred.
+
+## Amendment — dual-currency readiness (2026-10-11; supersedes conflicting single-currency instructions)
+
+**Business decision:** architect subscriptions for **NGN + USD**, but **do not activate live USD checkout**. Founder has a **personal** Zenith USD domiciliary account, not an approved corporate USD settlement account for Jirow Technologies Limited. Do not collect or request personal banking credentials, and do not route company receipts through a personal account.
+
+- **Price proposals, subject to validation:** Community Free in both currencies; Pro **NGN 7,500/month** and **USD 9/month**. Business **NGN 35,000/month** and **USD 39/month** are *future illustrative prices only*; Business/Enterprise remain `Contact Sales` in the Free + Pro MVP. Prices are market-specific, **not real-time FX conversions**.
+- Build a `currency` field on subscriptions, payment transactions, invoices, and server-side provider plan mappings from day one; represent amounts in integer **minor units** with ISO 4217 currency codes. Keep pricing records/versioning auditable so rates can change for new subscribers without silently changing contracted recurring amounts.
+- Add a transparent **manual NGN/USD selector** on the pricing page. Do not infer payment eligibility exclusively from IP geolocation or the browser locale. Selection is not a billing entitlement.
+- In the first implementation, NGN checkout remains behind Paystack sandbox / production feature flags; actual production activation requires approved company onboarding, verified settlement arrangements, consent and manual release. USD shows `Coming soon` or `Contact sales`, with **no active checkout**, until Jirow's corporate USD settlement and provider support have been verified.
+- When USD becomes authorized, create **distinct server-side provider plan identifiers** for NGN and USD; verify provider support for recurring USD charges, the company's eligibility, settlement bank requirements, payout costs and supported payment methods before adding live checkout. Do not silently charge international buyers in USD if only NGN is authorized.
+- Paystack choice is provisional pending onboarding. Keep a clear billing-provider service boundary so other eligible processors can be considered without rewriting user entitlements. Never expose provider keys or let the browser dictate the charge amount or currency.
+- For accounting, store the **original charge currency/amount** (plus provider settlement amounts, fees, refunds and exchange details if applicable); separately calculate normalized USD ARR for internal reporting, using documented exchange rates and conversion dates.
+- When implementing PR A, **do not integrate or activate live payments**. Implement a secure schema and pricing UI with disabled USD actions only. PR C should implement NGN test-mode charges first, USD test support only after verified provider capabilities; live USD is a separate future go-live decision.
+- Test NGN and USD prices separately, currency tampering (e.g. client sends USD while claiming NGN plan), plan-ID mismatch, duplicate webhook events, and currency-specific entitlement / refund reconciliation. Update the earlier single-currency spec as needed, without rebuilding the site or changing the current public dashboard.
 
 ## Development order
 
