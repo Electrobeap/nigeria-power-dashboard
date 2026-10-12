@@ -1,4 +1,5 @@
 from grid_monitor.services.articles import list_articles
+from grid_monitor.services.research import list_publications
 from grid_monitor.services.entity_intelligence import list_entities
 from grid_monitor.services.state_intelligence import list_regions, list_states
 
@@ -37,7 +38,7 @@ def public_url_entries(base_url: str) -> list[dict[str, str]]:
             "changefreq": "daily",
             "priority": "0.8",
         }
-        for path in ("/states", "/regions", "/geography", "/discos", "/gencos", "/articles")
+        for path in ("/states", "/regions", "/geography", "/discos", "/gencos", "/articles", "/research")
     )
     entries.extend(
         {
@@ -97,6 +98,14 @@ def public_url_entries(base_url: str) -> list[dict[str, str]]:
             ("/api/metadata", "daily", "0.4"),
             ("/api/distribution", "hourly", "0.5"),
         )
+    )
+    entries.extend(
+        {
+            "loc": _absolute_url(base_url, publication["url"]),
+            "changefreq": "monthly",
+            "priority": "0.7",
+        }
+        for publication in list_publications()
     )
     return entries
 

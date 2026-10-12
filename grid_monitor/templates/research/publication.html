@@ -1,0 +1,81 @@
+{% extends "research/base.html" %}
+{% block citation_metadata %}
+<meta name="citation_title" content="{{ publication.title }}">
+{% for author in publication.authors %}
+<meta name="citation_author" content="{{ author.name }}">
+{% for affiliation in author.affiliations %}<meta name="citation_author_institution" content="{{ affiliation }}">{% endfor %}
+{% endfor %}
+<meta name="citation_publication_date" content="{{ publication.published_at | replace('-', '/') }}">
+<meta name="citation_abstract_html_url" content="{{ canonical_url }}">
+<meta name="citation_language" content="en">
+<meta name="citation_keywords" content="{{ publication.keywords | join('; ') }}">
+{% if publication.publication_type == 'technical-report' %}<meta name="citation_technical_report_institution" content="Nigeria Power Data">{% endif %}
+{% if publication.pdf_file %}<meta name="citation_pdf_url" content="{{ canonical_url }}/paper.pdf">{% endif %}
+{% if publication.doi %}<meta name="citation_doi" content="{{ publication.doi }}">{% endif %}
+{% endblock %}
+{% block research_content %}
+<article class="research-paper">
+    <header class="research-header">
+        <p class="eyebrow">{{ publication.type_label }} &middot; Version {{ publication.version }}</p>
+        <h1>{{ publication.title }}</h1>
+        <p class="research-authors">{{ publication.authors | map(attribute='name') | join('; ') }}</p>
+        <p class="research-muted">Published <time datetime="{{ publication.published_at }}">{{ publication.published_at }}</time> &middot; Updated <time datetime="{{ publication.updated_at }}">{{ publication.updated_at }}</time></p>
+    </header>
+    <section class="research-abstract" aria-labelledby="abstract">
+        <h2 id="abstract">Abstract</h2>
+        <p>{{ publication.abstract }}</p>
+    </section>
+    <div class="research-metadata">
+        <p><strong>Review status:</strong> {% if publication.peer_review_status == 'externally_peer_reviewed' %}Externally peer reviewed &middot; <a href="{{ publication.peer_review_url }}" rel="noopener">Review evidence</a>{% else %}Not peer reviewed{% endif %}</p>
+        <p><strong>Keywords:</strong> {{ publication.keywords | join('; ') }}</p>
+        <ul class="research-author-details">
+            {% for author in publication.authors %}
+            <li><strong>{{ author.name }}</strong>{% if author.affiliations %} &middot; {{ author.affiliations | join('; ') }}{% endif %}{% if author.orcid %} &middot; <a href="{{ author.orcid }}" rel="noopener">ORCID {{ author.orcid.rsplit('/', 1)[-1] }}</a>{% endif %}</li>
+            {% endfor %}
+        </ul>
+        <p><strong>License:</strong> {% if publication.license_url %}<a href="{{ publication.license_url }}">{{ publication.license }}</a>{% else %}{{ publication.license }}{% endif %}</p>
+        {% if publication.doi %}<p><strong>Registered DOI:</strong> <a href="https://doi.org/{{ publication.doi }}">{{ publication.doi }}</a>{% if publication.zenodo_url %} &middot; <a href="{{ publication.zenodo_url }}">Zenodo record</a>{% endif %}</p>{% endif %}
+    </div>
+    <nav class="research-actions" aria-label="Publication downloads">
+        {% if publication.pdf_file %}<a href="{{ url_for('research.paper', slug=publication.slug) }}">Read PDF</a><a href="{{ url_for('research.paper', slug=publication.slug) }}" download="{{ publication.slug }}-v{{ publication.version }}.pdf">Download PDF</a>{% endif %}
+        <a href="{{ url_for('research.citation_export', slug=publication.slug) }}">Download BibTeX</a>
+        <a href="#cite">Cite this publication</a>
+    </nav>
+    {% for key, heading in [('methodology', 'Methodology'), ('findings', 'Findings'), ('limitations', 'Limitations'), ('assumptions', 'Methodological assumptions')] %}
+    <section class="research-section" aria-labelledby="{{ key }}">
+        <h2 id="{{ key }}">{{ heading }}</h2>
+        {% for paragraph in publication[key] %}<p>{{ paragraph }}</p>{% endfor %}
+    </section>
+    {% endfor %}
+    <section class="research-section" aria-labelledby="provenance">
+        <h2 id="provenance">Data provenance</h2>
+        <p>Measured source observations and estimated intelligence are identified separately below.</p>
+        {% for source in publication.data_provenance %}
+        <div class="research-source">
+            <h3><a href="{{ source.url }}">{{ source.citation }}</a></h3>
+            <dl>
+                <dt>Data type</dt><dd>{{ source.data_kind | capitalize }}</dd>
+                <dt>Coverage</dt><dd>{{ source.coverage }}</dd>
+                <dt>Accessed</dt><dd>{{ source.accessed_on }}</dd>
+                <dt>Processing</dt><dd>{{ source.processing }}</dd>
+                <dt>Source rights</dt><dd>{{ source.license }}</dd>
+            </dl>
+        </div>
+        {% endfor %}
+    </section>
+    <section class="research-section" aria-labelledby="references">
+        <h2 id="references">References</h2>
+        <ol>{% for reference in publication.references %}<li>{% if reference.url %}<a href="{{ reference.url }}">{{ reference.citation }}</a>{% else %}{{ reference.citation }}{% endif %}</li>{% endfor %}</ol>
+    </section>
+    <section class="research-section" aria-labelledby="cite">
+        <h2 id="cite">Cite this publication</h2>
+        <p>{{ citation }}</p>
+        <details><summary>BibTeX</summary><pre class="research-bibtex">{{ bibtex_text }}</pre></details>
+        <p><a href="{{ url_for('research.citation_export', slug=publication.slug) }}">Download citation (.bib)</a></p>
+    </section>
+    <section class="research-section" aria-labelledby="repository">
+        <h2 id="repository">Repository submission</h2>
+        <p>Authors may <a href="{{ url_for('research.submission_export', slug=publication.slug) }}">download the submission record</a> for manual submission through their own ResearchGate account, subject to the publication's sharing rights. This does not create an automatic listing.</p>
+    </section>
+</article>
+{% endblock %}

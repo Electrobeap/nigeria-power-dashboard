@@ -1,0 +1,5 @@
+# Editorial tooling and automated tests only; Render keeps requirements.txt.
+-r requirements.txt
+pytest>=8.3,<9
+reportlab>=4.4,<5
+pypdf>=6.1,<7
