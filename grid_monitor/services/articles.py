@@ -5,6 +5,8 @@ from typing import Any
 
 
 ARTICLE_AUTHOR = "Nigeria Power Data Team"
+# Recorded content dates match the initial editorial commit 693c95a; see docs/article-seo-audit.md.
+# Later image-only changes do not reset the date of the written content.
 ARTICLE_PUBLISHED_AT = "2026-07-15"
 ARTICLE_UPDATED_AT = "2026-07-15"
 
@@ -138,6 +140,8 @@ def _article(
     references: list[dict[str, str]],
     featured: bool = False,
     popular_score: int = 50,
+    published_at: str = ARTICLE_PUBLISHED_AT,
+    updated_at: str = ARTICLE_UPDATED_AT,
 ) -> dict[str, Any]:
     sections = [*sections, _research_notes_section(title, category)]
     photo = ARTICLE_PHOTOS.get(slug)
@@ -148,8 +152,8 @@ def _article(
         "description": description,
         "category": category,
         "author": ARTICLE_AUTHOR,
-        "published_at": ARTICLE_PUBLISHED_AT,
-        "updated_at": ARTICLE_UPDATED_AT,
+        "published_at": published_at,
+        "updated_at": updated_at,
         "keywords": keywords,
         "image": _photo_url(photo["base"]) if photo else f"/static/images/articles/{slug}.webp",
         "image_srcset": _photo_srcset(photo["base"]) if photo else "",
@@ -230,6 +234,7 @@ def _internal_links_for(article: dict[str, Any]) -> list[dict[str, str]]:
         {"label": "State intelligence", "url": "/states"},
         {"label": "Methodology", "url": "/methodology"},
         {"label": "Data sources", "url": "/data-sources"},
+        {"label": "Original research library", "url": "/research"},
     ]
     if article["category"] == "Generation":
         links.insert(1, {"label": "GenCo intelligence directory", "url": "/gencos"})

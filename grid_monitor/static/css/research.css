@@ -38,3 +38,20 @@
 .research-skip{position:fixed;left:16px;top:-100px;z-index:50;padding:12px;background:var(--card-strong);color:var(--text)}
 .research-skip:focus{top:12px}
 @media(max-width:600px){.research-shell{padding-inline:18px}.research-header h1{font-size:1.625rem}.research-source dl{grid-template-columns:1fr;gap:4px}.research-source dd{margin-bottom:10px}.research-filters>div{flex-basis:100%}}
+
+.research-list>h2{font-size:1.375rem;margin-top:28px}
+.research-list-item h3{font-size:1.25rem;line-height:1.4}
+.research-guides{margin-top:28px;padding-top:28px;border-top:1px solid var(--line)}
+.research-guides>h2{font-size:1.375rem;line-height:1.4}
+.research-guides>p{line-height:1.7}
+.research-guide-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-block:24px}
+.research-guide-card{min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--card);overflow:hidden}
+.research-guide-link{display:flex;flex-direction:column;height:100%;color:var(--text);text-decoration:none}
+.research-guide-image{display:block;aspect-ratio:16/9;overflow:hidden;flex:none}
+.research-guide-image img{display:block;width:100%;height:100%;object-fit:cover}
+.research-guide-body{padding:18px;min-width:0;overflow-wrap:anywhere}
+.research-guide-body h3{font-size:1.125rem;line-height:1.4;margin:12px 0}
+.research-guide-body p{line-height:1.6;margin:10px 0}
+.research-guide-link:hover h3{text-decoration:underline}
+@media(max-width:900px){.research-guide-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:619px){.research-guide-grid{grid-template-columns:minmax(0,1fr)}}

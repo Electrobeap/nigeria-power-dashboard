@@ -44,16 +44,16 @@
         {% endfor %}
     </nav>
 
-    <article class="article-page" itemscope itemtype="https://schema.org/Article">
+    <article class="article-page">
         <header class="hero-copy content-hero article-hero" aria-labelledby="article-title">
             <div>
                 <p class="eyebrow">{{ article.category }}</p>
-                <h1 id="article-title" itemprop="headline">{{ article.title }}</h1>
-                <p class="hero-lede" itemprop="description">{{ article.description }}</p>
+                <h1 id="article-title">{{ article.title }}</h1>
+                <p class="hero-lede">{{ article.description }}</p>
                 <div class="article-meta-row article-hero-meta">
-                    <span itemprop="author">{{ article.author }}</span>
-                    <span>Published {{ article.published_at }}</span>
-                    <span>Last Updated {{ article.updated_at }}</span>
+                    <span>{{ article.author }}</span>
+                    <span>Published <time datetime="{{ article.published_at }}">{{ article.published_at }}</time></span>
+                    <span>Last Updated <time datetime="{{ article.updated_at }}">{{ article.updated_at }}</time></span>
                     <span>{{ article.read_minutes }} min read</span>
                 </div>
             </div>
@@ -67,7 +67,7 @@
         <figure class="article-feature-image">
             <picture>
                 <source srcset="{{ article.image_srcset or article.image }}" sizes="(min-width: 1120px) 900px, 100vw" type="image/webp">
-                <img src="{{ article.image_fallback or article.image }}" alt="{{ article.image_alt }}" width="1280" height="720" loading="eager" decoding="async" fetchpriority="high" itemprop="image">
+                <img src="{{ article.image_fallback or article.image }}" alt="{{ article.image_alt }}" width="1280" height="720" loading="eager" decoding="async" fetchpriority="high">
             </picture>
             <figcaption>{{ article.image_alt }}</figcaption>
         </figure>
@@ -92,8 +92,9 @@
                     <p>{{ paragraph }}</p>
                     {% endfor %}
                     {% if section.table %}
-                    <div class="article-table-wrap">
+                    <div class="article-table-wrap" role="region" aria-label="{{ section.heading }} table" tabindex="0">
                         <table class="article-table">
+                            <caption>{{ section.heading }}</caption>
                             <thead>
                                 <tr>
                                     {% for header in section.table.headers %}

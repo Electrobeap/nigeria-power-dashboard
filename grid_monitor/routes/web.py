@@ -550,12 +550,13 @@ def _content_schema(page_slug, page):
 
 
 def _article_schema(article, breadcrumbs):
-    return _schema(
+    graph = _schema(
         article["title"],
         article["description"],
         article["url"],
         breadcrumbs,
         page_type="WebPage",
+        include_datasets=False,
         article_type="Article",
         article_sections=[section["heading"] for section in article.get("sections", [])],
         article_date_published=article["published_at"],
@@ -564,6 +565,24 @@ def _article_schema(article, breadcrumbs):
         article_image_path=article.get("social_image") or article.get("image"),
         faq_items=article.get("faqs"),
     )
+
+
+    base = current_app.config["APP_BASE_URL"].rstrip("/")
+    for node in graph["@graph"]:
+        if node.get("@type") == "Article":
+            # Preserve the existing team byline without implying an individual researcher.
+            node["author"] = {
+                "@type": "Organization", "@id": f"{base}/about#editorial-team",
+                "name": article["author"], "url": f"{base}/about",
+            }
+            node["isAccessibleForFree"] = True
+            node["wordCount"] = article["word_count"]
+            node["citation"] = [
+                {"@type": "CreativeWork", "name": ref["label"],
+                 "url": ref["url"] if ref["url"].startswith("https://") else base + ref["url"]}
+                for ref in article["references"]
+            ]
+    return graph
 
 
 def _configured_content_page(page_slug):
@@ -899,6 +918,11 @@ def articles_page():
     listing = search_articles(query=query, category=category, page=page_number)
     featured = featured_article()
     title = "Nigeria Power Data Articles"
+    noindex = bool(query or category)
+    canonical_path = "/articles"
+    if listing["page"] > 1 and not noindex:
+        canonical_path += f"?page={listing['page']}"
+        title += f" - Page {listing['page']}"
     description = (
         "Original explainers and research guides on Nigeria's power grid, generation, "
         "distribution, transmission, market structure, and electricity data."
@@ -908,7 +932,8 @@ def articles_page():
         "articles.html",
         title=title,
         description=description,
-        canonical_path="/articles",
+        canonical_path=canonical_path,
+        noindex=noindex,
         query=query,
         category=category,
         listing=listing,
@@ -921,7 +946,7 @@ def articles_page():
         social_meta=_social(
             title,
             description,
-            "/articles",
+            canonical_path,
             image_path=featured.get("social_image") or featured.get("image"),
             image_alt=featured.get("image_alt"),
         ),
