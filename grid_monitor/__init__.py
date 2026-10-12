@@ -10,6 +10,7 @@ from grid_monitor.config import Config
 from grid_monitor.extensions import db, migrate
 from grid_monitor.routes.api import api_bp
 from grid_monitor.routes.geography import geo_fast_bp
+from grid_monitor.routes.research import research_bp
 from grid_monitor.routes.web import web_bp
 from grid_monitor.services.indexnow import start_indexnow_startup_notification
 from grid_monitor.services.scheduler import start_scheduler, stop_scheduler
@@ -94,6 +95,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
             run_startup_migrations()
         init_database()
 
+    app.register_blueprint(research_bp)
     app.register_blueprint(geo_fast_bp)
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)

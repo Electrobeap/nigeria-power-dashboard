@@ -1,0 +1,31 @@
+{% extends "research/base.html" %}
+{% block research_content %}
+<header class="research-header">
+    <p class="eyebrow">Nigeria Power Data</p>
+    <h1>Research Library</h1>
+    <p>Original research, technical reports, working papers, and electricity data studies.</p>
+    <p class="research-muted">For educational explanations and commentary, visit <a href="/articles">Articles</a>.</p>
+</header>
+<form class="research-filters" action="/research" method="get" role="search" aria-label="Search research">
+    <div><label for="research-query">Search publications</label><input id="research-query" name="q" type="search" value="{{ query }}" maxlength="200" placeholder="Title, author, or keyword"></div>
+    <div><label for="research-type">Publication type</label><select id="research-type" name="type"><option value="">All publications</option>{% for key, label in kinds.items() %}<option value="{{ key }}" {% if kind == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <button class="theme-toggle" type="submit">Search</button>
+    {% if query or kind %}<a href="/research">Clear filters</a>{% endif %}
+</form>
+<section aria-label="Publications" class="research-list">
+    {% for paper in records %}
+    <article class="research-list-item">
+        <p class="research-muted">{{ paper.type_label }} &middot; Version {{ paper.version }} &middot; <time datetime="{{ paper.published_at }}">{{ paper.published_at }}</time></p>
+        <h2><a href="{{ paper.url }}">{{ paper.title }}</a></h2>
+        <p>{{ paper.authors | map(attribute='name') | join('; ') }}</p>
+        <p>{{ paper.description }}</p>
+        <a href="{{ paper.url }}">Read abstract and publication</a>
+    </article>
+    {% else %}
+    <div class="research-empty">
+        <h2>{{ 'No matching publications' if query or kind else 'No research publications yet' }}</h2>
+        <p>{{ 'Try another title, author, keyword, or publication type.' if query or kind else 'Research will appear here when author-approved papers and reports are ready for publication.' }}</p>
+    </div>
+    {% endfor %}
+</section>
+{% endblock %}

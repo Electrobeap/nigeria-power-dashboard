@@ -1,0 +1,53 @@
+{
+  "slug": "",
+  "title": "",
+  "status": "draft",
+  "publication_type": "technical-report",
+  "version": "1.0",
+  "published_at": "",
+  "updated_at": "",
+  "authors": [
+    {
+      "given_name": "",
+      "family_name": "",
+      "affiliations": [],
+      "orcid": null
+    }
+  ],
+  "abstract": "",
+  "keywords": [],
+  "methodology": [],
+  "findings": [],
+  "limitations": [],
+  "assumptions": [],
+  "references": [
+    {
+      "citation": "",
+      "url": null
+    }
+  ],
+  "data_provenance": [
+    {
+      "citation": "",
+      "url": "",
+      "data_kind": "measured",
+      "accessed_on": "",
+      "coverage": "",
+      "processing": "",
+      "license": ""
+    }
+  ],
+  "license": "",
+  "license_url": null,
+  "peer_review_status": "not_peer_reviewed",
+  "peer_review_url": null,
+  "publication_approved": false,
+  "rights_confirmed": false,
+  "pdf_file": null,
+  "pdf_publication_approved": false,
+  "doi": null,
+  "doi_registration_confirmed": false,
+  "doi_registration_url": null,
+  "doi_verified_on": null,
+  "zenodo_url": null
+}

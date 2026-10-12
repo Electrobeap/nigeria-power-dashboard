@@ -358,3 +358,20 @@ when you are ready to automate ingestion again.
 - Add admin-only manual capture and backfill endpoints protected by auth.
 - Add daily rollup tables once history grows beyond free-tier comfort.
 - Add uptime monitoring against `/api/health`.
+
+
+## Research library (feature development)
+
+The separate /research library supports author-approved research papers,
+technical reports, working papers, and original data studies. Educational
+Articles remain unchanged. Research includes Highwire citation metadata,
+ScholarlyArticle JSON-LD, named authors and optional ORCIDs, versioned citations,
+searchable PDF downloads, BibTeX, registered DOI/Zenodo links, and metadata for
+manual ResearchGate submission. No publications or DOI identifiers are seeded.
+
+See [the publishing guide](docs/research-publishing.md) for record format,
+editorial approvals, PDF generation/validation, repository submission, and tests.
+RESEARCH_CONTENT_DIR is optional; the default catalog is
+grid_monitor/content/research. No new production dependencies or database
+migrations are required. Research pages stay public independently of future
+analytics subscriptions.

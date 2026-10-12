@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ description }}">
+    <meta name="robots" content="{{ 'noindex, follow' if noindex else 'index, follow' }}">
+    <meta name="theme-color" content="#0B1F3A">
+    <script>
+        try {
+            document.documentElement.dataset.theme = localStorage.getItem("grid-theme")
+                || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        } catch (_) {}
+    </script>
+    {% include "partials/social_meta.html" %}
+    <title>{{ title }} | Nigeria Power Data</title>
+    <link rel="canonical" href="{{ canonical_url }}">
+    {% block citation_metadata %}{% endblock %}
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon-32.png') }}" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="preload" href="{{ url_for('static', filename='images/logo.svg') }}" as="image" type="image/svg+xml" fetchpriority="high">
+    <link rel="preload" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=chart-readability-20260821" as="style">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=chart-readability-20260821">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/research.css') }}?v=research-1">
+    {% include "partials/structured_data.html" %}
+    {% include "partials/google_analytics.html" %}
+    {% include "partials/microsoft_clarity.html" %}
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="/" aria-label="Nigeria Power Data home">
+        <picture>
+            <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+            <img class="brand-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" width="210" height="76" decoding="async" fetchpriority="high">
+        </picture>
+    </a>
+    {% include "partials/nav.html" %}
+    <div class="topbar-actions">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">Dark</button>
+    </div>
+</header>
+
+<a class="research-skip" href="#research-main">Skip to research content</a>
+<main id="research-main" class="shell research-shell">
+    <nav class="breadcrumb-list" aria-label="Breadcrumb">
+        {% for crumb in breadcrumbs %}
+        {% if loop.last %}<span aria-current="page">{{ crumb.name }}</span>{% else %}<a href="{{ crumb.path }}">{{ crumb.name }}</a><span aria-hidden="true">/</span>{% endif %}
+        {% endfor %}
+    </nav>
+    {% block research_content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+    <div>
+        <a class="footer-brand" href="/" aria-label="Nigeria Power Data home">
+            <picture>
+                <source srcset="{{ url_for('static', filename='images/logo.svg') }}" type="image/svg+xml">
+                <img class="footer-logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Nigeria Power Data" loading="lazy" decoding="async" width="230" height="83">
+            </picture>
+        </a>
+        <p>Independent grid intelligence dashboard using public NISO/NIGGRID data and planning-grade analytics.</p>
+    </div>
+    <nav aria-label="Footer navigation">
+        <a href="/research">Research</a>
+        <a href="/articles">Articles</a>
+        <a href="/privacy-policy">Privacy</a>
+        <a href="/terms-of-use">Terms</a>
+        <a href="/discos">DisCos</a>
+        <a href="/gencos">GenCos</a>
+        <a href="/sitemap.xml">Sitemap</a>
+        <a href="/robots.txt">Robots</a>
+    </nav>
+</footer>
+
+<script src="{{ url_for('static', filename='js/research.js') }}?v=research-1" defer></script>
+</body>
+</html>

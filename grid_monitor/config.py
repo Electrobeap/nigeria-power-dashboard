@@ -157,6 +157,7 @@ class Config:
     CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "hello@nigeriapowerdata.com")
     RESEARCH_EMAIL = os.environ.get("RESEARCH_EMAIL", CONTACT_EMAIL)
     ADS_EMAIL = os.environ.get("ADS_EMAIL", CONTACT_EMAIL)
+    RESEARCH_CONTENT_DIR = os.environ.get("RESEARCH_CONTENT_DIR")
     GEOGRAPHY_DATASET_PATH = os.environ.get("GEOGRAPHY_DATASET_PATH")
     AD_RENDER_MODE = os.environ.get("AD_RENDER_MODE", "placeholder").strip().lower()
     if AD_RENDER_MODE not in {"placeholder", "adsense"}:

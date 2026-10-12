@@ -1,0 +1,36 @@
+name: Research publishing validation
+on:
+  pull_request:
+    paths:
+      - "grid_monitor/**"
+      - "tools/research_publications.py"
+      - "tests/**"
+      - "requirements*.txt"
+      - ".github/workflows/research-validation.yml"
+  push:
+    branches: ["feature/research-publishing-discovery"]
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HISTORY_CAPTURE_ENABLED: "false"
+      WEB_SCHEDULER_ENABLED: "false"
+      INDEXNOW_ENABLED: "false"
+      INDEXNOW_AUTO_NOTIFY_ENABLED: "false"
+      RUN_MIGRATIONS_ON_STARTUP: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-research.txt
+      - run: python -m pip install -r requirements-research.txt
+      - run: python -m compileall -q app.py grid_monitor tools tests
+      - run: python -m tools.research_publications validate
+      - run: python -m pytest -q
