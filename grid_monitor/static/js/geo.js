@@ -1,4 +1,7 @@
 const GEO_REFRESH_MS = 120000;
+const GEO_HISTORY_HOURS = 168;
+const GEO_HISTORY_LIMIT = 336;
+const GEO_FETCH_TIMEOUT_MS = 18000;
 const CHART_JS_URL = "https://cdn.jsdelivr.net/npm/chart.js";
 window.requestAnimationFrame(() => document.body.classList.add("brand-loaded"));
 let chartLibraryPromise = null;
@@ -126,10 +129,21 @@ function setGeoBanner(message) {
 }
 
 async function fetchGeoJSON(url) {
-    const response = await fetch(url, { cache: "no-store" });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || `Request failed: ${url}`);
-    return payload;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), GEO_FETCH_TIMEOUT_MS);
+    try {
+        const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || `Request failed: ${url}`);
+        return payload;
+    } catch (error) {
+        if (error.name === "AbortError") {
+            throw new Error("Historical geography analytics timed out. Static planning indicators remain available.");
+        }
+        throw error;
+    } finally {
+        window.clearTimeout(timeout);
+    }
 }
 
 function renderGeoChart(payload) {
@@ -242,6 +256,11 @@ function renderGeo(payload) {
     const rankings = payload.rankings || {};
     const discos = payload.responsible_discos || [];
     const peerLabel = payload.scope === "region" ? "regions" : "states/FCT";
+    const status = payload.data_status || { ok: true };
+
+    if (status.ok === false) {
+        setGeoBanner(status.message || "Historical geography analytics are temporarily unavailable.");
+    }
 
     document.title = `${entity.short_name || entity.name} ${payload.scope === "region" ? "Regional" : "State"} Intelligence | Nigeria Power Data`;
     geoEl["geo-title"].textContent = entity.short_name || entity.name;
@@ -302,7 +321,7 @@ async function refreshGeo() {
     setGeoBanner("");
     try {
         const page = window.GEO_PAGE || {};
-        const payload = await fetchGeoJSON(`/api/${page.collection}/${page.slug}?hours=168&limit=1000`);
+        const payload = await fetchGeoJSON(`/api/${page.collection}/${page.slug}?hours=${GEO_HISTORY_HOURS}&limit=${GEO_HISTORY_LIMIT}`);
         renderGeo(payload);
         geoEl["geo-refresh-state"].textContent = `Last refresh ${new Date().toLocaleTimeString()}`;
     } catch (error) {
