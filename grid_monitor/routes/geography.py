@@ -531,7 +531,7 @@ def _render_geo_page(scope: str, api_collection: str, slug: str):
         description=seo["description"],
         seo_content=seo["content"],
         related_articles=related_articles_for_context(scope, slug),
-        social_meta=build_social_meta(seo["title"], seo["description"], seo["canonical_path"], og_type="article"),
+        social_meta=build_social_meta(title=seo["title"], description=seo["description"], path=seo["canonical_path"], og_type="article"),
         structured_data=_report_schema(
             seo["title"],
             seo["description"],
