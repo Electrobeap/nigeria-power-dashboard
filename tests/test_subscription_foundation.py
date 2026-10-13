@@ -445,3 +445,25 @@ def test_account_and_pricing_browser_layouts(account_app, customer):
     finally:
         server.shutdown()
         thread.join(timeout=5)
+
+
+def test_startup_migration_failure_never_stamps_head(app, monkeypatch):
+    import grid_monitor
+    calls = []
+    def broken(*args, **kwargs):
+        raise RuntimeError("table already exists")
+    monkeypatch.setattr(grid_monitor, "_migrations_ran", False)
+    monkeypatch.setattr(grid_monitor.command, "upgrade", broken)
+    monkeypatch.setattr(grid_monitor.command, "stamp", lambda *a, **k: calls.append("stamped"))
+    with app.app_context():
+        grid_monitor.run_startup_migrations()
+    assert calls == []
+    assert grid_monitor._migrations_ran is False
+
+
+def test_production_accounts_require_verified_migration(account_app):
+    from grid_monitor.services.accounts import validate_account_schema
+    account_app.testing = False
+    with account_app.app_context():
+        with pytest.raises(RuntimeError, match="schema verification"):
+            validate_account_schema(account_app)

@@ -185,7 +185,7 @@ class Config:
     SESSION_REFRESH_EACH_REQUEST = False
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
     WTF_CSRF_CHECK_DEFAULT = False  # Explicitly protect only the new account blueprint.
-    WTF_CSRF_TIME_LIMIT = timedelta(hours=1)
+    WTF_CSRF_TIME_LIMIT = 3600
     AUTH_TRUST_PROXY_HOPS = max(0, min(3, _env_int("AUTH_TRUST_PROXY_HOPS", 0)))
     AUTH_EMAIL_ENABLED = _env_bool("AUTH_EMAIL_ENABLED", False)
     AUTH_EMAIL_VERIFICATION_REQUIRED = _env_bool("AUTH_EMAIL_VERIFICATION_REQUIRED", True)

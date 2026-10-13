@@ -14,12 +14,12 @@ from email_validator import EmailNotValidError, validate_email
 from flask import current_app, request, session
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, inspect, select, text, update
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash
 
 from grid_monitor.extensions import db
-from grid_monitor.subscription_models import AccountToken, AuthRateLimit, User, session_identifier, utc_now
+from grid_monitor.subscription_models import AccountToken, AuthRateLimit, SubscriptionPlanPrice, UserSubscription, User, session_identifier, utc_now
 
 login_manager = LoginManager()
 csrf = CSRFProtect()
@@ -228,3 +228,23 @@ def start_mail_queue(app):
     if app.config.get("ACCOUNTS_ENABLED") and app.config.get("AUTH_EMAIL_ENABLED"):
         app.extensions["account_mail_queue"] = (ThreadPoolExecutor(max_workers=1, thread_name_prefix="account-mail"),
                                                 BoundedSemaphore(20))
+
+
+def validate_account_schema(app):
+    """Require a real, reviewed migration before production accounts can start."""
+    if not app.config.get("ACCOUNTS_ENABLED") or app.testing:
+        return
+    try:
+        inspector = inspect(db.engine)
+        for model in (User, SubscriptionPlanPrice, UserSubscription, AccountToken, AuthRateLimit):
+            columns = {item["name"] for item in inspector.get_columns(model.__tablename__)}
+            if not set(model.__table__.columns.keys()).issubset(columns):
+                raise RuntimeError("Account schema is incomplete; run reviewed migrations.")
+        revision = db.session.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+        if revision != "d13a20261013":
+            raise RuntimeError("Account migration revision has not been verified.")
+    except SQLAlchemyError:
+        db.session.rollback()
+        raise RuntimeError("Account schema verification failed; run reviewed migrations.") from None
+    finally:
+        db.session.remove()
