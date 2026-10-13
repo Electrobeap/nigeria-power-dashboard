@@ -267,3 +267,275 @@ def test_repository_catalog_is_ready_for_publication():
     from grid_monitor.services.research import DEFAULT_DIRECTORY
     for item in read_records(DEFAULT_DIRECTORY, strict=True):
         validate_pdf(item, DEFAULT_DIRECTORY)
+
+
+# All repository IDs/evidence below are synthetic serialization fixtures.
+# They are never added to the production catalog or claimed as actual listings.
+@pytest.fixture()
+def repository_record():
+    return {
+        "repository": "zenodo", "status": "published", "identifier": "0",
+        "url": "https://zenodo.org/records/0",
+        "verification": {
+            "checked_on": "2026-01-02", "checked_by": "Synthetic test reviewer",
+            "evidence_url": "https://example.org/test-only-record-evidence",
+            "title_matches": True, "authors_match": True,
+            "version_matches": True, "publicly_accessible": True,
+        },
+        "notes": "EDITORIAL-NOTE-NOT-FOR-PUBLIC-OUTPUT",
+    }
+
+
+def write_record(catalog, record):
+    (catalog / f'{record["slug"]}.json').write_text(json.dumps(record), encoding="utf-8")
+    _cached_records.cache_clear()
+
+
+@pytest.mark.parametrize("entries", [
+    [],
+    [{"repository": "zenodo", "status": "not_submitted"}],
+    [{"repository": "researchgate", "status": "pending", "submitted_on": "2026-01-01"}],
+])
+def test_repository_section_absent_without_confirmed_records(client, catalog, record, entries):
+    record["repository_records"] = entries
+    # Derived fields must not be accepted from unvalidated configuration.
+    record["external_links"] = [{"url": "https://example.org/forged-link"}]
+    write_record(catalog, record)
+    page = html(client, f'/research/{record["slug"]}')
+    assert not page.select_one("#also-available")
+    assert "forged-link" not in str(page)
+    data = client.get(f'/research/{record["slug"]}/submission.json').json
+    assert data["external_publications"] == []
+    graph = json.loads(page.select_one('script[type="application/ld+json"]').string)["@graph"]
+    scholarly = next(item for item in graph if item["@type"] == "ScholarlyArticle")
+    assert "sameAs" not in scholarly
+    assert "identifier" not in scholarly
+
+
+def test_verified_repository_links_schema_and_exports(app, client, catalog, record, repository_record):
+    researchgate = deepcopy(repository_record)
+    researchgate.update(repository="researchgate", identifier="1",
+                        url="https://www.researchgate.net/publication/1_Test_only")
+    institutional = deepcopy(repository_record)
+    institutional.update(repository="other", name="Test institutional repository",
+                         identifier="handle/test", url="https://example.org/handle/test")
+    record["repository_records"] = [repository_record, researchgate, institutional]
+    write_record(catalog, record)
+    page = html(client, f'/research/{record["slug"]}')
+    links = page.select(".research-external-links a")
+    expected = [item["url"] for item in record["repository_records"]]
+    assert [link["href"] for link in links] == expected
+    assert page.select_one("#also-available").get_text() == "Also Available On"
+    assert "EDITORIAL-NOTE-NOT-FOR-PUBLIC-OUTPUT" not in str(page)
+    assert "Synthetic test reviewer" not in str(page)
+    canonical = app.config["APP_BASE_URL"].rstrip("/") + "/research/" + record["slug"]
+    assert page.select_one('link[rel="canonical"]')["href"] == canonical
+    assert page.select_one('meta[name="citation_pdf_url"]')["content"] == canonical + "/paper.pdf"
+    graph = json.loads(page.select_one('script[type="application/ld+json"]').string)["@graph"]
+    node = next(item for item in graph if item["@type"] == "ScholarlyArticle")
+    assert node["sameAs"] == expected
+    assert [item["value"] for item in node["identifier"]] == ["0", "1", "handle/test"]
+    assert client.get(f'/research/{record["slug"]}/paper.pdf').status_code == 200
+    response = client.get(f'/research/{record["slug"]}/submission.json')
+    export = response.json
+    assert len(export["external_publications"]) == 3
+    assert export["zenodo_url"] == expected[0]
+    assert export["repository_metadata"]["zenodo"]["related_identifiers"] == [
+        {"identifier": canonical, "relation": "isDescribedBy", "scheme": "url"},
+    ]
+    assert export["repository_metadata"]["researchgate"]["publication_url"] == canonical
+    assert response.headers["X-Robots-Tag"] == "noindex, follow"
+    for private in ("verification", "indexing", "notes", "checked_by", "EDITORIAL-NOTE"):
+        assert private not in json.dumps(export["external_publications"])
+    assert "Synthetic test reviewer" not in response.get_data(as_text=True)
+    assert export["doi"] is None
+    assert "Not peer reviewed" in page.get_text()
+
+
+@pytest.mark.parametrize("updates", [
+    {"repository": "unknown"}, {"repository": []}, {"status": []}, {"status": "indexed"},
+    {"status": "published", "verification": None},
+    {"status": "pending", "submitted_on": "2026-01-01"},
+    {"status": "not_submitted"},
+    {"status": "verified_indexed"},
+    {"identifier": "999"},
+    {"url": "https://sandbox.zenodo.org/records/0"},
+    {"url": "https://zenodo.org/deposit/0"},
+    {"url": "https://zenodo.org.evil.example/records/0"},
+    {"url": "https://zenodo.org/records/0?token=secret"},
+    {"url": "https://zenodo.org/records/0#files"},
+    {"url": "javascript:alert(1)"},
+    {"repository": "researchgate", "url": "https://www.researchgate.net/profile/Test"},
+    {"repository": "other", "name": "Zenodo"},
+    {"repository": "other", "name": "Test", "url": "https://zenodo.org/records/0"},
+    {"repository": "other", "name": "Test", "url": "https://user:secret@example.org/paper"},
+    {"repository": "other", "name": "Test", "url": "https://127.0.0.1/paper"},
+    {"repository": "other", "name": "Test", "url": "https://[::1]/paper"},
+    {"repository": "other", "name": "Test", "url": "https://example.local/paper"},
+    {"repository": "other", "name": "Test", "url": "http://example.org/paper"},
+    {"repository": "other", "name": "Test", "url": "https://example.org:bad/paper"},
+    {"repository": "other", "name": "Test", "url": "https://example.org/%0apaper"},
+])
+def test_reject_unverified_unsafe_and_mismatched_repository_records(record, repository_record, updates):
+    repository_record.update(updates)
+    record["repository_records"] = [repository_record]
+    with pytest.raises(ResearchValidationError):
+        validate_record(record, check_pdf=False)
+
+
+@pytest.mark.parametrize("field", ["title_matches", "authors_match", "version_matches", "publicly_accessible"])
+def test_record_verification_requires_every_identity_check(record, repository_record, field):
+    repository_record["verification"][field] = False
+    record["repository_records"] = [repository_record]
+    with pytest.raises(ResearchValidationError):
+        validate_record(record, check_pdf=False)
+
+
+def test_indexing_requires_separate_dated_evidence(record, repository_record):
+    repository_record["status"] = "verified_indexed"
+    record["repository_records"] = [repository_record]
+    with pytest.raises(ResearchValidationError):
+        validate_record(record, check_pdf=False)
+    repository_record["indexing"] = {
+        "service": "Synthetic indexing service", "checked_by": "Synthetic reviewer",
+        "checked_on": "2026-01-03", "evidence_url": "https://example.org/index/test-only-record",
+    }
+    parsed = validate_record(record, check_pdf=False)
+    assert parsed["repository_records"][0]["status_label"] == "Verified Indexed"
+    assert "indexing" not in parsed["external_links"][0]
+    for updates in (
+        {"checked_on": "2025-01-01"},
+        {"checked_on": (date.today() + timedelta(days=1)).isoformat()},
+        {"evidence_url": repository_record["url"]},
+        {"checked_by": ""},
+        {"service": ""},
+    ):
+        candidate = deepcopy(record)
+        candidate["repository_records"][0]["indexing"].update(updates)
+        with pytest.raises(ResearchValidationError):
+            validate_record(candidate, check_pdf=False)
+
+
+def test_duplicate_records_and_future_verification_rejected(record, repository_record):
+    for entries in (
+        [repository_record, deepcopy(repository_record)],
+        "not a list",
+        [None],
+    ):
+        record["repository_records"] = entries
+        with pytest.raises(ResearchValidationError):
+            validate_record(record, check_pdf=False)
+    record["repository_records"] = [repository_record]
+    repository_record["verification"]["checked_on"] = (date.today() + timedelta(days=1)).isoformat()
+    with pytest.raises(ResearchValidationError):
+        validate_record(record, check_pdf=False)
+
+
+def test_legacy_zenodo_compatibility_and_explicit_withdrawal(client, catalog, record):
+    record.update(doi="10.5281/zenodo.0", doi_registration_confirmed=True,
+                  doi_verified_on="2026-01-02",
+                  doi_registration_url="https://example.org/test-only-doi-evidence",
+                  zenodo_url="https://zenodo.org/records/0")
+    write_record(catalog, record)
+    page = html(client, f'/research/{record["slug"]}')
+    assert len(page.select('.research-external-links a[href="https://zenodo.org/records/0"]')) == 1
+    assert page.select_one('meta[name="citation_doi"]')["content"] == record["doi"]
+    # Explicit status can withdraw an old link without erasing the registered DOI.
+    record["repository_records"] = [{"repository": "zenodo", "status": "not_submitted"}]
+    write_record(catalog, record)
+    assert not html(client, f'/research/{record["slug"]}').select_one("#also-available")
+    assert client.get(f'/research/{record["slug"]}/submission.json').json["zenodo_url"] is None
+    record["zenodo_url"] = "https://zenodo.org/records/9"
+    with pytest.raises(ResearchValidationError):
+        validate_record(record, check_pdf=False)
+
+
+def test_doi_url_encoding_does_not_change_identifier(client, catalog, record):
+    record.update(doi="10.1234/test?only#synthetic", doi_registration_confirmed=True,
+                  doi_verified_on="2026-01-02",
+                  doi_registration_url="https://example.org/test-only-doi-evidence")
+    write_record(catalog, record)
+    page = html(client, f'/research/{record["slug"]}')
+    url = "https://doi.org/10.1234/test%3Fonly%23synthetic"
+    assert page.select_one(f'a[href="{url}"]')
+    assert page.select_one('meta[name="citation_doi"]')["content"] == record["doi"]
+    assert client.get(f'/research/{record["slug"]}/submission.json').json["doi_url"] == url
+
+
+def test_submission_report_supports_incomplete_drafts(tmp_path):
+    from tools.research_publications import repository_status_report
+    raw = {"status": "draft", "repository_records": [
+        {"repository": "zenodo", "status": "not_submitted"},
+        {"repository": "researchgate", "status": "pending", "submitted_on": "2026-01-01"},
+    ]}
+    path = tmp_path / "unfinished.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    before = path.read_bytes()
+    report = repository_status_report(tmp_path)
+    assert [row["status"] for row in report[0]["repositories"]] == ["Not Submitted", "Pending"]
+    assert path.read_bytes() == before
+
+
+def test_existing_orcid_link_is_preserved_not_inferred(client, catalog, record):
+    # Only this temporary fixture uses the official ORCID documentation example.
+    # It does not assert that the synthetic author owns this ORCID.
+    record["authors"][0]["orcid"] = "0000-0002-1825-0097"
+    write_record(catalog, record)
+    page = html(client, f'/research/{record["slug"]}')
+    uri = "https://orcid.org/0000-0002-1825-0097"
+    assert uri in page.select_one(f'a[href="{uri}"]').get_text()
+    graph = json.loads(page.select_one('script[type="application/ld+json"]').string)["@graph"]
+    node = next(item for item in graph if item["@type"] == "ScholarlyArticle")
+    assert node["author"][0]["sameAs"] == uri
+    assert "sameAs" not in node["author"][1]
+
+
+def test_repository_requests_never_check_external_services(client, catalog, record, repository_record, monkeypatch):
+    import requests
+    record["repository_records"] = [repository_record]
+    write_record(catalog, record)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Research rendering must not call external services")
+
+    monkeypatch.setattr(requests.sessions.Session, "request", forbidden)
+    for suffix in ("", "/submission.json", "/citation.bib", "/paper.pdf"):
+        assert client.get(f'/research/{record["slug"]}{suffix}').status_code == 200
+    for path in ("/articles", "/research", "/sitemap.xml"):
+        assert client.get(path).status_code == 200
+
+
+def test_publication_external_links_responsive(app, catalog, record, repository_record):
+    from threading import Thread
+    from playwright.sync_api import sync_playwright
+    from werkzeug.serving import make_server
+
+    repository_record.update(repository="other", name="Synthetic institutional research repository",
+                             identifier="test-only-" + "long-identifier-" * 12,
+                             url="https://example.org/paper/test-only")
+    record["repository_records"] = [repository_record]
+    write_record(catalog, record)
+    server = make_server("127.0.0.1", 0, app, threaded=True)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_port}"
+    errors = []
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            page = browser.new_page()
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            page.route("**/*", lambda route: route.continue_() if route.request.url.startswith(base + "/")
+                       else route.fulfill(status=200, body="", content_type="application/javascript"))
+            for width, height in ((1440, 1000), (768, 1024), (390, 844), (320, 740)):
+                page.set_viewport_size({"width": width, "height": height})
+                response = page.goto(base + "/research/" + record["slug"], wait_until="networkidle")
+                assert response.status == 200
+                assert page.locator("#also-available").is_visible()
+                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+                assert page.locator(".research-external-links a").get_attribute("href") == repository_record["url"]
+            assert errors == []
+            browser.close()
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)

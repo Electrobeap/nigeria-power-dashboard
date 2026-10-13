@@ -5,13 +5,15 @@ on:
       - "grid_monitor/**"
       - "tools/**"
       - "docs/research/**"
+      - "docs/research-*.md"
+      - "docs/research-*.json"
       - "docs/article-seo-audit.md"
       - "docs/search-console-monitoring.md"
       - "tests/**"
       - "requirements*.txt"
       - ".github/workflows/research-validation.yml"
   push:
-    branches: ["feature/research-publishing-discovery", "feature/research-content-discovery"]
+    branches: ["feature/research-publishing-discovery", "feature/research-content-discovery", "feature/verified-research-repositories"]
 permissions:
   contents: read
 jobs:
@@ -36,6 +38,7 @@ jobs:
       - run: python -m pip install -r requirements-research.txt
       - run: python -m compileall -q app.py grid_monitor tools tests
       - run: python -m tools.research_publications validate
+      - run: python -m tools.research_publications repositories
       - run: python -m playwright install --with-deps chromium
       - run: python -m pytest -q
       - name: Bounded public data coverage audit (read-only)

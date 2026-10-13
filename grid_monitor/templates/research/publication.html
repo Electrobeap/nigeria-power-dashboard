@@ -30,17 +30,27 @@
         <p><strong>Keywords:</strong> {{ publication.keywords | join('; ') }}</p>
         <ul class="research-author-details">
             {% for author in publication.authors %}
-            <li><strong>{{ author.name }}</strong>{% if author.affiliations %} &middot; {{ author.affiliations | join('; ') }}{% endif %}{% if author.orcid %} &middot; <a href="{{ author.orcid }}" rel="noopener">ORCID {{ author.orcid.rsplit('/', 1)[-1] }}</a>{% endif %}</li>
+            <li><strong>{{ author.name }}</strong>{% if author.affiliations %} &middot; {{ author.affiliations | join('; ') }}{% endif %}{% if author.orcid %} &middot; <a href="{{ author.orcid }}" rel="noopener">ORCID {{ author.orcid }}</a>{% endif %}</li>
             {% endfor %}
         </ul>
         <p><strong>License:</strong> {% if publication.license_url %}<a href="{{ publication.license_url }}">{{ publication.license }}</a>{% else %}{{ publication.license }}{% endif %}</p>
-        {% if publication.doi %}<p><strong>Registered DOI:</strong> <a href="https://doi.org/{{ publication.doi }}">{{ publication.doi }}</a>{% if publication.zenodo_url %} &middot; <a href="{{ publication.zenodo_url }}">Zenodo record</a>{% endif %}</p>{% endif %}
+        {% if publication.doi %}<p><strong>Registered DOI:</strong> <a href="{{ publication.doi_url }}">{{ publication.doi }}</a></p>{% endif %}
     </div>
     <nav class="research-actions" aria-label="Publication downloads">
         {% if publication.pdf_file %}<a href="{{ url_for('research.paper', slug=publication.slug) }}">Read PDF</a><a href="{{ url_for('research.paper', slug=publication.slug) }}" download="{{ publication.slug }}-v{{ publication.version }}.pdf">Download PDF</a>{% endif %}
         <a href="{{ url_for('research.citation_export', slug=publication.slug) }}">Download BibTeX</a>
         <a href="#cite">Cite this publication</a>
     </nav>
+    {% if publication.external_links %}
+    <section class="research-section" aria-labelledby="also-available">
+        <h2 id="also-available">Also Available On</h2>
+        <ul class="research-external-links">
+            {% for external in publication.external_links %}
+            <li><a href="{{ external.url }}" rel="noopener">{{ external.name }}</a> <span class="research-muted">Record {{ external.identifier }}</span></li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
     {% for key, heading in [('methodology', 'Methodology'), ('findings', 'Findings'), ('limitations', 'Limitations'), ('assumptions', 'Methodological assumptions')] %}
     <section class="research-section" aria-labelledby="{{ key }}">
         <h2 id="{{ key }}">{{ heading }}</h2>
@@ -75,7 +85,7 @@
     </section>
     <section class="research-section" aria-labelledby="repository">
         <h2 id="repository">Repository submission</h2>
-        <p>Authors may <a href="{{ url_for('research.submission_export', slug=publication.slug) }}">download the submission record</a> for manual submission through their own ResearchGate account, subject to the publication's sharing rights. This does not create an automatic listing.</p>
+        <p>Authors may <a href="{{ url_for('research.submission_export', slug=publication.slug) }}">download the submission record</a> for manual submission to Zenodo, ResearchGate, or another scholarly repository, subject to the publication's sharing rights. Include the Nigeria Power Data publication URL where the repository supports related links. This does not upload the paper, register a DOI, or confirm indexing.</p>
     </section>
 </article>
 {% endblock %}

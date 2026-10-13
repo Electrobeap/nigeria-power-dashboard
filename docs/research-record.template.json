@@ -49,5 +49,15 @@
   "doi_registration_confirmed": false,
   "doi_registration_url": null,
   "doi_verified_on": null,
-  "zenodo_url": null
+  "zenodo_url": null,
+  "repository_records": [
+    {
+      "repository": "zenodo",
+      "status": "not_submitted"
+    },
+    {
+      "repository": "researchgate",
+      "status": "not_submitted"
+    }
+  ]
 }
