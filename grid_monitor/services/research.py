@@ -8,7 +8,8 @@ import json
 import logging
 from pathlib import Path
 import re
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
+import ipaddress
 
 from flask import current_app, has_app_context
 
@@ -84,6 +85,143 @@ def normalize_orcid(value):
     return f"https://orcid.org/{value}"
 
 
+REPOSITORY_STATUSES = {
+    "not_submitted": "Not Submitted",
+    "pending": "Pending",
+    "published": "Published",
+    "verified_indexed": "Verified Indexed",
+}
+REPOSITORIES = {"zenodo": "Zenodo", "researchgate": "ResearchGate", "other": None}
+
+
+def _past_date(value, field):
+    value = _date(value, field)
+    if value > date.today().isoformat():
+        raise ResearchValidationError(f"{field} cannot be in the future")
+    return value
+
+
+def _public_url(value, field):
+    """Reject unsafe/private link targets; never request a supplied URL."""
+    try:
+        value = _url(value, field)
+        parsed = urlsplit(value)
+        host = parsed.hostname.lower()
+        port = parsed.port
+    except (ValueError, AttributeError) as exc:
+        raise ResearchValidationError(f"{field} must be a public HTTPS URL") from exc
+    if (port not in {None, 443} or "\\" in value or
+            re.search(r"%0[ad]", value, re.I) or "." not in host or
+            host.endswith((".localhost", ".local", ".internal"))):
+        raise ResearchValidationError(f"{field} must be a public HTTPS URL")
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return value
+    raise ResearchValidationError(f"{field} must use a public repository hostname")
+
+
+def validate_repository_records(raw):
+    """Check editorial evidence, not remote registration or indexing."""
+    items = raw.get("repository_records", [])
+    if not isinstance(items, list) or len(items) > 30:
+        raise ResearchValidationError("repository_records must be a list of at most 30 entries")
+    records, seen = [], set()
+    for item in items:
+        if not isinstance(item, dict):
+            raise ResearchValidationError("Repository entries must be objects")
+        entry = deepcopy(item)
+        provider = entry.get("repository")
+        if not isinstance(provider, str) or provider not in REPOSITORIES:
+            raise ResearchValidationError("repository must be zenodo, researchgate, or other")
+        entry["name"] = REPOSITORIES[provider] or _text(entry.get("name"), "repository name", 150)
+        if provider == "other" and entry["name"].casefold() in {"zenodo", "researchgate"}:
+            raise ResearchValidationError("Use the named repository type")
+        status = entry.get("status")
+        if not isinstance(status, str) or status not in REPOSITORY_STATUSES:
+            raise ResearchValidationError("Invalid repository submission status")
+        entry["status_label"] = REPOSITORY_STATUSES[status]
+        if entry.get("notes"):
+            entry["notes"] = _text(entry["notes"], "editorial notes", 2000)
+        if status in {"not_submitted", "pending"}:
+            if any(entry.get(field) for field in ("url", "identifier", "verification", "indexing")):
+                raise ResearchValidationError("Unpublished submissions cannot claim external records")
+            if status == "pending":
+                entry["submitted_on"] = _past_date(entry.get("submitted_on"), "submission date")
+            elif entry.get("submitted_on"):
+                raise ResearchValidationError("Not Submitted cannot have a submission date")
+        else:
+            entry["url"] = _public_url(entry.get("url"), "repository URL")
+            entry["identifier"] = _text(entry.get("identifier"), "repository identifier", 255)
+            parsed = urlsplit(entry["url"])
+            if parsed.query or parsed.fragment:
+                raise ResearchValidationError("Use a stable repository URL without query or fragment")
+            if provider == "zenodo":
+                match = re.fullmatch(r"https://zenodo\.org/records/([0-9]+)", entry["url"])
+                if not match or entry["identifier"] != match[1]:
+                    raise ResearchValidationError("Zenodo identifier must match its published record URL")
+            elif provider == "researchgate":
+                match = re.fullmatch(
+                    r"https://(?:www\.)?researchgate\.net/publication/([0-9]+)(?:_[A-Za-z0-9_~.%()-]+)?",
+                    entry["url"],
+                )
+                if not match or entry["identifier"] != match[1]:
+                    raise ResearchValidationError("ResearchGate identifier must match a publication URL")
+            elif parsed.hostname.lower() in {"zenodo.org", "www.zenodo.org", "researchgate.net", "www.researchgate.net"}:
+                raise ResearchValidationError("Use the named repository type")
+            proof = entry.get("verification")
+            if not isinstance(proof, dict):
+                raise ResearchValidationError("Published repository records require verification")
+            for field in ("title_matches", "authors_match", "version_matches", "publicly_accessible"):
+                if proof.get(field) is not True:
+                    raise ResearchValidationError(f"Repository verification requires {field}=true")
+            proof["checked_on"] = _past_date(proof.get("checked_on"), "record verification date")
+            proof["checked_by"] = _text(proof.get("checked_by"), "record reviewer", 150)
+            proof["evidence_url"] = _public_url(proof.get("evidence_url"), "record evidence URL")
+            if entry.get("submitted_on"):
+                entry["submitted_on"] = _past_date(entry["submitted_on"], "submission date")
+                if proof["checked_on"] < entry["submitted_on"]:
+                    raise ResearchValidationError("Verification cannot precede submission")
+            if status == "verified_indexed":
+                indexing = entry.get("indexing")
+                if not isinstance(indexing, dict):
+                    raise ResearchValidationError("Verified Indexed requires separate indexing evidence")
+                indexing["service"] = _text(indexing.get("service"), "indexing service", 150)
+                indexing["evidence_url"] = _public_url(indexing.get("evidence_url"), "indexing evidence URL")
+                indexing["checked_by"] = _text(indexing.get("checked_by"), "indexing reviewer", 150)
+                indexing["checked_on"] = _past_date(indexing.get("checked_on"), "index verification date")
+                if indexing["checked_on"] < proof["checked_on"]:
+                    raise ResearchValidationError("Index verification cannot precede record verification")
+                if indexing["evidence_url"] == entry["url"]:
+                    raise ResearchValidationError("A repository landing page alone is not indexing evidence")
+            elif entry.get("indexing"):
+                raise ResearchValidationError("Only Verified Indexed may claim indexing evidence")
+        # One entry per repository keeps status tracking unambiguous.
+        identity = (provider, entry["name"].casefold())
+        if identity in seen:
+            raise ResearchValidationError("Duplicate repository submission")
+        seen.add(identity)
+        records.append(entry)
+    return records
+
+
+def public_repository_links(record):
+    """Allowlist public bibliographic fields; editorial notes/evidence stay out."""
+    links = [
+        {key: item[key] for key in ("repository", "name", "identifier", "url")}
+        for item in record.get("repository_records", [])
+        if item["status"] in {"published", "verified_indexed"}
+    ]
+    # Backward compatibility: the legacy Zenodo field already required DOI approval.
+    # An explicit workflow entry takes precedence, including withdrawn/pending links.
+    if record.get("zenodo_url") and not any(
+            item["repository"] == "zenodo" for item in record.get("repository_records", [])):
+        links.append({"repository": "zenodo", "name": "Zenodo",
+                      "identifier": record["zenodo_url"].rsplit("/", 1)[-1],
+                      "url": record["zenodo_url"]})
+    return links
+
+
 def pdf_path(record, directory=None):
     filename = record.get("pdf_file")
     if not filename:
@@ -102,6 +240,7 @@ def validate_record(raw, directory=None, *, check_pdf=True):
     if not isinstance(raw, dict):
         raise ResearchValidationError("Research record must be an object")
     record = deepcopy(raw)
+    record.pop("doi_url", None)
     for field in ("slug", "title", "abstract", "version", "license"):
         record[field] = _text(record.get(field), field)
     if not SLUG.fullmatch(record["slug"]) or len(record["slug"]) > 160:
@@ -172,16 +311,23 @@ def validate_record(raw, directory=None, *, check_pdf=True):
         record["doi"] = _text(record["doi"], "DOI", 255)
         if not re.fullmatch(r"10\.\d{4,9}/[^\s<>\"{}]+", record["doi"]):
             raise ResearchValidationError("DOI must be a registered identifier, not a URL")
-        record["doi_verified_on"] = _date(record.get("doi_verified_on"), "DOI verification date")
-        record["doi_registration_url"] = _url(record.get("doi_registration_url"), "DOI registration evidence")
+        record["doi_verified_on"] = _past_date(record.get("doi_verified_on"), "DOI verification date")
+        record["doi_registration_url"] = _public_url(record.get("doi_registration_url"), "DOI registration evidence")
         if record.get("doi_registration_confirmed") is not True:
             raise ResearchValidationError("DOI registration must be manually confirmed")
+        record["doi_url"] = "https://doi.org/" + quote(record["doi"], safe="/")
     if record.get("zenodo_url"):
         record["zenodo_url"] = _url(record["zenodo_url"], "Zenodo URL")
-        if not re.fullmatch(r"https://zenodo.org/records/\d+", record["zenodo_url"]):
+        if not re.fullmatch(r"https://zenodo\.org/records/\d+", record["zenodo_url"]):
             raise ResearchValidationError("Use a published Zenodo record URL")
-        if not record.get("doi") or not record["doi"].lower().startswith("10.5281/zenodo."):
-            raise ResearchValidationError("Zenodo records require their registered Zenodo DOI")
+        if (record.get("doi") or "").lower() != "10.5281/zenodo." + record["zenodo_url"].rsplit("/", 1)[-1]:
+            raise ResearchValidationError("Legacy Zenodo URL must match its exact registered DOI")
+    record["repository_records"] = validate_repository_records(record)
+    for entry in record["repository_records"]:
+        if (record.get("zenodo_url") and entry["repository"] == "zenodo"
+                and entry.get("url") and entry["url"] != record["zenodo_url"]):
+            raise ResearchValidationError("Legacy and current Zenodo records disagree")
+    record["external_links"] = public_repository_links(record)
     if record.get("license_url"):
         record["license_url"] = _url(record["license_url"], "license URL")
     path = pdf_path(record, directory)
@@ -247,7 +393,7 @@ def get_publication(slug):
 
 def recommended_citation(record, base_url):
     names = "; ".join(f'{author["family_name"]}, {author["given_name"]}' for author in record["authors"])
-    link = f'https://doi.org/{record["doi"]}' if record.get("doi") else base_url.rstrip("/") + record["url"]
+    link = record["doi_url"] if record.get("doi") else base_url.rstrip("/") + record["url"]
     return (f'{names} ({record["published_at"][:4]}). {record["title"]} '
             f'(Version {record["version"]}) [{record["type_label"]}]. Nigeria Power Data. {link}')
 
@@ -313,9 +459,14 @@ def scholarly_graph(record, graph, base_url):
                             "contentUrl": url + "/paper.pdf"}
     if record.get("doi"):
         node["identifier"] = {"@type": "PropertyValue", "propertyID": "DOI", "value": record["doi"]}
-        node["sameAs"] = [f'https://doi.org/{record["doi"]}']
-        if record.get("zenodo_url"):
-            node["sameAs"].append(record["zenodo_url"])
+        node["sameAs"] = [record["doi_url"]]
+    external = record.get("external_links", [])
+    if external:
+        node["sameAs"] = list(dict.fromkeys(node.get("sameAs", []) + [item["url"] for item in external]))
+        identifiers = [node["identifier"]] if "identifier" in node else []
+        identifiers.extend({"@type": "PropertyValue", "propertyID": item["name"],
+                            "value": item["identifier"], "url": item["url"]} for item in external)
+        node["identifier"] = identifiers
     if record.get("license_url"):
         node["license"] = record["license_url"]
     for existing in graph["@graph"]:

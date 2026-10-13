@@ -126,6 +126,11 @@ generated. PDF rendering is exercised only with explicitly synthetic test data.
 
 ## DOIs and repositories
 
+See [Verified external research records](research-repositories.md) for repository
+submission statuses, evidence requirements, public links, and the offline
+editorial overview. No repository or indexing status is inferred automatically.
+
+
 - Deposit real work on Zenodo manually after author/rights approval.
 - A reserved draft DOI is not proof of a published record. Publish the deposit,
   resolve its DOI, and check that the title, authors, date, and version agree.
@@ -151,6 +156,8 @@ py -3.11 -m venv .venv
 python -m pip install -r requirements-research.txt
 python -m compileall -q app.py grid_monitor tools tests
 python -m tools.research_publications validate
+python -m tools.research_publications repositories
+python -m playwright install chromium
 python -m pytest -q tests/test_research.py
 python -m pytest -q
 ~~~

@@ -14,8 +14,8 @@ import re
 import unicodedata
 
 from grid_monitor.services.research import (
-    DEFAULT_DIRECTORY, MAX_PDF_BYTES, ResearchValidationError,
-    pdf_path, read_records, validate_record,
+    DEFAULT_DIRECTORY, MAX_PDF_BYTES, MAX_RECORD_BYTES, ResearchValidationError,
+    pdf_path, read_records, validate_record, validate_repository_records,
 )
 
 
@@ -96,7 +96,7 @@ def build_pdf(raw, directory, *, overwrite=False, font=None, bold_font=None):
     paragraph(f'Published {record["published_at"]} | Updated {record["updated_at"]} | Version {record["version"]} | {record["type_label"]}')
     paragraph("Nigeria Power Data | " + ("Not peer reviewed" if record["peer_review_status"] == "not_peer_reviewed" else "External peer review: " + record["peer_review_url"]))
     if record.get("doi"):
-        paragraph("Registered DOI: https://doi.org/" + record["doi"])
+        paragraph("Registered DOI: " + record["doi_url"])
     paragraph("License: " + record["license"])
     for field, title in (("abstract", "Abstract"), ("methodology", "Methodology"),
                          ("findings", "Findings"), ("limitations", "Limitations"),
@@ -142,18 +142,49 @@ def build_pdf(raw, directory, *, overwrite=False, font=None, bold_font=None):
     return target
 
 
+def repository_status_report(directory):
+    """Offline editorial overview, including drafts; no network or database calls."""
+    report = []
+    for path in sorted(Path(directory).glob("*.json")):
+        if path.stat().st_size > MAX_RECORD_BYTES:
+            raise ResearchValidationError(f"{path.name}: record exceeds 1 MB")
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            raise ResearchValidationError(f"{path.name}: record must be an object")
+        entries = validate_repository_records(raw)
+        if raw.get("zenodo_url") and not any(item["repository"] == "zenodo" for item in entries):
+            validated = validate_record(raw, directory, check_pdf=False)
+            entries.append({"name": "Zenodo (legacy DOI evidence)", "status_label": "Published",
+                            "url": validated["zenodo_url"]})
+        report.append({
+            "file": path.name, "publication_status": raw.get("status"),
+            "repositories": [
+                {"name": item["name"], "status": item["status_label"],
+                 "url": item.get("url"),
+                 "verified_on": (item.get("verification") or {}).get("checked_on"),
+                 "indexing_service": (item.get("indexing") or {}).get("service")}
+                for item in entries
+            ],
+        })
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     check = sub.add_parser("validate")
     check.add_argument("--directory", type=Path, default=DEFAULT_DIRECTORY)
+    repositories = sub.add_parser("repositories", help="Review submission statuses without publishing")
+    repositories.add_argument("--directory", type=Path, default=DEFAULT_DIRECTORY)
     build = sub.add_parser("build")
     build.add_argument("record", type=Path)
     build.add_argument("--overwrite", action="store_true")
     build.add_argument("--font", type=Path)
     build.add_argument("--bold-font", type=Path)
     args = parser.parse_args()
-    if args.command == "build":
+    if args.command == "repositories":
+        print(json.dumps(repository_status_report(args.directory), indent=2, ensure_ascii=False))
+    elif args.command == "build":
         raw = json.loads(args.record.read_text(encoding="utf-8"))
         target = build_pdf(raw, args.record.resolve().parent, overwrite=args.overwrite,
                            font=args.font, bold_font=args.bold_font)

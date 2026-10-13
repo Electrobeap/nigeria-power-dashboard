@@ -116,15 +116,29 @@ def citation_export(slug):
 def submission_export(slug):
     record = _publication(slug)
     base = current_app.config["APP_BASE_URL"].rstrip("/")
+    publication_url = base + record["url"]
+    zenodo = next((link["url"] for link in record["external_links"] if link["repository"] == "zenodo"), None)
     response = jsonify({
         "submission_method": "manual",
-        "instructions": "The author must review rights and submit through their own ResearchGate account. This export does not upload or list the work.",
+        "instructions": "Authors must review rights and manually submit using their own approved repository accounts. Include the canonical publication URL in supported related-link fields. This export does not upload, register a DOI, or verify indexing.",
         "title": record["title"], "authors": record["authors"], "abstract": record["abstract"],
         "keywords": record["keywords"], "publication_date": record["published_at"],
         "publication_type": record["type_label"], "version": record["version"],
         "review_status": record["peer_review_status"], "license": record["license"],
-        "doi": record.get("doi"), "zenodo_url": record.get("zenodo_url"),
-        "url": base + record["url"],
+        "doi": record.get("doi"), "doi_url": record.get("doi_url"), "zenodo_url": zenodo,
+        "url": publication_url,
+        "external_publications": record["external_links"],
+        "repository_metadata": {
+            "zenodo": {
+                "related_identifiers": [
+                    {"identifier": publication_url, "relation": "isDescribedBy", "scheme": "url"},
+                ],
+            },
+            "researchgate": {
+                "publication_url": publication_url,
+                "instructions": "Add this source URL in the applicable source/description field when supported. Submission is author-managed.",
+            },
+        },
         "pdf_url": base + record["url"] + "/paper.pdf" if record.get("pdf_file") else None,
         "recommended_citation": recommended_citation(record, base),
     })
