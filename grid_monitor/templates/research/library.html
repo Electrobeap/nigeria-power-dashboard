@@ -6,26 +6,53 @@
     <p>Original research, technical reports, working papers, and electricity data studies.</p>
     <p class="research-muted">For educational explanations and commentary, visit <a href="/articles">Articles</a>.</p>
 </header>
-<form class="research-filters" action="/research" method="get" role="search" aria-label="Search research">
-    <div><label for="research-query">Search publications</label><input id="research-query" name="q" type="search" value="{{ query }}" maxlength="200" placeholder="Title, author, or keyword"></div>
-    <div><label for="research-type">Publication type</label><select id="research-type" name="type"><option value="">All publications</option>{% for key, label in kinds.items() %}<option value="{{ key }}" {% if kind == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<form class="research-filters" action="/research" method="get" role="search" aria-label="Search research and educational resources">
+    <div><label for="research-query">Search research and guides</label><input id="research-query" name="q" type="search" value="{{ query }}" maxlength="200" placeholder="Title, author, or keyword"></div>
+    <div><label for="research-type">Research publication type</label><select id="research-type" name="type"><option value="">All publications</option>{% for key, label in kinds.items() %}<option value="{{ key }}" {% if kind == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
     <button class="theme-toggle" type="submit">Search</button>
     {% if query or kind %}<a href="/research">Clear filters</a>{% endif %}
 </form>
-<section aria-label="Publications" class="research-list">
+<section aria-labelledby="research-publications-title" class="research-list" id="research-publications">
+    <h2 id="research-publications-title">Research Publications</h2>
     {% for paper in records %}
     <article class="research-list-item">
         <p class="research-muted">{{ paper.type_label }} &middot; Version {{ paper.version }} &middot; <time datetime="{{ paper.published_at }}">{{ paper.published_at }}</time></p>
-        <h2><a href="{{ paper.url }}">{{ paper.title }}</a></h2>
+        <h3><a href="{{ paper.url }}">{{ paper.title }}</a></h3>
         <p>{{ paper.authors | map(attribute='name') | join('; ') }}</p>
         <p>{{ paper.description }}</p>
         <a href="{{ paper.url }}">Read abstract and publication</a>
     </article>
     {% else %}
     <div class="research-empty">
-        <h2>{{ 'No matching publications' if query or kind else 'No research publications yet' }}</h2>
-        <p>{{ 'Try another title, author, keyword, or publication type.' if query or kind else 'Research will appear here when author-approved papers and reports are ready for publication.' }}</p>
+        <h2>{{ 'No matching publications' if has_publications else 'No research publications yet' }}</h2>
+        <p>{{ 'Try another title, author, keyword, or publication type.' if has_publications else 'Research will appear here when author-approved papers and reports are ready for publication.' }}</p>
     </div>
     {% endfor %}
+</section>
+<section class="research-guides" id="energy-guides" aria-labelledby="energy-guides-title">
+    <h2 id="energy-guides-title">Related Energy Articles &amp; Guides</h2>
+    <p>Educational explanations and commentary, separate from original research publications.</p>
+    <p>Explore the <a href="/methodology">methodology</a>, <a href="/data-sources">data sources</a>, and <a href="/#generation">live electricity dashboard</a> alongside these guides.</p>
+    <div class="research-guide-grid">
+        {% for guide in guides %}
+        <article class="research-guide-card">
+            <a class="research-guide-link" href="{{ guide.url }}">
+                <picture class="research-guide-image">
+                    <source srcset="{{ guide.image_srcset or guide.image }}" sizes="(min-width: 900px) 310px, (min-width: 620px) 45vw, 100vw" type="image/webp">
+                    <img src="{{ guide.image_fallback or guide.image }}" alt="{{ guide.image_alt }}" width="1280" height="720" loading="lazy" decoding="async">
+                </picture>
+                <div class="research-guide-body">
+                    <p class="research-muted">Educational guide &middot; {{ guide.category }}</p>
+                    <h3>{{ guide.title }}</h3>
+                    <p>{{ guide.description }}</p>
+                    <p class="research-muted">{{ guide.author }} &middot; {{ guide.read_minutes }} min read</p>
+                </div>
+            </a>
+        </article>
+        {% else %}
+        <p>No educational guides match your search. <a href="/articles">Browse all articles</a>.</p>
+        {% endfor %}
+    </div>
+    <p><a href="/articles">Browse all energy articles</a></p>
 </section>
 {% endblock %}

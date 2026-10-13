@@ -1,6 +1,7 @@
 """Public scholarly library. All requests are local reads with no external calls."""
 from flask import Blueprint, Response, abort, current_app, jsonify, render_template, request, send_file
 
+from grid_monitor.services.articles import search_articles
 from grid_monitor.services.research import (
     KINDS, bibtex, get_publication, list_publications, pdf_path,
     recommended_citation, scholarly_graph,
@@ -48,6 +49,7 @@ def library():
     if kind and kind not in KINDS:
         abort(404)
     records = list_publications()
+    has_publications = bool(records)
     if kind:
         records = [item for item in records if item["publication_type"] == kind]
     if query:
@@ -57,8 +59,21 @@ def library():
                               *(author["name"] for author in item["authors"])]).casefold()
             for term in terms
         )]
+    guides = search_articles(query=query, per_page=12)["articles"]
+    if query:
+        # Retain full-text matches, bringing explicit topic matches to the top.
+        terms = query.casefold().split()
+        guides.sort(key=lambda guide: sum(
+            5 * (term in guide["title"].casefold())
+            + 3 * (term in guide["category"].casefold())
+            + 2 * (term in " ".join(guide["keywords"]).casefold())
+            + (term in guide["description"].casefold())
+            for term in terms
+        ), reverse=True)
     return render_template(
         "research/library.html", records=records, query=query, kind=kind, kinds=KINDS,
+        has_publications=has_publications,
+        guides=guides,
         noindex=bool(request.query_string),
         **_context("Research Library", "Original electricity research, technical reports, working papers, and data studies from Nigeria Power Data.", "/research"),
     )
