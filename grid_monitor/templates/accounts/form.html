@@ -1,0 +1,38 @@
+{% extends "accounts/base.html" %}
+{% block content %}
+<section class="account-panel" aria-labelledby="account-title">
+    <h1 id="account-title">{{ title }}</h1>
+    {% if error %}<p class="account-error" role="alert">{{ error }}</p>{% endif %}
+    {% if notice %}<p role="status">{{ notice }}</p>{% endif %}
+    {% if kind != 'message' %}
+    <form method="post" class="account-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if kind in ['register', 'login', 'forgot', 'resend'] %}
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
+        {% endif %}
+        {% if kind in ['register', 'login', 'reset'] %}
+        <label for="password">{{ 'New password' if kind == 'reset' else 'Password' }}</label>
+        <input id="password" name="password" type="password" autocomplete="{{ 'current-password' if kind == 'login' else 'new-password' }}" maxlength="128" {% if kind != 'login' %}minlength="15" aria-describedby="password-help"{% endif %} required>
+        {% if kind != 'login' %}<p id="password-help" class="account-muted">Use 15 to 128 characters. A long, unique passphrase is recommended.</p>{% endif %}
+        {% endif %}
+        {% if kind == 'register' %}
+        <label for="currency">Preferred pricing currency</label>
+        <select name="currency" id="currency"><option value="NGN">NGN</option><option value="USD">USD</option></select>
+        <label class="account-checkbox"><input type="checkbox" name="accept_terms" value="yes" required><span>I accept the <a href="/terms-of-use">Terms of Use</a> and acknowledge the <a href="/privacy-policy">Privacy Policy</a>.</span></label>
+        <p class="account-muted">Your account starts on Community. No payment details are collected.</p>
+        {% endif %}
+        {% if kind in ['reset', 'verify'] %}
+        <input type="hidden" id="account-token" name="token" value="{{ request.form.get('token', '')[:128] }}">
+        <noscript><p>JavaScript is needed to read the secure email link. You can also paste the token from the part after #token= into the field below.</p><label>Token <input name="manual_token" autocomplete="off"></label></noscript>
+        {% endif %}
+        <button type="submit" class="button">{{ {'register':'Create Community account', 'login':'Sign in', 'forgot':'Send reset link', 'resend':'Send verification link', 'reset':'Update password', 'verify':'Verify email'}[kind] }}</button>
+    </form>
+    {% endif %}
+    <nav class="account-links" aria-label="Account options">
+        <a href="/login">Sign in</a>
+        {% if kind != 'register' %}<a href="/register">Create account</a>{% endif %}
+        <a href="/forgot-password">Forgot password?</a><a href="/resend-verification">Resend verification</a>
+    </nav>
+</section>
+{% endblock %}

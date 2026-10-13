@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
+    <title>{{ title }} | Nigeria Power Data</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.min.css') }}?v=chart-readability-20260821">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/accounts.css') }}?v=accounts-1">
+    <script src="{{ url_for('static', filename='js/accounts.js') }}?v=accounts-1" defer></script>
+</head>
+<body>
+<header class="account-header">
+    <a href="/" aria-label="Nigeria Power Data home"><img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Nigeria Power Data" width="210" height="76"></a>
+    <nav aria-label="Account navigation"><a href="/">Dashboard</a><a href="/pricing">Pricing</a><a href="/contact">Support</a></nav>
+</header>
+<main class="account-shell" id="main">
+{% block content %}{% endblock %}
+</main>
+<footer class="account-footer"><a href="/privacy-policy">Privacy Policy</a><a href="/terms-of-use">Terms of Use</a></footer>
+</body>
+</html>

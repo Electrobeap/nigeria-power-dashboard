@@ -9,4 +9,6 @@
     <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="/articles">Articles</a>
     <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="/research">Research</a>
     <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="/methodology">Methodology</a>
+    <a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="/pricing">Pricing</a>
+    {% if config.ACCOUNTS_ENABLED %}<a{% if nav_link_class %} class="{{ nav_link_class }}"{% endif %} href="/account">Account</a>{% endif %}
 </nav>

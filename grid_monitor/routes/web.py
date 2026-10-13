@@ -102,7 +102,11 @@ CONTENT_PAGES = {
             },
             {
                 "heading": "Cookies And Advertising",
-                "body": "The current application does not require account cookies. If advertising or analytics tools are added later, this page should be updated before those services are enabled.",
+                "body": "Public dashboards do not require an account. Google Analytics and Microsoft Clarity are used on public pages. When accounts are enabled, essential signed session and CSRF cookies support authentication; account and password-recovery pages do not load analytics or advertising scripts.",
+            },
+            {
+                "heading": "Customer Accounts",
+                "body": "When registration is enabled, we store your email address, a one-way password hash, verification status, login timestamps and subscription records. Expiring recovery tokens are stored as hashes, and temporary abuse-prevention counters use keyed hashes. Account emails are sent through the configured mail provider. Contact the site team for access, correction or deletion requests; retention and payment terms require review before paid services launch.",
             },
             {
                 "heading": "Third-Party Sources",
@@ -124,6 +128,10 @@ CONTENT_PAGES = {
             {
                 "heading": "Acceptable Use",
                 "body": "Do not abuse the API, attempt to disrupt the service, or represent dashboard estimates as official dispatch instructions.",
+            },
+            {
+                "heading": "Customer Accounts And Preview",
+                "body": "Keep your credentials confidential and use an email address you control. Community access remains free. Pro prices are provisional, checkout is unavailable and no payment is collected. Town/city Pro Preview data is planning-grade estimation, not measured electricity service or operational advice. Commercial rights and paid-service terms require separate agreement.",
             },
             {
                 "heading": "Changes",

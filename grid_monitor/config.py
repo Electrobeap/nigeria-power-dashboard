@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -169,3 +170,27 @@ class Config:
     GRID_STRESS_CRITICAL_MW = _env_float("GRID_STRESS_CRITICAL_MW", 3000.0)
     GRID_STRESS_STRESSED_MW = _env_float("GRID_STRESS_STRESSED_MW", 4500.0)
     GRID_STRESS_STABLE_MW = _env_float("GRID_STRESS_STABLE_MW", 5500.0)
+
+    # Account foundation: deployment remains opt-in; no paywalls or payment handlers.
+    ACCOUNTS_ENABLED = _env_bool("ACCOUNTS_ENABLED", False)
+    SUBSCRIPTIONS_ENABLED = _env_bool("SUBSCRIPTIONS_ENABLED", False)
+    PREMIUM_GATING_ENABLED = _env_bool("PREMIUM_GATING_ENABLED", False)
+    PRO_PREVIEW_ENABLED = _env_bool("PRO_PREVIEW_ENABLED", True)
+    PAYSTACK_TEST_CHECKOUT_ENABLED = _env_bool("PAYSTACK_TEST_CHECKOUT_ENABLED", False)
+    LIVE_BILLING_ENABLED = _env_bool("LIVE_BILLING_ENABLED", False)
+    USD_CHECKOUT_ENABLED = _env_bool("USD_CHECKOUT_ENABLED", False)
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", True)
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_REFRESH_EACH_REQUEST = False
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
+    WTF_CSRF_CHECK_DEFAULT = False  # Explicitly protect only the new account blueprint.
+    WTF_CSRF_TIME_LIMIT = timedelta(hours=1)
+    AUTH_TRUST_PROXY_HOPS = max(0, min(3, _env_int("AUTH_TRUST_PROXY_HOPS", 0)))
+    AUTH_EMAIL_ENABLED = _env_bool("AUTH_EMAIL_ENABLED", False)
+    AUTH_EMAIL_VERIFICATION_REQUIRED = _env_bool("AUTH_EMAIL_VERIFICATION_REQUIRED", True)
+    AUTH_SMTP_HOST = os.environ.get("AUTH_SMTP_HOST", "")
+    AUTH_SMTP_PORT = _env_int("AUTH_SMTP_PORT", 587)
+    AUTH_SMTP_USERNAME = os.environ.get("AUTH_SMTP_USERNAME", "")
+    AUTH_SMTP_PASSWORD = os.environ.get("AUTH_SMTP_PASSWORD", "")
+    AUTH_MAIL_FROM = os.environ.get("AUTH_MAIL_FROM", "")

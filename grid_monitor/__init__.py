@@ -4,10 +4,14 @@ import logging
 import sys
 
 from alembic import command
-from flask import Flask, current_app, request
+from flask import Flask, current_app, request, session
 
 from grid_monitor.config import Config
 from grid_monitor.extensions import db, migrate
+from grid_monitor.routes.accounts import accounts_bp
+from grid_monitor.routes.subscriptions import subscription_bp
+from grid_monitor.services.accounts import init_accounts, start_mail_queue
+from grid_monitor.services.subscriptions import seed_subscription_pricing
 from grid_monitor.routes.api import api_bp
 from grid_monitor.routes.geography import geo_fast_bp
 from grid_monitor.routes.research import research_bp
@@ -88,6 +92,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     configure_logging(app)
     db.init_app(app)
     migrate.init_app(app, db)
+    init_accounts(app)
 
     is_flask_db_command = "db" in sys.argv
     with app.app_context():
@@ -95,6 +100,8 @@ def create_app(config_class: type[Config] = Config) -> Flask:
             run_startup_migrations()
         init_database()
 
+    app.register_blueprint(accounts_bp)
+    app.register_blueprint(subscription_bp)
     app.register_blueprint(research_bp)
     app.register_blueprint(geo_fast_bp)
     app.register_blueprint(web_bp)
@@ -104,6 +111,14 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         start_scheduler(app)
     if app.config["INDEXNOW_ENABLED"] and not is_flask_db_command:
         start_indexnow_startup_notification(app)
+
+    if not is_flask_db_command:
+        start_mail_queue(app)
+
+    @app.cli.command("seed-subscription-prices")
+    def seed_prices_command():
+        """Insert immutable reviewed price versions; never update contracts."""
+        seed_subscription_pricing()
 
     log_event("app_startup", database_uri=app.config["SAFE_DATABASE_URI"])
     atexit.register(stop_scheduler)
@@ -125,9 +140,14 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         else:
             response.headers["Cache-Control"] = "public, max-age=300"
 
+        if request.blueprint == "accounts" or (app.config.get("ACCOUNTS_ENABLED") and session.get("_user_id")):
+            response.headers["Cache-Control"] = "private, no-store"
+            response.vary.add("Cookie")
+
         accepts_gzip = "gzip" in request.headers.get("Accept-Encoding", "").lower()
         should_compress = (
             accepts_gzip
+            and request.blueprint != "accounts"
             and request.method != "HEAD"
             and "Range" not in request.headers
             and response.status_code < 300

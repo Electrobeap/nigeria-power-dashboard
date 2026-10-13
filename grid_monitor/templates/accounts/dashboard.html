@@ -1,0 +1,18 @@
+{% extends "accounts/base.html" %}
+{% block content %}
+<section class="account-panel">
+    <h1>Your account</h1>
+    <dl class="account-details">
+        <dt>Email</dt><dd>{{ current_user.email }}</dd>
+        <dt>Email status</dt><dd>{{ 'Verified' if current_user.email_verified_at else 'Not verified' }}</dd>
+        <dt>Plan</dt><dd>{{ 'Pro' if entitlements.premium_access_active else 'Community' }}</dd>
+        {% if entitlements.active_until %}<dt>Paid through</dt><dd>{{ entitlements.active_until }}</dd>{% endif %}
+        <dt>Billing</dt><dd>Not available. No payment is being collected.</dd>
+    </dl>
+    <h2>Public access</h2>
+    <p>National, regional and state dashboards, existing public history, educational articles and eligible research remain freely accessible.</p>
+    {% if entitlements.pro_preview_enabled %}<p><strong>Pro Preview:</strong> advanced town/city intelligence remains publicly accessible. Planning-grade population, demand and infrastructure estimates are not measured electricity observations.</p>{% endif %}
+    <nav class="account-links" aria-label="Account resources"><a href="/pricing">View plans</a><a href="/geography">Geographic intelligence</a><a href="/research">Research Library</a><a href="/forgot-password">Reset password</a></nav>
+    <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button" type="submit">Sign out of all sessions</button></form>
+</section>
+{% endblock %}
