@@ -21,7 +21,8 @@ LIVE_BILLING_ENABLED must stay false; attempting to activate them fails startup
 explicitly instead of silently exposing an unfinished payment/gating system.
 SUBSCRIPTIONS_ENABLED is false and cannot install guards by itself.
 All existing historical views remain public, including longer ranges already
-exposed by the current APIs. The proposed seven-day boundary is NOT activated.
+exposed by the current APIs. Future premium products must be additive, not shorten
+existing free historical windows.
 
 ## Selective integration
 

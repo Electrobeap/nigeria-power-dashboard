@@ -6,7 +6,6 @@ from grid_monitor.subscription_models import UserSubscription, utc_now
 PREMIUM_FEATURES = {"extended_history", "advanced_exports", "town_intelligence"}
 PUBLIC_FEATURES = {"national_dashboard", "regional_dashboard", "state_dashboard", "public_history",
                    "articles", "research"}
-PUBLIC_BASELINE_HOURS = 168  # Proposed Stage 2 baseline; existing public history is unchanged.
 
 
 def active_subscription(user):

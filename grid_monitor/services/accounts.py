@@ -130,7 +130,8 @@ def issue_token(user, purpose):
     # Serialize issuance with password changes and other delivery workers.
     user = db.session.execute(select(User).where(User.id == user.id).with_for_update()
                               .execution_options(populate_existing=True)).scalar_one()
-    db.session.execute(delete(AccountToken).where(AccountToken.user_id == user.id, AccountToken.purpose == purpose))
+    db.session.execute(delete(AccountToken).where(AccountToken.user_id == user.id, AccountToken.purpose == purpose)
+                       .execution_options(synchronize_session="fetch"))
     db.session.add(AccountToken(user_id=user.id, purpose=purpose, token_hash=hashlib.sha256(token.encode()).hexdigest(),
                                 expires_at=utc_now() + timedelta(minutes=30 if purpose == "reset" else 1440)))
     db.session.commit()
@@ -149,9 +150,10 @@ def consume_token(token, purpose, password=None):
                               .execution_options(populate_existing=True)).scalar_one_or_none()
     if not user or not user.is_active:
         return False
+    # Fetch synchronization avoids Python comparisons against naive SQLite datetimes.
     used = db.session.execute(update(AccountToken).where(
         AccountToken.id == record.id, AccountToken.used_at.is_(None), AccountToken.expires_at > now,
-    ).values(used_at=now)).rowcount
+    ).values(used_at=now).execution_options(synchronize_session="fetch")).rowcount
     if used != 1:
         db.session.rollback()
         return False
@@ -159,7 +161,8 @@ def consume_token(token, purpose, password=None):
         user.set_password(validate_password(password))
         user.session_token = session_identifier()
         # Every outstanding reset/verification token is invalid after a password change.
-        db.session.execute(update(AccountToken).where(AccountToken.user_id == user.id).values(used_at=now))
+        db.session.execute(update(AccountToken).where(AccountToken.user_id == user.id).values(used_at=now)
+                           .execution_options(synchronize_session="fetch"))
     else:
         user.email_verified_at = now
     db.session.commit()

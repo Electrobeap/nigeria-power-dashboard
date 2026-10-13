@@ -170,7 +170,9 @@ def test_login_account_isolation_headers_and_logout_replay(account_app, customer
     assert "Content-Encoding" not in response.headers
     assert b"googletagmanager" not in response.data and b"clarity.ms" not in response.data
     cookie = client.get_cookie("session").value
-    assert client.get("/logout").status_code == 405
+    # The existing /<page_slug> GET route returns 404 rather than router-level 405.
+    assert client.get("/logout").status_code == 404
+    assert client.get("/account").status_code == 200
     token = BeautifulSoup(response.data, "html.parser").select_one('input[name="csrf_token"]')["value"]
     assert client.post("/logout", data={}).status_code == 400
     assert client.post("/logout", data={"csrf_token": token}).status_code == 303
