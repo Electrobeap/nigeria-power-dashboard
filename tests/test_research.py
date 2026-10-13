@@ -539,3 +539,12 @@ def test_publication_external_links_responsive(app, catalog, record, repository_
     finally:
         server.shutdown()
         thread.join(timeout=5)
+
+
+def test_legacy_zenodo_rejects_lookalike_hostname(record):
+    record.update(doi="10.5281/zenodo.0", doi_registration_confirmed=True,
+                  doi_verified_on="2026-01-02",
+                  doi_registration_url="https://example.org/test-only-doi-evidence",
+                  zenodo_url="https://zenodoxorg/records/0")
+    with pytest.raises(ResearchValidationError):
+        validate_record(record, check_pdf=False)

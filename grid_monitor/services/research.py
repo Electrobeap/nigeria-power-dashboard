@@ -318,7 +318,7 @@ def validate_record(raw, directory=None, *, check_pdf=True):
         record["doi_url"] = "https://doi.org/" + quote(record["doi"], safe="/")
     if record.get("zenodo_url"):
         record["zenodo_url"] = _url(record["zenodo_url"], "Zenodo URL")
-        if not re.fullmatch(r"https://zenodo.org/records/\d+", record["zenodo_url"]):
+        if not re.fullmatch(r"https://zenodo\.org/records/\d+", record["zenodo_url"]):
             raise ResearchValidationError("Use a published Zenodo record URL")
         if (record.get("doi") or "").lower() != "10.5281/zenodo." + record["zenodo_url"].rsplit("/", 1)[-1]:
             raise ResearchValidationError("Legacy Zenodo URL must match its exact registered DOI")
