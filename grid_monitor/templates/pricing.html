@@ -1,0 +1,26 @@
+{% extends "research/base.html" %}
+{% block citation_metadata %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/accounts.css') }}?v=accounts-1">
+{% endblock %}
+{% block research_content %}
+<header class="research-header"><p class="eyebrow">Nigeria Power Data</p><h1>Plans and Pricing</h1><p>Community access is free. Pro pricing is provisional, and checkout is not yet available.</p></header>
+<nav class="currency-choice" aria-label="Pricing currency">
+    <span>Currency</span>
+    {% for currency in pricing.currencies %}<a href="{{ url_for('subscriptions.pricing_page', currency=currency) }}"{% if currency == pricing.currency %} aria-current="true"{% endif %}>{{ currency }}</a>{% endfor %}
+</nav>
+<div class="pricing-grid">
+{% for plan in pricing.plans %}
+<section class="pricing-card" aria-labelledby="plan-{{ plan.plan_code }}">
+    <h2 id="plan-{{ plan.plan_code }}">{{ plan.display_name }}</h2>
+    <p class="pricing-amount">{{ plan.formatted_price }}</p>
+    {% if plan.plan_code == 'pro' %}<p class="research-muted">per month &middot; provisional</p>{% endif %}
+    <p>{{ plan.description }}</p>
+    <ul>{% for feature in plan.features %}<li>{{ feature }}</li>{% endfor %}</ul>
+    {% if plan.plan_code == 'community' %}<a href="{{ '/register' if config.ACCOUNTS_ENABLED else '/' }}">{{ 'Create free account' if config.ACCOUNTS_ENABLED else 'Explore dashboard' }}</a>
+    {% elif plan.plan_code == 'pro' %}<button type="button" disabled>Coming Soon</button>
+    {% else %}<a href="/contact">Contact Sales</a>{% endif %}
+</section>
+{% endfor %}
+</div>
+<section class="research-section"><h2>Access and availability</h2><p>Existing public dashboards and historical views remain unchanged. Advanced town/city intelligence is available under Pro Preview while access controls are reviewed. These planning-grade estimates are not measured observations.</p><p>NGN and USD prices are independently configured, not converted at a live exchange rate. USD checkout remains unavailable pending approved corporate settlement and payment-provider eligibility. No live payments are enabled.</p><p><a href="/methodology">Methodology</a> &middot; <a href="/data-sources">Data sources</a></p></section>
+{% endblock %}
