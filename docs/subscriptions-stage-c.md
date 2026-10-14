@@ -80,6 +80,11 @@ AUTH_EMAIL_ENABLED=true
 AUTH_EMAIL_VERIFICATION_REQUIRED=true
 REQUIRE_DATABASE_ON_STARTUP=true
 AUTO_CREATE_TABLES=false
+RUN_MIGRATIONS_ON_STARTUP=false
+HISTORY_CAPTURE_ENABLED=false
+WEB_SCHEDULER_ENABLED=false
+INDEXNOW_ENABLED=false
+INDEXNOW_AUTO_NOTIFY_ENABLED=false
 ```
 
 Also configure existing SECRET_KEY (32+ random characters), DATABASE_URL for a
@@ -130,7 +135,8 @@ python -m flask --app app billing-status
 
 Run the web service with the existing Gunicorn entrypoint. Run a separate supervised
 process for `python -m flask --app app billing-worker`; do not run it inside web
-workers or change the grid scheduler. A worker failure leaves acknowledged events
+workers or change the grid scheduler. Billing CLI commands suppress unrelated
+background-service startup; normal web startup is unchanged. A worker failure leaves acknowledged events
 durably pending. `--once` is for manual staging checks, not continuous operation.
 
 The worker periodically queues reconciliation and recovers its last five provider

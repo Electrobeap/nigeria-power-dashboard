@@ -7,7 +7,7 @@
     <h1>Subscription and billing</h1>
     {% if sandbox %}<p class="billing-notice" role="status"><strong>Sandbox only.</strong> Test payments, not real charges.</p>{% else %}<p role="status">Billing is disabled. No payment is being collected.</p>{% endif %}
     <dl class="account-details">
-        <dt>Plan</dt><dd>{{ 'Pro (sandbox)' if entitlements.premium_access_active and account else 'Community' }}</dd>
+        <dt>Plan</dt><dd>{{ ('Pro (sandbox)' if account else 'Pro') if entitlements.premium_access_active else 'Community' }}</dd>
         <dt>Price</dt><dd>NGN 7,500 / month <span class="account-muted">(provisional)</span></dd>
         <dt>Status</dt><dd>{{ contract.status|replace('_', ' ')|title if contract else 'Free' }}</dd>
         {% if account %}<dt>Verification</dt><dd>{{ account.checkout_status|title }}</dd>{% endif %}

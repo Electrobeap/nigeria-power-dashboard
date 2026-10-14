@@ -158,7 +158,7 @@ def billing_app(tmp_path, monkeypatch):
 def sign_in(client, name="customer"):
     token = BeautifulSoup(client.get("/login").data, "html.parser").select_one('input[name="csrf_token"]')["value"]
     response = client.post("/login", data={"email": name + "@example.com", "password": PASSWORD, "csrf_token": token})
-    assert response.status_code == 302
+    assert response.status_code == 303
 
 
 def post(client, path, **values):
@@ -660,3 +660,40 @@ def test_stale_provider_response_cannot_reverse_cancellation(billing_app):
     with billing_app.app_context():
         assert not BillingAccount.query.one().renewal_enabled
         assert UserSubscription.query.filter_by(provider="paystack_test").one().status == "cancelled"
+
+
+def test_fast_webhook_cannot_be_overwritten_by_initialize_response(billing_app, monkeypatch):
+    fake = billing_app.extensions["billing_fake"]
+    original = fake.initialize
+    def immediate(email, reference, plan):
+        result = original(email, reference, plan)
+        billing.enqueue_internal("verify", {"reference": reference}, "early:" + reference)
+        assert billing.process_one()
+        return result
+    monkeypatch.setattr(fake, "initialize", immediate)
+    client = billing_app.test_client()
+    sign_in(client)
+    response = post(client, CHECKOUT)
+    assert response.status_code == 303 and response.headers["Location"] == "/account/billing"
+    assert is_pro(billing_app)
+    with billing_app.app_context():
+        assert BillingAccount.query.one().checkout_status == "verified"
+        assert BillingAccount.query.one().checkout_url is None
+
+
+@pytest.mark.parametrize("command_name", ["billing-worker", "billing-status", "billing-retry"])
+def test_billing_cli_does_not_start_unrelated_background_services(tmp_path, monkeypatch, command_name):
+    import grid_monitor
+    monkeypatch.setattr("sys.argv", ["flask", command_name])
+    calls = []
+    monkeypatch.setattr(grid_monitor, "start_scheduler", lambda app: calls.append("grid"))
+    monkeypatch.setattr(grid_monitor, "start_indexnow_startup_notification", lambda app: calls.append("indexnow"))
+    monkeypatch.setattr(grid_monitor, "start_mail_queue", lambda app: calls.append("mail"))
+    config = type("BillingCli", (BillingConfig,), {
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///" + str(tmp_path / "cli.sqlite"),
+        "SQLALCHEMY_ENGINE_OPTIONS": {}, "HISTORY_CAPTURE_ENABLED": True, "INDEXNOW_ENABLED": True,
+    })
+    app = create_app(config)
+    assert calls == []
+    with app.app_context():
+        db.drop_all()

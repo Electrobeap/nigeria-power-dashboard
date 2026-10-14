@@ -133,14 +133,15 @@ def initialize_checkout(user):
         if not isinstance(result, dict) or result.get("reference") != reference:
             raise BillingError("checkout_reference_mismatch", False)
         url = provider_url(result.get("authorization_url"), "checkout")
-        account = db.session.get(BillingAccount, user_id)
-        account.checkout_url, account.checkout_status = url, "initialized"
+        updated = db.session.execute(update(BillingAccount).execution_options(synchronize_session=False).where(
+            BillingAccount.user_id == user_id, BillingAccount.checkout_status == "initializing").values(
+                checkout_url=url, checkout_status="initialized"))
         db.session.commit()
-        return url
+        return url if updated.rowcount else "/account/billing"
     except BillingError:
         db.session.rollback()
-        account = db.session.get(BillingAccount, user_id)
-        account.checkout_status = "review"
+        db.session.execute(update(BillingAccount).execution_options(synchronize_session=False).where(
+            BillingAccount.user_id == user_id, BillingAccount.checkout_status == "initializing").values(checkout_status="review"))
         db.session.commit()
         # Do not blindly retry initialize after an uncertain network result.
         enqueue_internal("reconcile", {"user_id": user_id}, "initialize-reconcile:" + reference)

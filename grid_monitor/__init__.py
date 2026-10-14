@@ -73,6 +73,8 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     init_accounts(app)
 
     is_flask_db_command = "db" in sys.argv
+    is_billing_command = any(name in sys.argv for name in ("billing-worker", "billing-retry", "billing-status"))
+    start_background_services = not is_flask_db_command and not is_billing_command
     with app.app_context():
         if app.config["RUN_MIGRATIONS_ON_STARTUP"] and not is_flask_db_command:
             run_startup_migrations()
@@ -90,12 +92,12 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(web_bp)
     app.register_blueprint(api_bp)
 
-    if app.config["HISTORY_CAPTURE_ENABLED"] and not is_flask_db_command:
+    if app.config["HISTORY_CAPTURE_ENABLED"] and start_background_services:
         start_scheduler(app)
-    if app.config["INDEXNOW_ENABLED"] and not is_flask_db_command:
+    if app.config["INDEXNOW_ENABLED"] and start_background_services:
         start_indexnow_startup_notification(app)
 
-    if not is_flask_db_command:
+    if start_background_services:
         start_mail_queue(app)
 
     @app.cli.command("seed-subscription-prices")
