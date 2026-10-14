@@ -25,7 +25,7 @@ def protect_account_request():
     if not current_app.config.get("ACCOUNTS_ENABLED"):
         abort(404)
     if request.method == "POST":
-        if request.content_length is None or request.content_length > 16384:
+        if request.content_length is not None and request.content_length > 16384:
             abort(413)
         csrf.protect()
 
