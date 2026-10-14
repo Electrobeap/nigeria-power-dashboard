@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from grid_monitor import create_app
@@ -8,9 +10,10 @@ from grid_monitor.extensions import db
 class TestConfig(Config):
     TESTING = True
     SECRET_KEY = "test-secret-key"
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
-    SAFE_DATABASE_URI = "sqlite:///:memory:"
-    SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"check_same_thread": False}}
+    SQLALCHEMY_DATABASE_URI = os.environ.get("SUBSCRIPTION_TEST_DATABASE_URL") or "sqlite:///:memory:"
+    SAFE_DATABASE_URI = "isolated-test-database"
+    SQLALCHEMY_ENGINE_OPTIONS = ({"connect_args": {"check_same_thread": False}}
+                                if SQLALCHEMY_DATABASE_URI.startswith("sqlite:") else {})
     RUN_MIGRATIONS_ON_STARTUP = False
     REQUIRE_DATABASE_ON_STARTUP = False
     AUTO_CREATE_TABLES = True

@@ -1,4 +1,4 @@
-name: Subscription account foundation
+name: Subscription security validation
 on:
   pull_request:
     paths:
@@ -9,7 +9,7 @@ on:
       - "docs/subscription*"
       - ".github/workflows/subscription-foundation.yml"
   push:
-    branches: ["feature/subscriptions-integration-20261013"]
+    branches: ["feature/subscriptions-integration-20261013", "feature/pro-entitlement-guards-20261014"]
 permissions:
   contents: read
 jobs:
@@ -42,6 +42,8 @@ jobs:
       PREMIUM_GATING_ENABLED: "false"
       PAYSTACK_TEST_CHECKOUT_ENABLED: "false"
       LIVE_BILLING_ENABLED: "false"
+      USD_CHECKOUT_ENABLED: "false"
+      PRO_PREVIEW_ENABLED: "true"
       SUBSCRIPTION_TEST_DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgresql+psycopg://npd_test:test-only-password@localhost:5432/npd_test' || '' }}
     steps:
       - uses: actions/checkout@v4

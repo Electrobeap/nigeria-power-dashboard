@@ -9,6 +9,7 @@ from flask import Flask, current_app, request, session
 from grid_monitor.config import Config
 from grid_monitor.extensions import db, migrate
 from grid_monitor.routes.accounts import accounts_bp
+from grid_monitor.routes.premium import premium_bp
 from grid_monitor.routes.subscriptions import subscription_bp
 from grid_monitor.services.accounts import init_accounts, start_mail_queue, validate_account_schema
 from grid_monitor.services.subscriptions import seed_subscription_pricing
@@ -79,6 +80,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     app.register_blueprint(accounts_bp)
     app.register_blueprint(subscription_bp)
+    app.register_blueprint(premium_bp)
     app.register_blueprint(research_bp)
     app.register_blueprint(geo_fast_bp)
     app.register_blueprint(web_bp)
@@ -117,14 +119,19 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         else:
             response.headers["Cache-Control"] = "public, max-age=300"
 
-        if request.blueprint == "accounts" or (app.config.get("ACCOUNTS_ENABLED") and session.get("_user_id")):
+        if request.blueprint == "accounts" or request.path.startswith("/api/pro/") or (app.config.get("ACCOUNTS_ENABLED") and session.get("_user_id")):
             response.headers["Cache-Control"] = "private, no-store"
             response.vary.add("Cookie")
+
+        if request.path.startswith("/api/pro/"):
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
+            response.headers["Pragma"] = "no-cache"
 
         accepts_gzip = "gzip" in request.headers.get("Accept-Encoding", "").lower()
         should_compress = (
             accepts_gzip
             and request.blueprint != "accounts"
+            and not request.path.startswith("/api/pro/")
             and request.method != "HEAD"
             and "Range" not in request.headers
             and response.status_code < 300
