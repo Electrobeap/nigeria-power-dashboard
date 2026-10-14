@@ -41,7 +41,12 @@ def protect():
 
 @billing_bp.after_request
 def headers(response):
-    return secure_response(response)
+    response = secure_response(response)
+    if sandbox_enabled():
+        # Browsers can enforce form-action on the POST's final redirect target.
+        response.headers["Content-Security-Policy"] = response.headers["Content-Security-Policy"].replace(
+            "form-action 'self';", "form-action 'self' https://checkout.paystack.com https://paystack.com;")
+    return response
 
 
 @billing_bp.errorhandler(BillingError)

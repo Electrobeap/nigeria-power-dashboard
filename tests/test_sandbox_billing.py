@@ -541,6 +541,7 @@ def test_billing_browser_responsive_and_no_console_errors(billing_app):
             browser = playwright.chromium.launch()
             page = browser.new_page()
             page.on("pageerror", lambda error: errors.append(str(error)))
+            page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
             base = f"http://127.0.0.1:{server.server_port}"
             page.goto(base + "/login")
             page.locator("#email").fill("customer@example.com")
@@ -553,6 +554,10 @@ def test_billing_browser_responsive_and_no_console_errors(billing_app):
                 assert response.status == 200
                 assert page.get_by_role("heading", name="Subscription and billing").is_visible()
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+            page.route("https://paystack.com/manage/subscriptions/**",
+                       lambda route: route.fulfill(status=200, body="Synthetic provider page", content_type="text/html"))
+            page.get_by_role("button", name="Manage renewal / payment method", exact=True).click()
+            page.wait_for_url("https://paystack.com/manage/subscriptions/**")
             assert errors == []
             browser.close()
     finally:

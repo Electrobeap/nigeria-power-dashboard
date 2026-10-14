@@ -47,7 +47,8 @@ USD 9/month remains display-only. Business/Enterprise remain Contact Sales.
   if sandbox mode is disabled. Stage B premium flags still must be explicitly
   enabled in isolated staging. Legacy/manual non-Paystack contracts are unchanged.
 - Account billing pages are private/no-store/noindex, have no GA/Clarity scripts,
-  and use the existing account CSP. Public analytics/SEO integrations are untouched.
+  and retain the account CSP, with only the two exact Paystack form-redirect
+  origins allowed on sandbox billing pages. Public analytics/SEO integrations are untouched.
 
 ## Configuration
 
