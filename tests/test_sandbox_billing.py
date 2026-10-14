@@ -554,11 +554,27 @@ def test_billing_browser_responsive_and_no_console_errors(billing_app):
                 assert response.status == 200
                 assert page.get_by_role("heading", name="Subscription and billing").is_visible()
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
-            page.route("https://paystack.com/manage/subscriptions/**",
-                       lambda route: route.fulfill(status=200, body="Synthetic provider page", content_type="text/html"))
+            # Our application pages must have no browser errors before leaving the site.
+            # The external provider's console and favicon/network policies are not ours.
+            assert errors == [], f"Billing dashboard browser errors: {errors}"
+            provider_requests = []
+
+            def fake_provider_page(route):
+                provider_requests.append(route.request.url)
+                route.fulfill(
+                    status=200,
+                    content_type="text/html",
+                    body="<html><head><link rel='icon' href='data:,'></head>"
+                         "<body>Synthetic provider page</body></html>",
+                )
+
+            # Intercept the entire external origin, including favicon requests; never
+            # depend on or accidentally contact Paystack during this browser test.
+            page.route("https://paystack.com/**", fake_provider_page)
             page.get_by_role("button", name="Manage renewal / payment method", exact=True).click()
             page.wait_for_url("https://paystack.com/manage/subscriptions/**")
-            assert errors == []
+            assert any(url.startswith("https://paystack.com/manage/subscriptions/") for url in provider_requests)
+            assert page.get_by_text("Synthetic provider page").is_visible()
             browser.close()
     finally:
         server.shutdown()
