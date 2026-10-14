@@ -112,7 +112,9 @@ SQL selects scalar aggregates grouped by UTC date and uses the existing timestam
 index. It never loads raw_payload_json, ORM snapshots or related GenCo/DisCo
 graphs. At most 1827 daily rows enter application memory. Two bounded read queries
 produce a report: daily aggregates and distinct source references. The existing
-bounded LRU holds identity-free reports for 30 seconds, namespaced by app/range.
+bounded LRU holds identity-free reports for the existing configured analytics TTL
+(ANALYTICS_CACHE_TTL_SECONDS, default 120), namespaced by app/range. Matching this
+TTL prevents premium requests from prematurely pruning public analytics entries.
 calculated_at discloses cache age; entitlement checks always precede cache hits.
 CSV is generated from the same report and uses only fixed numeric/date columns,
 so source text cannot inject spreadsheet formulas or attachment filenames.

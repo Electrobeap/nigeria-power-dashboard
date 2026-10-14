@@ -376,3 +376,18 @@ def test_public_routes_and_existing_ranges_are_not_gated(premium_app, monkeypatc
     assert not premium_app.config["PAYSTACK_TEST_CHECKOUT_ENABLED"]
     assert not premium_app.config["LIVE_BILLING_ENABLED"]
     assert not premium_app.config["USD_CHECKOUT_ENABLED"]
+
+
+def test_premium_cache_does_not_shorten_public_analytics_ttl(premium_app, monkeypatch):
+    from datetime import date
+    from grid_monitor.services import cache, premium_analytics
+    clock = [1000.0]
+    monkeypatch.setattr(cache.time, "time", lambda: clock[0])
+    with premium_app.app_context():
+        public = {"sentinel": "public-geography"}
+        assert cache.get_cached("geography:stage-b-regression", 120, lambda: public) == public
+        clock[0] += 60
+        monkeypatch.setattr(premium_analytics, "_daily_analysis", lambda *a: {"daily": []})
+        premium_analytics.generation_analysis(date(2024, 1, 1), date(2024, 1, 2))
+        assert cache.get_cached("geography:stage-b-regression", 120,
+                                lambda: pytest.fail("Premium request evicted unexpired public cache.")) == public

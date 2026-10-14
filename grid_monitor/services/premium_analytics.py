@@ -13,7 +13,6 @@ from grid_monitor.services.cache import get_cached
 from grid_monitor.subscription_models import utc_now
 
 MAX_RANGE_DAYS = 1827
-CACHE_TTL_SECONDS = 30
 CSV_FIELDS = ("date", "stored_readings", "valid_readings", "excluded_readings",
               "mean_generation_mw", "minimum_generation_mw", "maximum_generation_mw",
               "daily_range_mw", "change_from_previous_day_mw", "rolling_7_day_mean_mw",
@@ -139,4 +138,6 @@ def _daily_analysis(start, end):
 def generation_analysis(start, end):
     # Called only after route authorization. Cache contains no account-specific data.
     key = f"premium:{id(current_app._get_current_object())}:daily-v1:{start}:{end}"
-    return get_cached(key, CACHE_TTL_SECONDS, lambda: _daily_analysis(start, end))
+    # Match the shared cache TTL so premium requests cannot prematurely prune public reports.
+    return get_cached(key, current_app.config["ANALYTICS_CACHE_TTL_SECONDS"],
+                      lambda: _daily_analysis(start, end))
