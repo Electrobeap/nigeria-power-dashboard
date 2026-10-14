@@ -4,6 +4,7 @@ from functools import wraps
 
 from flask import current_app, jsonify
 from flask_login import current_user
+from sqlalchemy import or_, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from grid_monitor.extensions import db
@@ -24,7 +25,21 @@ def active_subscription(user):
         return None
     now = utc_now()
     # Re-check identity and verification in the DB, never from request fields/cache.
+    from grid_monitor.services.paystack import sandbox_enabled
+    paid_policy = or_(UserSubscription.provider.is_(None), UserSubscription.provider != "paystack_test")
+    if sandbox_enabled():
+        from grid_monitor.billing_models import BillingAccount, BillingPayment
+        verified_period = select(BillingPayment.id).join(
+            BillingAccount, BillingAccount.subscription_id == BillingPayment.subscription_id).where(
+            BillingPayment.subscription_id == UserSubscription.id,
+            BillingAccount.user_id == user.id, BillingAccount.checkout_status == "verified",
+            BillingPayment.status == "success", BillingPayment.currency == "NGN",
+            BillingPayment.amount_minor == 750000, BillingPayment.verified_at.is_not(None),
+            BillingPayment.period_start <= now, BillingPayment.period_end > now,
+        ).exists()
+        paid_policy = or_(paid_policy, verified_period)
     return UserSubscription.query.join(User, User.id == UserSubscription.user_id).filter(
+        paid_policy,
         User.id == user.id, User.is_active.is_(True), User.email_verified_at.is_not(None),
         UserSubscription.plan_code == "pro",
         UserSubscription.status.in_(("active", "cancelled")),

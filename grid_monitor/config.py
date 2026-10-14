@@ -171,12 +171,17 @@ class Config:
     GRID_STRESS_STRESSED_MW = _env_float("GRID_STRESS_STRESSED_MW", 4500.0)
     GRID_STRESS_STABLE_MW = _env_float("GRID_STRESS_STABLE_MW", 5500.0)
 
-    # Account foundation: deployment remains opt-in; no paywalls or payment handlers.
+    # Account and billing features remain opt-in; production payments are blocked.
     ACCOUNTS_ENABLED = _env_bool("ACCOUNTS_ENABLED", False)
     SUBSCRIPTIONS_ENABLED = _env_bool("SUBSCRIPTIONS_ENABLED", False)
     PREMIUM_GATING_ENABLED = _env_bool("PREMIUM_GATING_ENABLED", False)
     PRO_PREVIEW_ENABLED = _env_bool("PRO_PREVIEW_ENABLED", True)
     PAYSTACK_TEST_CHECKOUT_ENABLED = _env_bool("PAYSTACK_TEST_CHECKOUT_ENABLED", False)
+    BILLING_ENVIRONMENT = os.environ.get("BILLING_ENVIRONMENT", "disabled")
+    PAYSTACK_SANDBOX_ORIGIN = os.environ.get("PAYSTACK_SANDBOX_ORIGIN", "").rstrip("/")
+    PAYSTACK_SECRET_KEY = os.environ.get("PAYSTACK_SECRET_KEY", "")
+    PAYSTACK_NGN_PRO_PLAN_CODE = os.environ.get("PAYSTACK_NGN_PRO_PLAN_CODE", "")
+    PAYSTACK_TEST_INTEGRATION_ID = os.environ.get("PAYSTACK_TEST_INTEGRATION_ID", "")
     LIVE_BILLING_ENABLED = _env_bool("LIVE_BILLING_ENABLED", False)
     USD_CHECKOUT_ENABLED = _env_bool("USD_CHECKOUT_ENABLED", False)
     SESSION_COOKIE_HTTPONLY = True

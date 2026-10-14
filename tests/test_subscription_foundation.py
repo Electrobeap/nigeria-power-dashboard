@@ -384,7 +384,7 @@ def test_additive_migration_preserves_observations_and_schema(tmp_path):
         for model in (User, UserSubscription, SubscriptionPlanPrice, AccountToken, AuthRateLimit):
             actual = {col["name"] for col in inspect(db.engine).get_columns(model.__tablename__)}
             assert actual == set(model.__table__.columns.keys())
-        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "d13a20261013"
+        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "e14c20261014"
         db.session.rollback()
         with pytest.raises(RuntimeError, match="Non-destructive rollback"):
             command.downgrade(_alembic_config(app), "a91b2c3d4e5f6")

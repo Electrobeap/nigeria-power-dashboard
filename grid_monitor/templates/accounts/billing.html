@@ -1,0 +1,51 @@
+{% extends "accounts/base.html" %}
+{% macro action(path, label) %}
+<form method="post" action="{{ path }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button" type="submit">{{ label }}</button></form>
+{% endmacro %}
+{% block content %}
+<section class="account-panel">
+    <h1>Subscription and billing</h1>
+    {% if sandbox %}<p class="billing-notice" role="status"><strong>Sandbox only.</strong> Test payments, not real charges.</p>{% else %}<p role="status">Billing is disabled. No payment is being collected.</p>{% endif %}
+    <dl class="account-details">
+        <dt>Plan</dt><dd>{{ 'Pro (sandbox)' if entitlements.premium_access_active and account else 'Community' }}</dd>
+        <dt>Price</dt><dd>NGN 7,500 / month <span class="account-muted">(provisional)</span></dd>
+        <dt>Status</dt><dd>{{ contract.status|replace('_', ' ')|title if contract else 'Free' }}</dd>
+        {% if account %}<dt>Verification</dt><dd>{{ account.checkout_status|title }}</dd>{% endif %}
+        {% if contract and contract.current_period_end %}<dt>Paid through</dt><dd><time datetime="{{ utc(contract.current_period_end).isoformat() }}">{{ utc(contract.current_period_end).strftime('%d %b %Y, %H:%M UTC') }}</time></dd>{% endif %}
+        {% if account %}
+        <dt>Renewal</dt><dd>{{ 'Eligible' if account.renewal_enabled else 'Not renewing / pending confirmation' }}</dd>
+        {% if account.next_payment_at and account.renewal_enabled %}<dt>Next billing</dt><dd><time datetime="{{ utc(account.next_payment_at).isoformat() }}">{{ utc(account.next_payment_at).strftime('%d %b %Y, %H:%M UTC') }}</time></dd>{% endif %}
+        {% if account.cancel_requested_at %}<dt>Cancellation</dt><dd>Requested. Verified paid access continues until expiry.</dd>{% endif %}
+        {% endif %}
+        <dt>USD checkout</dt><dd>Coming Soon. Corporate settlement approval pending.</dd>
+    </dl>
+    {% if sandbox %}
+    <div class="billing-actions">
+        {% if not account or account.checkout_status in ['initialized', 'failed'] %}{{ action('/billing/paystack/checkout', 'Open NGN test checkout') }}{% endif %}
+        {% if account %}{{ action('/billing/paystack/refresh', 'Refresh payment status') }}{% endif %}
+        {% if contract and contract.provider_subscription_reference %}
+        {{ action('/billing/paystack/manage', 'Manage renewal / payment method') }}
+        {% if account.renewal_enabled %}{{ action('/billing/paystack/cancel', 'Cancel renewal') }}{% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+    <h2>Payment history</h2>
+    {% if payments %}
+    <div class="billing-table-wrap" role="region" aria-label="Payment history" tabindex="0">
+    <table class="billing-table">
+        <caption>Verified Paystack test transactions. All amounts in NGN.</caption>
+        <thead><tr><th scope="col">Paid at (UTC)</th><th scope="col">Amount</th><th scope="col">Status</th><th scope="col">Reference</th></tr></thead>
+        <tbody>{% for payment in payments %}<tr>
+            <td>{{ utc(payment.paid_at).strftime('%d %b %Y %H:%M') if payment.paid_at else 'Not paid' }}</td>
+            <td class="billing-amount">{{ "{:,.2f}".format(payment.amount_minor / 100) }}</td>
+            <td>{{ payment.status|title }}{% if payment.status == 'success' and not payment.period_end %}<br><span class="account-muted">Period awaiting verification</span>{% endif %}</td>
+            <td class="billing-reference">{{ payment.reference }}</td>
+        </tr>{% endfor %}</tbody>
+    </table>
+    </div>
+    <nav class="account-links" aria-label="Payment history pages">{% if page > 1 %}<a href="?page={{ page - 1 }}">Previous</a>{% endif %}{% if has_next %}<a href="?page={{ page + 1 }}">Next</a>{% endif %}</nav>
+    {% else %}<p>No verified payments yet.</p>{% endif %}
+    <p class="account-muted">Community dashboards, public history, research and articles remain free. Town/city Pro Preview remains planning-grade intelligence, not measured electricity observations.</p>
+    <nav class="account-links" aria-label="Billing resources"><a href="/account">Your account</a><a href="/pricing?currency=NGN">NGN pricing</a><a href="/pricing?currency=USD">USD pricing</a><a href="/contact">Billing support</a></nav>
+</section>
+{% endblock %}

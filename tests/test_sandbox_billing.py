@@ -1,0 +1,662 @@
+"""Sandbox-only provider doubles; no credentials or requests to Paystack."""
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from datetime import timedelta
+import hashlib
+import hmac
+import json
+import os
+from threading import Thread
+
+from alembic import command
+from bs4 import BeautifulSoup
+import pytest
+from sqlalchemy import inspect, select, text
+
+from grid_monitor import _alembic_config, create_app
+from grid_monitor.billing_models import BillingAccount, BillingEvent, BillingInvoice, BillingPayment
+from grid_monitor.config import Config
+from grid_monitor.extensions import db
+from grid_monitor.services import billing
+from grid_monitor.services.entitlements import active_subscription
+from grid_monitor.services.paystack import BillingError, Paystack, provider_url, validate_plan
+from grid_monitor.services.subscriptions import seed_subscription_pricing
+from grid_monitor.subscription_models import User, UserSubscription, utc_now
+
+SECRET = "sk_test_" + "synthetic1234" * 4
+PLAN = "PLN_synthetic"
+PASSWORD = "Synthetic billing test passphrase"
+WEBHOOK = "/api/billing/paystack/webhook"
+CALLBACK = "/billing/paystack/callback"
+CHECKOUT = "/billing/paystack/checkout"
+
+
+class BillingConfig(Config):
+    TESTING = True
+    SECRET_KEY = "synthetic-billing-session-key-at-least-32-characters"
+    ACCOUNTS_ENABLED = True
+    SUBSCRIPTIONS_ENABLED = True
+    PREMIUM_GATING_ENABLED = True
+    PRO_PREVIEW_ENABLED = True
+    PAYSTACK_TEST_CHECKOUT_ENABLED = True
+    LIVE_BILLING_ENABLED = False
+    USD_CHECKOUT_ENABLED = False
+    BILLING_ENVIRONMENT = "staging"
+    APP_BASE_URL = "https://sandbox.example.test"
+    PAYSTACK_SANDBOX_ORIGIN = APP_BASE_URL
+    PAYSTACK_SECRET_KEY = SECRET
+    PAYSTACK_NGN_PRO_PLAN_CODE = PLAN
+    PAYSTACK_TEST_INTEGRATION_ID = "123456"
+    AUTH_EMAIL_ENABLED = False
+    AUTH_EMAIL_VERIFICATION_REQUIRED = False
+    SESSION_COOKIE_SECURE = False
+    RUN_MIGRATIONS_ON_STARTUP = False
+    AUTO_CREATE_TABLES = True
+    HISTORY_CAPTURE_ENABLED = False
+    WEB_SCHEDULER_ENABLED = False
+    INDEXNOW_ENABLED = False
+    INDEXNOW_AUTO_NOTIFY_ENABLED = False
+
+
+class FakePaystack:
+    def __init__(self, clock):
+        self.clock = clock
+        self.calls = []
+        self.transactions = {}
+        self.plan_data = {"domain": "test", "integration": 123456, "id": 10, "plan_code": PLAN,
+                          "currency": "NGN", "amount": 750000, "interval": "monthly"}
+        self.sub = None
+        self.fail = False
+
+    def plan(self):
+        return validate_plan(deepcopy(self.plan_data))
+
+    def initialize(self, email, reference, plan):
+        self.calls.append(("initialize", email, reference, plan))
+        if self.fail:
+            raise BillingError()
+        paid = self.clock[0]
+        self.transactions[reference] = {"id": 2**63 + 42, "reference": reference, "domain": "test",
+            "status": "success", "amount": 750000, "currency": "NGN", "paid_at": paid.isoformat(),
+            "customer": {"id": 20, "email": email, "customer_code": "CUS_synthetic"},
+            "authorization": {"authorization_code": "AUTH_synthetic"}}
+        self.sub = {"domain": "test", "integration": 123456, "plan": deepcopy(self.plan_data),
+            "customer": deepcopy(self.transactions[reference]["customer"]), "amount": 750000,
+            "authorization": {"authorization_code": "AUTH_synthetic"},
+            "subscription_code": "SUB_synthetic", "status": "active", "email_token": "sensitive-never-stored",
+            "createdAt": paid.isoformat(), "updatedAt": paid.isoformat(),
+            "next_payment_date": (paid + timedelta(days=28)).isoformat(), "invoices": []}
+        return {"reference": reference, "authorization_url": "https://checkout.paystack.com/synthetic"}
+
+    def verify(self, reference):
+        self.calls.append(("verify", reference))
+        if self.fail:
+            raise BillingError()
+        return deepcopy(self.transactions[reference])
+
+    def subscriptions(self, customer_id, plan_id):
+        return [deepcopy(self.sub)]
+
+    def subscription(self, code):
+        assert code == "SUB_synthetic"
+        return deepcopy(self.sub)
+
+    def cancel(self, code, token):
+        assert code == "SUB_synthetic" and token == "sensitive-never-stored"
+        self.calls.append(("cancel", code))
+        self.sub["status"] = "non-renewing"
+        self.sub["updatedAt"] = self.clock[0].isoformat()
+
+    def manage(self, code):
+        assert code == "SUB_synthetic"
+        return "https://paystack.com/manage/subscriptions/synthetic?subscription_token=sensitive"
+
+    def request(self, method, path, **kwargs):
+        assert method == "GET" and path.startswith("/transaction/")
+        txn_id = path.rsplit("/", 1)[1]
+        return deepcopy(next(value for value in self.transactions.values() if str(value["id"]) == txn_id))
+
+
+@pytest.fixture()
+def billing_app(tmp_path, monkeypatch):
+    uri = os.environ.get("SUBSCRIPTION_TEST_DATABASE_URL") or "sqlite:///" + str(tmp_path / "billing.sqlite")
+    config = type("IsolatedBillingConfig", (BillingConfig,), {
+        "SQLALCHEMY_DATABASE_URI": uri, "SAFE_DATABASE_URI": "isolated-billing-test-db",
+        "SQLALCHEMY_ENGINE_OPTIONS": {"connect_args": {"check_same_thread": False, "timeout": 20}} if uri.startswith("sqlite:") else {},
+    })
+    clock = [utc_now()]
+    monkeypatch.setattr(billing, "utc_now", lambda: clock[0])
+    monkeypatch.setattr("grid_monitor.services.entitlements.utc_now", lambda: clock[0])
+    fake = FakePaystack(clock)
+    monkeypatch.setattr(billing, "provider", lambda: fake)
+    monkeypatch.setattr("grid_monitor.routes.billing.provider", lambda: fake)
+    # A missed double must fail instead of making any network request.
+    monkeypatch.setattr("requests.Session.request", lambda *a, **k: (_ for _ in ()).throw(AssertionError("Unexpected provider network")))
+    app = create_app(config)
+    app.extensions.update(billing_fake=fake, billing_clock=clock)
+    with app.app_context():
+        seed_subscription_pricing()
+        template = User(email="template@example.com")
+        template.set_password(PASSWORD)
+        ids = {}
+        for name in ("customer", "other", "unverified"):
+            user = User(email=name + "@example.com", password_hash=template.password_hash,
+                        email_verified_at=None if name == "unverified" else clock[0])
+            db.session.add(user)
+            db.session.flush()
+            ids[name] = user.id
+            db.session.add(UserSubscription(user_id=user.id, plan_code="community", status="free",
+                                           currency="NGN", billing_amount_minor=0))
+        db.session.commit()
+        app.extensions["billing_users"] = ids
+    yield app
+    with app.app_context():
+        db.session.remove()
+        db.drop_all()
+
+
+def sign_in(client, name="customer"):
+    token = BeautifulSoup(client.get("/login").data, "html.parser").select_one('input[name="csrf_token"]')["value"]
+    response = client.post("/login", data={"email": name + "@example.com", "password": PASSWORD, "csrf_token": token})
+    assert response.status_code == 302
+
+
+def post(client, path, **values):
+    token = BeautifulSoup(client.get("/account/billing").data, "html.parser").select_one('input[name="csrf_token"]')["value"]
+    return client.post(path, data={"csrf_token": token, **values})
+
+
+def checkout(app):
+    client = app.test_client()
+    sign_in(client)
+    assert post(client, CHECKOUT).status_code == 303
+    with app.app_context():
+        ref = db.session.get(BillingAccount, app.extensions["billing_users"]["customer"]).checkout_reference
+    return client, ref
+
+
+def drain(app):
+    with app.app_context():
+        for _ in range(30):
+            if not billing.process_one():
+                break
+        errors = [(row.event_type, row.status, row.last_error) for row in BillingEvent.query.all() if row.status != "processed"]
+        assert not errors, errors
+
+
+def signed(client, event, *, pretty=False):
+    raw = json.dumps(event, indent=2 if pretty else None).encode()
+    signature = hmac.new(SECRET.encode(), raw, hashlib.sha512).hexdigest()
+    return client.post(WEBHOOK, data=raw, content_type="application/json", headers={"x-paystack-signature": signature})
+
+
+def activation(app):
+    client, ref = checkout(app)
+    assert client.get(CALLBACK + "?reference=" + ref).status_code == 303
+    drain(app)
+    return client, ref
+
+
+def is_pro(app):
+    with app.app_context():
+        user = db.session.get(User, app.extensions["billing_users"]["customer"])
+        return active_subscription(user) is not None
+
+
+def renewal(app, *, paid=True):
+    fake, clock = app.extensions["billing_fake"], app.extensions["billing_clock"]
+    start = billing.timestamp(fake.sub["next_payment_date"])
+    end = start + timedelta(days=28)
+    clock[0] = start + timedelta(minutes=2)
+    ref = "renewal-synthetic-" + str(len(fake.transactions))
+    tx = deepcopy(next(iter(fake.transactions.values())))
+    tx.update(id=tx["id"] + len(fake.transactions), reference=ref, paid_at=clock[0].isoformat())
+    if paid:
+        fake.transactions[ref] = tx
+    invoice = {"domain": "test", "invoice_code": "INV_" + ref, "amount": 750000,
+        "period_start": start.isoformat(), "period_end": end.isoformat(),
+        "status": "success" if paid else "failed", "paid": paid,
+        "paid_at": clock[0].isoformat() if paid else None,
+        "subscription": {"subscription_code": "SUB_synthetic"},
+        "transaction": {"id": tx["id"], "reference": ref} if paid else None}
+    fake.sub.update(status="active" if paid else "attention", updatedAt=clock[0].isoformat(),
+                    next_payment_date=end.isoformat(), invoices=[invoice])
+    return invoice
+
+
+def test_checkout_requires_identity_csrf_and_server_owned_price(billing_app):
+    client = billing_app.test_client()
+    assert client.post(CHECKOUT).status_code == 401
+    sign_in(client, "unverified")
+    assert client.post(CHECKOUT).status_code == 403
+    client = billing_app.test_client()
+    sign_in(client)
+    assert client.post(CHECKOUT).status_code == 400
+    for values in ({"amount": "1"}, {"currency": "USD"}, {"plan": "PLN_fake"}, {"callback_url": "https://evil.test"}):
+        assert post(client, CHECKOUT, **values).status_code == 400
+    assert post(client, CHECKOUT).status_code == 303
+    assert post(client, CHECKOUT).status_code == 303  # resumes the same checkout, never initializes twice
+    fake = billing_app.extensions["billing_fake"]
+    assert len([call for call in fake.calls if call[0] == "initialize"]) == 1
+    with billing_app.app_context():
+        contract = UserSubscription.query.filter_by(provider="paystack_test").one()
+        assert (contract.currency, contract.billing_amount_minor, contract.status) == ("NGN", 750000, "pending")
+        assert BillingPayment.query.count() == 0
+    assert not is_pro(billing_app)
+
+
+def test_callback_is_not_payment_proof_and_is_owner_scoped(billing_app):
+    client, ref = checkout(billing_app)
+    assert client.get(CALLBACK + "?reference=" + ref + "&reference=other").status_code == 400
+    assert client.get(CALLBACK + "?reference=" + ref + "&trxref=other").status_code == 400
+    other = billing_app.test_client()
+    sign_in(other, "other")
+    assert other.get(CALLBACK + "?reference=" + ref).status_code == 404
+    assert client.get(CALLBACK + "?reference=" + ref).status_code == 303
+    assert not is_pro(billing_app)
+    drain(billing_app)
+    assert is_pro(billing_app)
+    with billing_app.app_context():
+        assert BillingPayment.query.count() == 1
+        assert BillingPayment.query.one().transaction_id == str(2**63 + 42)
+
+
+@pytest.mark.parametrize("signature", ["", "forged", "a"*128, "\u2603"*128])
+def test_forged_webhook_never_queues_or_grants(billing_app, signature):
+    response = billing_app.test_client().post(WEBHOOK, data=b'{"event":"charge.success"}',
+                                             headers={"x-paystack-signature": signature})
+    assert response.status_code == 401
+    with billing_app.app_context():
+        assert BillingEvent.query.count() == 0
+    assert not is_pro(billing_app)
+
+
+def test_duplicate_and_semantic_replay_do_not_extend_period(billing_app):
+    client, ref = activation(billing_app)
+    event = {"event": "charge.success", "data": {"domain": "test", "reference": ref,
+             "authorization": {"authorization_code": "never-store"}, "email_token": "never-store"}}
+    first = signed(client, event)
+    assert first.json == {"ok": True, "queued": True}
+    assert signed(client, event).json["queued"] is False
+    assert signed(client, event, pretty=True).json["queued"] is True
+    with billing_app.app_context():
+        end = BillingPayment.query.one().period_end
+    drain(billing_app)
+    with billing_app.app_context():
+        assert BillingPayment.query.count() == 1
+        assert BillingPayment.query.one().period_end == end
+        assert "never-store" not in json.dumps([row.payload for row in BillingEvent.query.all()])
+    billing_app.extensions["billing_clock"][0] += timedelta(days=35)
+    assert signed(client, event).json["queued"] is False
+    assert not is_pro(billing_app)
+
+
+@pytest.mark.parametrize("field,value", [("currency", "USD"), ("amount", 1), ("amount", 750000.0),
+                                         ("domain", "live"), ("reference", "other")])
+def test_verified_api_mismatch_fails_closed(billing_app, field, value):
+    client, ref = checkout(billing_app)
+    billing_app.extensions["billing_fake"].transactions[ref][field] = value
+    client.get(CALLBACK + "?reference=" + ref)
+    with billing_app.app_context():
+        assert billing.process_one()
+        assert BillingEvent.query.one().status == "review"
+        assert BillingPayment.query.count() == 0
+    assert not is_pro(billing_app)
+
+
+def test_unrelated_customer_or_subscription_cannot_be_adopted(billing_app):
+    client, ref = checkout(billing_app)
+    fake = billing_app.extensions["billing_fake"]
+    fake.sub["authorization"]["authorization_code"] = "AUTH_unrelated"
+    client.get(CALLBACK + "?reference=" + ref)
+    with billing_app.app_context():
+        billing.process_one()
+        assert BillingPayment.query.count() == 0
+    assert not is_pro(billing_app)
+
+
+def test_subscription_create_before_charge_uses_original_transaction(billing_app):
+    client, _ = checkout(billing_app)
+    event = {"event": "subscription.create", "data": {"domain": "test", "subscription_code": "SUB_synthetic"}}
+    assert signed(client, event).status_code == 200
+    drain(billing_app)
+    assert is_pro(billing_app)
+
+
+def test_failed_initial_payment_then_recovery(billing_app):
+    client, ref = checkout(billing_app)
+    tx = billing_app.extensions["billing_fake"].transactions[ref]
+    tx.update(status="failed", paid_at=None)
+    client.get(CALLBACK + "?reference=" + ref)
+    drain(billing_app)
+    assert not is_pro(billing_app)
+    assert post(client, CHECKOUT).status_code == 303
+    tx.update(status="success", paid_at=billing_app.extensions["billing_clock"][0].isoformat())
+    assert post(client, "/billing/paystack/refresh").status_code == 303
+    drain(billing_app)
+    assert is_pro(billing_app)
+    with billing_app.app_context():
+        assert BillingPayment.query.count() == 1
+
+
+def test_renewal_invoice_charge_and_out_of_order_failure(billing_app):
+    client, _ = activation(billing_app)
+    invoice = renewal(billing_app)
+    assert not is_pro(billing_app)  # previous period has expired
+    assert signed(client, {"event": "invoice.update", "data": invoice}).status_code == 200
+    drain(billing_app)
+    assert is_pro(billing_app)
+    failed = deepcopy(invoice)
+    failed.update(paid=False, status="failed", transaction=None)
+    assert signed(client, {"event": "invoice.payment_failed", "data": failed}).status_code == 200
+    drain(billing_app)
+    assert is_pro(billing_app)
+    with billing_app.app_context():
+        assert BillingPayment.query.count() == 2
+        assert BillingInvoice.query.one().status == "paid"
+    # Same verified transaction cannot be reused to purchase another period.
+    replay = deepcopy(invoice)
+    start = billing.timestamp(replay["period_start"]) + timedelta(days=28)
+    replay.update(invoice_code="INV_replayed", period_start=start.isoformat(),
+                  period_end=(start + timedelta(days=28)).isoformat())
+    signed(client, {"event": "invoice.update", "data": replay})
+    with billing_app.app_context():
+        billing.process_one()
+        assert BillingInvoice.query.count() == 1
+
+
+def test_failed_renewal_expiry_and_later_recovery(billing_app):
+    client, _ = activation(billing_app)
+    failed = renewal(billing_app, paid=False)
+    signed(client, {"event": "invoice.payment_failed", "data": failed})
+    drain(billing_app)
+    assert not is_pro(billing_app)
+    with billing_app.app_context():
+        contract = UserSubscription.query.filter_by(provider="paystack_test").one()
+        assert contract.status == "past_due"
+        assert BillingInvoice.query.one().status == "failed"
+    fake, clock = billing_app.extensions["billing_fake"], billing_app.extensions["billing_clock"]
+    recovered = deepcopy(failed)
+    ref = "recovered-synthetic"
+    tx = deepcopy(next(iter(fake.transactions.values())))
+    tx.update(id=tx["id"] + 1, reference=ref, paid_at=clock[0].isoformat())
+    fake.transactions[ref] = tx
+    recovered.update(paid=True, status="success", transaction={"reference": ref, "id": tx["id"]})
+    fake.sub.update(status="active", invoices=[recovered], updatedAt=clock[0].isoformat())
+    signed(client, {"event": "invoice.update", "data": recovered})
+    drain(billing_app)
+    assert is_pro(billing_app)
+
+
+def test_cancellation_preserves_paid_period_and_recovery_uses_current_api(billing_app):
+    client, _ = activation(billing_app)
+    assert post(client, "/billing/paystack/cancel").status_code == 303
+    drain(billing_app)
+    assert is_pro(billing_app)
+    with billing_app.app_context():
+        account = BillingAccount.query.one()
+        assert not account.renewal_enabled
+        assert account.cancel_requested_at is not None
+        assert UserSubscription.query.filter_by(provider="paystack_test").one().status == "cancelled"
+    assert post(client, "/billing/paystack/manage").headers["Location"].startswith("https://paystack.com/manage/")
+    fake, clock = billing_app.extensions["billing_fake"], billing_app.extensions["billing_clock"]
+    clock[0] += timedelta(minutes=10)
+    fake.sub.update(status="active", updatedAt=clock[0].isoformat())
+    # Late cancellation notification must not overwrite provider-confirmed recovery.
+    signed(client, {"event": "subscription.disable", "data": {"domain": "test", "subscription_code": "SUB_synthetic"}})
+    drain(billing_app)
+    with billing_app.app_context():
+        assert BillingAccount.query.one().renewal_enabled
+        assert BillingAccount.query.one().cancel_requested_at is None
+    clock[0] += timedelta(days=35)
+    assert not is_pro(billing_app)
+
+
+def test_database_flag_without_verified_ledger_never_grants_sandbox_pro(billing_app):
+    client, _ = checkout(billing_app)
+    with billing_app.app_context():
+        contract = UserSubscription.query.filter_by(provider="paystack_test").one()
+        now = billing_app.extensions["billing_clock"][0]
+        contract.status, contract.current_period_start, contract.current_period_end = "active", now, now + timedelta(days=28)
+        db.session.commit()
+    assert not is_pro(billing_app)
+
+
+def test_disabling_sandbox_revokes_test_entitlements_but_not_public_access(billing_app):
+    client, _ = activation(billing_app)
+    assert is_pro(billing_app)
+    billing_app.config["PAYSTACK_TEST_CHECKOUT_ENABLED"] = False
+    assert not is_pro(billing_app)
+    assert client.post(CHECKOUT).status_code == 404
+    assert client.post(WEBHOOK).status_code == 404
+    assert client.get("/account/billing").status_code == 200
+    for path in ("/states", "/state/lagos", "/region/north-central", "/research", "/articles"):
+        assert client.get(path).status_code == 200
+
+
+def test_provider_outage_is_durable_and_no_blind_reinitialization(billing_app):
+    fake = billing_app.extensions["billing_fake"]
+    fake.fail = True
+    client = billing_app.test_client()
+    sign_in(client)
+    assert post(client, CHECKOUT).status_code == 503
+    assert post(client, CHECKOUT).status_code == 409
+    with billing_app.app_context():
+        assert BillingAccount.query.one().checkout_status == "review"
+        assert BillingEvent.query.count() == 1
+    assert len([call for call in fake.calls if call[0] == "initialize"]) == 1
+
+
+def test_concurrent_callbacks_and_webhooks_apply_once(billing_app):
+    client, ref = checkout(billing_app)
+    def deliver(index):
+        with billing_app.app_context():
+            return billing.enqueue_internal("verify", {"reference": ref}, "concurrent:" + ref)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        results = list(executor.map(deliver, range(12)))
+    assert sum(results) == 1
+    def process(index):
+        with billing_app.app_context():
+            return billing.process_one()
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        list(executor.map(process, range(8)))
+    drain(billing_app)
+    assert is_pro(billing_app)
+    with billing_app.app_context():
+        assert BillingPayment.query.count() == 1
+        assert BillingAccount.query.one().lease_token is None
+
+
+def test_expired_worker_lease_and_deferred_event_recover(billing_app):
+    client, ref = checkout(billing_app)
+    client.get(CALLBACK + "?reference=" + ref)
+    with billing_app.app_context():
+        event = BillingEvent.query.one()
+        event.status, event.lease_token = "processing", "crashed-worker"
+        event.available_at = billing_app.extensions["billing_clock"][0] - timedelta(seconds=1)
+        account = BillingAccount.query.one()
+        account.lease_token, account.lease_until = "crashed-worker", event.available_at
+        db.session.commit()
+    drain(billing_app)
+    assert is_pro(billing_app)
+
+
+@pytest.mark.parametrize("overrides", [
+    {"LIVE_BILLING_ENABLED": True}, {"USD_CHECKOUT_ENABLED": True},
+    {"PAYSTACK_SECRET_KEY": "sk_live_" + "x" * 32},
+    {"BILLING_ENVIRONMENT": "production"},
+    {"APP_BASE_URL": "https://nigeriapowerdata.com", "PAYSTACK_SANDBOX_ORIGIN": "https://nigeriapowerdata.com"},
+    {"PAYSTACK_SANDBOX_ORIGIN": "https://evil.example"},
+    {"PAYSTACK_NGN_PRO_PLAN_CODE": ""}, {"PAYSTACK_TEST_INTEGRATION_ID": ""},
+])
+def test_unsafe_sandbox_configuration_rejected(overrides):
+    with pytest.raises(RuntimeError):
+        create_app(type("InvalidSandbox", (BillingConfig,), overrides))
+
+
+@pytest.mark.parametrize("url", ["http://checkout.paystack.com/test", "https://checkout.paystack.com.evil.test/x",
+                                 "https://user:pass@checkout.paystack.com/x", "https://evil.test"])
+def test_external_redirects_are_allowlisted(url):
+    with pytest.raises(BillingError):
+        provider_url(url, "checkout")
+
+
+def test_provider_initialize_controls_all_money_and_callback_fields(billing_app, monkeypatch):
+    calls = []
+    monkeypatch.setattr(Paystack, "request", lambda self, method, path, **kwargs: calls.append((method, path, kwargs)))
+    with billing_app.app_context():
+        Paystack().initialize("customer@example.com", "server-reference", PLAN)
+    body = calls[0][2]["payload"]
+    assert body == {"email": "customer@example.com", "reference": "server-reference", "plan": PLAN,
+                    "amount": 750000, "currency": "NGN", "channels": ["card"],
+                    "callback_url": "https://sandbox.example.test/billing/paystack/callback"}
+
+
+def test_dashboard_is_private_and_never_exposes_secrets(billing_app):
+    client, _ = activation(billing_app)
+    response = client.get("/account/billing", headers={"Accept-Encoding": "gzip"})
+    assert response.status_code == 200
+    assert "private" in response.headers["Cache-Control"] and "no-store" in response.headers["Cache-Control"]
+    assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
+    assert "Content-Encoding" not in response.headers
+    html = response.get_data(as_text=True)
+    for secret in (SECRET, "sensitive-never-stored", "AUTH_synthetic", "gtag(", "clarity("):
+        assert secret not in html
+    assert "7500" not in html or "7,500" in html
+    assert "Success" in html and "Cancel renewal" in html
+    other = billing_app.test_client()
+    sign_in(other, "other")
+    assert "No verified payments yet" in other.get("/account/billing").get_data(as_text=True)
+
+
+def test_billing_browser_responsive_and_no_console_errors(billing_app):
+    from playwright.sync_api import sync_playwright
+    activation(billing_app)
+    server = __import__("werkzeug.serving", fromlist=["make_server"]).make_server("127.0.0.1", 0, billing_app, threaded=True)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    errors = []
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            page = browser.new_page()
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            base = f"http://127.0.0.1:{server.server_port}"
+            page.goto(base + "/login")
+            page.locator("#email").fill("customer@example.com")
+            page.locator("#password").fill(PASSWORD)
+            page.get_by_role("button", name="Sign in", exact=True).click()
+            page.wait_for_url("**/account")
+            for width in (1440, 768, 390, 320):
+                page.set_viewport_size({"width": width, "height": 1000})
+                response = page.goto(base + "/account/billing", wait_until="networkidle")
+                assert response.status == 200
+                assert page.get_by_role("heading", name="Subscription and billing").is_visible()
+                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+            assert errors == []
+            browser.close()
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+
+
+def test_migration_schema_and_non_destructive_rollback(tmp_path):
+    uri = os.environ.get("SUBSCRIPTION_TEST_DATABASE_URL") or "sqlite:///" + str(tmp_path / "billing-migration.sqlite")
+    config = type("MigrationBilling", (BillingConfig,), {
+        "ACCOUNTS_ENABLED": False, "PAYSTACK_TEST_CHECKOUT_ENABLED": False,
+        "PREMIUM_GATING_ENABLED": False, "AUTO_CREATE_TABLES": False,
+        "SQLALCHEMY_DATABASE_URI": uri, "SQLALCHEMY_ENGINE_OPTIONS": {},
+    })
+    app = create_app(config)
+    with app.app_context():
+        db.drop_all()
+        db.session.execute(text("DROP TABLE IF EXISTS alembic_version"))
+        db.session.commit()
+        command.upgrade(_alembic_config(app), "head")
+        for model in (BillingAccount, BillingPayment, BillingInvoice, BillingEvent):
+            actual = {col["name"] for col in inspect(db.engine).get_columns(model.__tablename__)}
+            assert actual == set(model.__table__.columns.keys())
+        command.downgrade(_alembic_config(app), "d13a20261013")
+        assert "users" in inspect(db.engine).get_table_names()
+        assert "grid_snapshots" in inspect(db.engine).get_table_names()
+        assert "billing_payments" not in inspect(db.engine).get_table_names()
+        command.upgrade(_alembic_config(app), "head")
+        billing.enqueue_internal("reconcile", {"user_id": 999}, "migration-retention")
+        with pytest.raises(RuntimeError, match="Non-destructive rollback"):
+            command.downgrade(_alembic_config(app), "d13a20261013")
+        db.session.rollback()
+        assert BillingEvent.query.count() == 1
+        db.session.rollback()
+        db.drop_all()
+        db.session.execute(text("DROP TABLE alembic_version"))
+        db.session.commit()
+
+
+def test_invalid_invoice_never_changes_paid_through(billing_app):
+    client, _ = activation(billing_app)
+    invoice = renewal(billing_app)
+    invoice["period_end"] = invoice["period_start"]
+    signed(client, {"event": "invoice.update", "data": invoice})
+    with billing_app.app_context():
+        billing.process_one()
+        assert BillingEvent.query.filter_by(status="review").count() == 1
+        assert BillingPayment.query.count() == 1
+    assert not is_pro(billing_app)
+
+
+def test_account_lease_serializes_different_events(billing_app):
+    client, ref = checkout(billing_app)
+    client.get(CALLBACK + "?reference=" + ref)
+    signed(client, {"event": "subscription.create", "data": {"domain": "test", "subscription_code": "SUB_synthetic"}})
+    def process(_):
+        with billing_app.app_context():
+            return billing.process_one()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        list(executor.map(process, range(2)))
+    billing_app.extensions["billing_clock"][0] += timedelta(minutes=2)
+    drain(billing_app)
+    assert is_pro(billing_app)
+    with billing_app.app_context():
+        assert BillingPayment.query.count() == 1
+
+
+def test_invoice_create_does_not_grant_unpaid_future_period(billing_app):
+    client, _ = activation(billing_app)
+    fake = billing_app.extensions["billing_fake"]
+    start = billing.timestamp(fake.sub["next_payment_date"])
+    invoice = {"domain": "test", "invoice_code": "INV_future", "amount": 750000,
+        "period_start": start.isoformat(), "period_end": (start + timedelta(days=28)).isoformat(),
+        "status": "pending", "paid": False, "subscription": {"subscription_code": "SUB_synthetic"}}
+    signed(client, {"event": "invoice.create", "data": invoice})
+    drain(billing_app)
+    with billing_app.app_context():
+        assert BillingPayment.query.count() == 1
+        assert BillingInvoice.query.one().status == "pending"
+    billing_app.extensions["billing_clock"][0] = start + timedelta(seconds=1)
+    assert not is_pro(billing_app)
+
+
+def test_plan_mismatch_and_live_webhook_rejected(billing_app):
+    client = billing_app.test_client()
+    sign_in(client)
+    billing_app.extensions["billing_fake"].plan_data["amount"] = 100
+    assert post(client, CHECKOUT).status_code == 409
+    with billing_app.app_context():
+        assert BillingAccount.query.count() == 0
+    response = signed(client, {"event": "charge.success", "data": {"domain": "live", "reference": "anything"}})
+    assert response.status_code == 400
+
+
+def test_stale_provider_response_cannot_reverse_cancellation(billing_app):
+    client, _ = activation(billing_app)
+    fake, clock = billing_app.extensions["billing_fake"], billing_app.extensions["billing_clock"]
+    original = fake.sub["updatedAt"]
+    clock[0] += timedelta(minutes=10)
+    post(client, "/billing/paystack/cancel")
+    drain(billing_app)
+    fake.sub.update(status="active", updatedAt=original)
+    post(client, "/billing/paystack/refresh")
+    drain(billing_app)
+    with billing_app.app_context():
+        assert not BillingAccount.query.one().renewal_enabled
+        assert UserSubscription.query.filter_by(provider="paystack_test").one().status == "cancelled"

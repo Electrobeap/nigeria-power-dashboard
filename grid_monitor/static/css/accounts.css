@@ -33,3 +33,16 @@
 .pricing-shell{max-width:1200px}
 @media(max-width:1050px){.pricing-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.pricing-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* Private billing surfaces share account spacing and brand tokens. */
+.billing-notice{border-left:3px solid var(--brand-blue,#2563EB);padding:10px 14px}
+.billing-actions{display:flex;flex-wrap:wrap;gap:12px;margin-block:24px}
+.billing-actions form{max-width:100%;margin:0}
+.billing-actions button{min-height:44px;white-space:normal}
+.billing-table-wrap{max-width:100%;overflow-x:auto}
+.billing-table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:.875rem}
+.billing-table caption{text-align:left;color:var(--muted);padding-block:12px}
+.billing-table th,.billing-table td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+.billing-amount{font-variant-numeric:tabular-nums}
+.billing-reference{font-family:monospace;font-size:.8rem}
+@media(max-width:500px){.billing-table th,.billing-table td{padding:10px 4px;font-size:.75rem}.billing-actions{display:grid;grid-template-columns:minmax(0,1fr)}.billing-actions button{width:100%}}
