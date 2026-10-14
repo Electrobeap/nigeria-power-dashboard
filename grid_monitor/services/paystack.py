@@ -89,7 +89,7 @@ def validate_plan(data, expected=None):
 
 
 class Paystack:
-    def request(self, method, path, *, payload=None, params=None):
+    def request(self, method, path, *, payload=None, params=None, require_data=True):
         if not sandbox_enabled():
             raise BillingError("billing_disabled", False)
         validate_sandbox_config(current_app)
@@ -110,9 +110,9 @@ class Paystack:
                             raise BillingError("provider_response_too_large", False)
                     import json
                     body = json.loads(raw)
-            if not isinstance(body, dict) or body.get("status") is not True or "data" not in body:
+            if not isinstance(body, dict) or body.get("status") is not True or (require_data and "data" not in body):
                 raise BillingError("provider_response_invalid")
-            return body["data"]
+            return body.get("data")
         except (requests.RequestException, ValueError, TypeError):
             # Provider bodies, request headers and exception strings may contain secrets.
             raise BillingError("provider_unavailable") from None
@@ -142,7 +142,7 @@ class Paystack:
         return result
 
     def cancel(self, code, token):
-        return self.request("POST", "/subscription/disable", payload={"code": identifier(code, "SUB_"), "token": token})
+        return self.request("POST", "/subscription/disable", payload={"code": identifier(code, "SUB_"), "token": token}, require_data=False)
 
     def manage(self, code):
         data = self.request("GET", "/subscription/" + identifier(code, "SUB_") + "/manage/link")

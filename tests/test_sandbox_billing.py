@@ -697,3 +697,48 @@ def test_billing_cli_does_not_start_unrelated_background_services(tmp_path, monk
     assert calls == []
     with app.app_context():
         db.drop_all()
+
+
+def test_documented_cancel_response_without_data_is_accepted(billing_app, monkeypatch, caplog):
+    calls = []
+    class Response:
+        status_code = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def iter_content(self, size):
+            yield b'{"status":true,"message":"Subscription disabled successfully"}'
+    class Session:
+        trust_env = True
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def request(self, method, url, **kwargs):
+            assert self.trust_env is False
+            calls.append((method, url, kwargs))
+            return Response()
+    monkeypatch.setattr("requests.Session", Session)
+    with billing_app.app_context():
+        assert Paystack().cancel("SUB_synthetic", "secret-email-token") is None
+        with pytest.raises(BillingError, match="provider_response_invalid"):
+            Paystack().verify("synthetic")
+    method, url, options = calls[0]
+    assert (method, url) == ("POST", "https://api.paystack.co/subscription/disable")
+    assert options["allow_redirects"] is False and options["timeout"] == (3, 8)
+    assert options["headers"]["Authorization"] == "Bearer " + SECRET
+    assert SECRET not in caplog.text and "secret-email-token" not in caplog.text
+
+
+def test_delayed_failure_prefers_provider_verified_paid_invoice(billing_app):
+    client, _ = activation(billing_app)
+    invoice = renewal(billing_app)
+    failed = deepcopy(invoice)
+    failed.update(paid=False, status="failed", transaction=None)
+    signed(client, {"event": "invoice.payment_failed", "data": failed})
+    drain(billing_app)
+    assert is_pro(billing_app)
+    with billing_app.app_context():
+        assert BillingInvoice.query.one().status == "paid"
+        assert BillingPayment.query.count() == 2

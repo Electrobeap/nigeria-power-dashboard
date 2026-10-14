@@ -55,9 +55,10 @@ def _insert_event(digest, event_type, payload):
         from sqlalchemy.dialects.sqlite import insert
     stmt = insert(BillingEvent).values(digest=digest, event_type=event_type, payload=payload,
         status="pending", attempts=0, available_at=utc_now(), received_at=utc_now())
-    result = db.session.execute(stmt.on_conflict_do_nothing(index_elements=["digest"]))
+    inserted = db.session.execute(stmt.on_conflict_do_nothing(index_elements=["digest"])
+                                  .returning(BillingEvent.digest)).scalar_one_or_none()
     db.session.commit()
-    return bool(result.rowcount)
+    return inserted is not None
 
 
 def enqueue_internal(event_type, payload, key):
@@ -259,7 +260,8 @@ def _facts(account, kind, payload, api):
     if not isinstance(raw_invoices, list):
         raise BillingError("invalid_provider_invoices", False)
     # Bounded recovery; older missing records need the documented event replay workflow.
-    raw_invoices = raw_invoices[-5:]
+    dated_invoices = [item for item in raw_invoices if isinstance(item, dict) and item.get("invoice_code")]
+    raw_invoices = sorted(dated_invoices, key=lambda item: timestamp(item.get("period_start")), reverse=True)[:5]
     most_recent = sub.get("most_recent_invoice")
     if isinstance(most_recent, dict):
         raw_invoices.append(most_recent)
@@ -269,6 +271,7 @@ def _facts(account, kind, payload, api):
             event_invoice["status"] = "failed"
         raw_invoices.insert(0, event_invoice)
     seen = set()
+    raw_invoices.sort(key=lambda item: isinstance(item, dict) and item.get("paid") is True, reverse=True)
     for raw in raw_invoices:
         if not isinstance(raw, dict) or not raw.get("invoice_code"):
             continue
@@ -467,7 +470,7 @@ def process_one():
             db.session.execute(update(BillingAccount).execution_options(synchronize_session=False).where(BillingAccount.user_id == user_id,
                 BillingAccount.lease_token == token).values(lease_token=None, lease_until=None))
         db.session.commit()
-        current_app.logger.warning("sandbox_billing_event_deferred code=%s", code)
+        current_app.logger.warning("sandbox_billing_event_deferred code=%s error_type=%s", code, type(exc).__name__)
     finally:
         db.session.remove()
     return True
