@@ -49,9 +49,11 @@ def init_accounts(app):
     csrf.init_app(app)
     login_manager.login_view = "accounts.login"
     login_manager.session_protection = "strong"
-    # Later stages must install and test every guard/payment handler before activation.
-    if app.config.get("PREMIUM_GATING_ENABLED") or app.config.get("PAYSTACK_TEST_CHECKOUT_ENABLED") or app.config.get("LIVE_BILLING_ENABLED") or app.config.get("USD_CHECKOUT_ENABLED"):
-        raise RuntimeError("Premium enforcement and checkout are not installed in Stage 1; keep activation flags disabled.")
+    if app.config.get("PAYSTACK_TEST_CHECKOUT_ENABLED") or app.config.get("LIVE_BILLING_ENABLED") or app.config.get("USD_CHECKOUT_ENABLED"):
+        raise RuntimeError("Checkout is not installed; keep payment activation flags disabled.")
+    if app.config.get("PREMIUM_GATING_ENABLED") and not (
+            app.config.get("ACCOUNTS_ENABLED") and app.config.get("SUBSCRIPTIONS_ENABLED")):
+        raise RuntimeError("Premium services require accounts and subscriptions to be explicitly enabled.")
     if not app.config.get("ACCOUNTS_ENABLED"):
         return
     if len(str(app.secret_key or "")) < 32 or app.secret_key == "dev-only-change-me":
