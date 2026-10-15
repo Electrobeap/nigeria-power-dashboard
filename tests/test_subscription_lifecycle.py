@@ -475,7 +475,7 @@ def test_browser_checkout_activation_and_cancelled_expiry(lifecycle_app):
     server = make_server("127.0.0.1", 0, app, threaded=True)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    errors, unexpected = [], []
+    errors, unexpected, checkout_redirects = [], [], []
     base = f"http://127.0.0.1:{server.server_port}"
     try:
         with sync_playwright() as playwright:
@@ -483,11 +483,19 @@ def test_browser_checkout_activation_and_cancelled_expiry(lifecycle_app):
             context = browser.new_context(service_workers="block")
             def route(request_route):
                 url = request_route.request.url
-                if urlsplit(url).netloc == urlsplit(base).netloc:
-                    request_route.continue_()
-                elif url.startswith("https://checkout.paystack.com/"):
+                if url == base + CHECKOUT and request_route.request.method == "POST":
+                    # Redirect chains can bypass subsequent route interception.
+                    # Fetch only our first hop, assert its real redirect, then show
+                    # the fixture locally without any connection to Paystack.
+                    response = request_route.fetch(max_redirects=0)
+                    assert response.status == 303
+                    destination = response.headers["location"]
+                    assert destination == "https://checkout.paystack.com/synthetic"
+                    checkout_redirects.append(destination)
                     request_route.fulfill(status=200, content_type="text/html",
-                                          body="<title>Synthetic checkout</title><p>Test only; no payment collected.</p>")
+                                          body="<title>Synthetic checkout</title><h1>Synthetic checkout</h1>")
+                elif urlsplit(url).netloc == urlsplit(base).netloc:
+                    request_route.continue_()
                 else:
                     unexpected.append(url)
                     request_route.abort()
@@ -504,7 +512,9 @@ def test_browser_checkout_activation_and_cancelled_expiry(lifecycle_app):
                 page.goto(base + "/account/billing")
             login()
             page.get_by_role("button", name="Open NGN test checkout").click()
-            page.wait_for_url("https://checkout.paystack.com/**")
+            page.wait_for_url(base + CHECKOUT)
+            assert page.get_by_role("heading", name="Synthetic checkout").is_visible()
+            assert len(checkout_redirects) == 1
             with app.app_context():
                 reference = BillingAccount.query.one().checkout_reference
             page.goto(base + CALLBACK + "?reference=" + reference)

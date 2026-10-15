@@ -3,6 +3,10 @@ import os
 import pytest
 from sqlalchemy.engine import make_url
 
+from grid_monitor import create_app
+from grid_monitor.config import Config
+from grid_monitor.extensions import db
+
 from tests.billing_support import billing_app as billing_app, billing_epoch as billing_epoch
 
 
@@ -25,10 +29,6 @@ def pytest_configure(config):
             "local PostgreSQL with username/database npd_test and no URL options."
         )
 
-
-from grid_monitor import create_app
-from grid_monitor.config import Config
-from grid_monitor.extensions import db
 
 
 class TestConfig(Config):

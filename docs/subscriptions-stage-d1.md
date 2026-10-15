@@ -16,8 +16,9 @@ Generated checkout references remain random; assertions do not depend on them.
 
 The real Paystack adapter runs against a test-only requests transport that checks
 the API origin, server-owned pricing, fixed callback, timeout, TLS origin and
-no-redirect options. Any unexpected HTTP call fails. The browser test intercepts
-the checkout page; it never visits Paystack. No activated provider account or
+no-redirect options. Any unexpected HTTP call fails. The browser test captures the application's checkout POST with redirects disabled,
+asserts the real allowlisted 303, and substitutes a local checkout page. It never
+visits Paystack; redirect chains cannot escape the test interception. No activated provider account or
 genuine key is needed.
 
 **Never run this suite against production or a copy that must be retained.**
