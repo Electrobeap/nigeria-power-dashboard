@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Iterator
+from typing import Any, Iterator, Literal
 from urllib.parse import urlsplit
 
 
@@ -14,7 +14,7 @@ class FixtureResponse:
     def __enter__(self) -> FixtureResponse:
         return self
 
-    def __exit__(self, *args: Any) -> bool:
+    def __exit__(self, *args: Any) -> Literal[False]:
         return False
 
     def iter_content(self, size: int) -> Iterator[bytes]:
@@ -47,6 +47,7 @@ class PaystackTransport:
         if method == "GET" and path == "/plan/" + self.backend.plan_data["plan_code"]:
             data = self.backend.plan()
         elif method == "POST" and path == "/transaction/initialize":
+            assert isinstance(body, dict)
             assert body["currency"] == "NGN" and body["amount"] == 750000
             assert body["plan"] == self.backend.plan_data["plan_code"]
             assert body["channels"] == ["card"]
@@ -63,6 +64,7 @@ class PaystackTransport:
         elif method == "GET" and path.startswith("/subscription/"):
             data = self.backend.subscription(path.rsplit("/", 1)[1])
         elif method == "POST" and path == "/subscription/disable":
+            assert isinstance(body, dict)
             self.backend.cancel(body["code"], body["token"])
             return FixtureResponse({"status": True, "message": "Subscription disabled"})
         elif method == "GET" and path.startswith("/transaction/"):
