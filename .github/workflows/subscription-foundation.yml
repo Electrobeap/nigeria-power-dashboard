@@ -9,7 +9,7 @@ on:
       - "docs/subscription*"
       - ".github/workflows/subscription-foundation.yml"
   push:
-    branches: ["feature/subscriptions-integration-20261013", "feature/pro-entitlement-guards-20261014"]
+    branches: ["feature/subscriptions-integration-20261013", "feature/pro-entitlement-guards-20261014", "feature/paystack-sandbox-billing-20261014"]
 permissions:
   contents: read
 jobs:

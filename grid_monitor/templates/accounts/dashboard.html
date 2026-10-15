@@ -7,7 +7,7 @@
         <dt>Email status</dt><dd>{{ 'Verified' if current_user.email_verified_at else 'Not verified' }}</dd>
         <dt>Plan</dt><dd>{{ 'Pro' if entitlements.premium_access_active else 'Community' }}</dd>
         {% if entitlements.active_until %}<dt>Paid through</dt><dd>{{ entitlements.active_until }}</dd>{% endif %}
-        <dt>Billing</dt><dd>Not available. No payment is being collected.</dd>
+        <dt>Billing</dt><dd>{% if config.SUBSCRIPTIONS_ENABLED %}<a href="/account/billing">Subscription and billing</a>{% else %}Not available. No payment is being collected.{% endif %}</dd>
     </dl>
     <h2>Public access</h2>
     <p>National, regional and state dashboards, existing public history, educational articles and eligible research remain freely accessible.</p>

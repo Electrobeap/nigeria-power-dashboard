@@ -49,8 +49,8 @@ def init_accounts(app):
     csrf.init_app(app)
     login_manager.login_view = "accounts.login"
     login_manager.session_protection = "strong"
-    if app.config.get("PAYSTACK_TEST_CHECKOUT_ENABLED") or app.config.get("LIVE_BILLING_ENABLED") or app.config.get("USD_CHECKOUT_ENABLED"):
-        raise RuntimeError("Checkout is not installed; keep payment activation flags disabled.")
+    from grid_monitor.services.paystack import validate_sandbox_config
+    validate_sandbox_config(app)
     if app.config.get("PREMIUM_GATING_ENABLED") and not (
             app.config.get("ACCOUNTS_ENABLED") and app.config.get("SUBSCRIPTIONS_ENABLED")):
         raise RuntimeError("Premium services require accounts and subscriptions to be explicitly enabled.")
@@ -246,8 +246,16 @@ def validate_account_schema(app):
             if not set(model.__table__.columns.keys()).issubset(columns):
                 raise RuntimeError("Account schema is incomplete; run reviewed migrations.")
         revision = db.session.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-        if revision != "d13a20261013":
+        if revision not in {"d13a20261013", "e14c20261014"}:
             raise RuntimeError("Account migration revision has not been verified.")
+        if app.config.get("PAYSTACK_TEST_CHECKOUT_ENABLED"):
+            from grid_monitor.billing_models import BillingAccount, BillingEvent, BillingInvoice, BillingPayment
+            if revision != "e14c20261014":
+                raise RuntimeError("Sandbox billing requires its reviewed migration.")
+            for model in (BillingAccount, BillingEvent, BillingInvoice, BillingPayment):
+                columns = {item["name"] for item in inspector.get_columns(model.__tablename__)}
+                if not set(model.__table__.columns.keys()).issubset(columns):
+                    raise RuntimeError("Billing schema is incomplete; run reviewed migrations.")
     except SQLAlchemyError:
         db.session.rollback()
         raise RuntimeError("Account schema verification failed; run reviewed migrations.") from None
