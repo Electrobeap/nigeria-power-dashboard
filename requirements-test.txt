@@ -1,0 +1,4 @@
+# Development / CI only. Never install mock-provider switches in the application.
+-r requirements-research.txt
+ruff==0.14.0
+mypy==1.18.2
