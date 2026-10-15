@@ -557,24 +557,18 @@ def test_billing_browser_responsive_and_no_console_errors(billing_app):
             # Our application pages must have no browser errors before leaving the site.
             # The external provider's console and favicon/network policies are not ours.
             assert errors == [], f"Billing dashboard browser errors: {errors}"
-            provider_requests = []
-
-            def fake_provider_page(route):
-                provider_requests.append(route.request.url)
-                route.fulfill(
-                    status=200,
-                    content_type="text/html",
-                    body="<html><head><link rel='icon' href='data:,'></head>"
-                         "<body>Synthetic provider page</body></html>",
-                )
-
-            # Intercept the entire external origin, including favicon requests; never
-            # depend on or accidentally contact Paystack during this browser test.
-            page.route("https://paystack.com/**", fake_provider_page)
-            page.get_by_role("button", name="Manage renewal / payment method", exact=True).click()
-            page.wait_for_url("https://paystack.com/manage/subscriptions/**")
-            assert any(url.startswith("https://paystack.com/manage/subscriptions/") for url in provider_requests)
-            assert page.get_by_text("Synthetic provider page").is_visible()
+            # Keep this browser test focused on the local, responsive billing UI.
+            # Actual POST/CSRF and allowlisted 303 Location redirects are verified
+            # by test_dashboard_is_private_and_never_exposes_secrets and the
+            # billing lifecycle tests; do not navigate to an external origin here.
+            manage_form = page.locator('form[action="/billing/paystack/manage"]')
+            assert manage_form.count() == 1
+            csrf_field = manage_form.locator('input[name="csrf_token"]')
+            assert csrf_field.count() == 1
+            assert csrf_field.input_value()
+            assert manage_form.get_by_role(
+                "button", name="Manage renewal / payment method", exact=True
+            ).is_visible()
             browser.close()
     finally:
         server.shutdown()
