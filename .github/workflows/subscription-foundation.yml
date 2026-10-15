@@ -9,7 +9,7 @@ on:
       - "docs/subscription*"
       - ".github/workflows/subscription-foundation.yml"
   push:
-    branches: ["feature/subscriptions-integration-20261013", "feature/pro-entitlement-guards-20261014", "feature/paystack-sandbox-billing-20261014"]
+    branches: ["feature/subscriptions-integration-20261013", "feature/pro-entitlement-guards-20261014", "feature/paystack-sandbox-billing-20261014", "test/subscription-lifecycle-e2e-20261015"]
 permissions:
   contents: read
 jobs:
@@ -54,8 +54,24 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-research.txt
-      - run: python -m pip install -r requirements-research.txt
+            requirements-test.txt
+      - run: python -m pip install -r requirements-test.txt
+      - name: Dependency consistency
+        run: python -m pip check
+      - name: Stage D1 static analysis
+        run: |
+          python -m ruff check --select E9,F tests/billing_support.py tests/billing_transport.py tests/test_subscription_lifecycle.py tests/test_testing_safety.py
+          python -m mypy --strict --follow-imports=skip tests/billing_transport.py
       - run: python -m compileall -q app.py grid_monitor migrations tools tests
       - run: python -m tools.research_publications validate
       - run: python -m playwright install --with-deps chromium
-      - run: python -m pytest -q
+      - name: Complete regression suite
+        run: python -m pytest -q --junitxml=test-results/${{ matrix.database }}.xml
+      - name: Test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: subscription-tests-${{ matrix.database }}
+          path: test-results/*.xml
+          if-no-files-found: ignore
+          retention-days: 14
