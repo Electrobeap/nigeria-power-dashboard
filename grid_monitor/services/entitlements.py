@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from grid_monitor.extensions import db
 from grid_monitor.subscription_models import User, UserSubscription, utc_now
 
-PREMIUM_FEATURES = {"extended_history", "advanced_exports", "town_intelligence"}
+PREMIUM_FEATURES = {"extended_history", "advanced_exports", "town_intelligence", "agentic_insights"}
 PUBLIC_FEATURES = {"national_dashboard", "regional_dashboard", "state_dashboard", "public_history",
                    "articles", "research"}
 
