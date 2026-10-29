@@ -104,7 +104,7 @@ def execute_tool(name: str, raw_arguments: str) -> dict:
 
 
 def investigate(question: str, *, client=None, model: str | None = None) -> dict:
-    """Run at most three model turns and four read-only tool calls.
+    """Run at most three model turns and two read-only tool calls.
 
     OpenAI responses are not persisted by this service (store=False).
     Inject a compatible client for deterministic tests.
@@ -136,7 +136,7 @@ def investigate(question: str, *, client=None, model: str | None = None) -> dict
         function_calls = [item for item in response.output if item.type == "function_call"]
         if not function_calls:
             answer = (response.output_text or "").strip()
-            if not answer or not calls_used:
+            if not answer or not evidence:
                 raise AgentUnavailable("No evidence-backed response was generated.")
             return {
                 "answer": answer,
@@ -146,10 +146,10 @@ def investigate(question: str, *, client=None, model: str | None = None) -> dict
                 "data_grade": "mixed_observational_evidence",
                 "read_only": True,
             }
-        if turn == 2:
-            break
+        if turn == 2 or len(function_calls) != 1:
+            raise AgentUnavailable("The model exceeded the tool-call limit.")
         input_items.extend(response.output)
-        for call in function_calls[:4 - len(calls_used)]:
+        for call in function_calls:
             result = execute_tool(call.name, call.arguments)
             calls_used.append(call.name)
             if call.name == "generation_history" and "error" not in result:
@@ -160,9 +160,10 @@ def investigate(question: str, *, client=None, model: str | None = None) -> dict
                     "sources": result.get("methodology", {}).get("sources", [])[:10],
                     "limitations": result.get("methodology", {}).get("limitations"),
                 })
-            elif call.name == "latest_grid_snapshot" and result.get("available"):
+            elif call.name == "latest_grid_snapshot":
                 evidence.append({
                     "tool": call.name,
+                    "available": result.get("available", False),
                     "reading_timestamp": result.get("reading_timestamp"),
                     "source": result.get("source"),
                     "source_url": result.get("source_url"),
@@ -173,7 +174,4 @@ def investigate(question: str, *, client=None, model: str | None = None) -> dict
                 "call_id": call.call_id,
                 "output": json.dumps(result, default=str),
             })
-        if len(calls_used) == 4:
-            # Third turn has no tools, forcing a final answer or an explicit failure.
-            continue
     raise AgentUnavailable("Investigation exceeded its execution limit.")
