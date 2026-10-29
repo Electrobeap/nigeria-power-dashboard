@@ -122,14 +122,15 @@ def investigate(question: str, *, client=None, model: str | None = None) -> dict
     model = model or os.environ.get("JIROW_AGENT_MODEL", "gpt-5-mini")
     input_items = [{"role": "user", "content": question.strip()}]
     calls_used: list[str] = []
+    evidence: list[dict] = []
     for turn in range(3):
         options = dict(
             model=model, instructions=INSTRUCTIONS,
             input=input_items, store=False, max_output_tokens=1100,
-            parallel_tool_calls=False,
         )
         if turn < 2:
             options["tools"] = TOOLS
+            options["parallel_tool_calls"] = False
             options["tool_choice"] = "required" if turn == 0 else "auto"
         response = client.responses.create(**options)
         function_calls = [item for item in response.output if item.type == "function_call"]
@@ -141,6 +142,7 @@ def investigate(question: str, *, client=None, model: str | None = None) -> dict
                 "answer": answer,
                 "model": model,
                 "tools_used": calls_used,
+                "evidence": evidence,
                 "data_grade": "mixed_observational_evidence",
                 "read_only": True,
             }
@@ -150,6 +152,22 @@ def investigate(question: str, *, client=None, model: str | None = None) -> dict
         for call in function_calls[:4 - len(calls_used)]:
             result = execute_tool(call.name, call.arguments)
             calls_used.append(call.name)
+            if call.name == "generation_history" and "error" not in result:
+                evidence.append({
+                    "tool": call.name,
+                    "window": result.get("window"),
+                    "coverage": result.get("coverage"),
+                    "sources": result.get("methodology", {}).get("sources", [])[:10],
+                    "limitations": result.get("methodology", {}).get("limitations"),
+                })
+            elif call.name == "latest_grid_snapshot" and result.get("available"):
+                evidence.append({
+                    "tool": call.name,
+                    "reading_timestamp": result.get("reading_timestamp"),
+                    "source": result.get("source"),
+                    "source_url": result.get("source_url"),
+                    "limitations": result.get("limitations"),
+                })
             input_items.append({
                 "type": "function_call_output",
                 "call_id": call.call_id,
