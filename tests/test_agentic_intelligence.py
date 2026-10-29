@@ -73,3 +73,14 @@ def test_missing_evidence_never_returns_unsupported_answer():
     client = SimpleNamespace(responses=SimpleNamespace(create=Mock(return_value=response)))
     with pytest.raises(agent.AgentUnavailable):
         agent.investigate("Investigate generation changes.", client=client)
+
+
+def test_agent_api_is_disabled_by_default(app, client):
+    app.config["AGENTIC_ENABLED"] = False
+    response = client.post(
+        "/api/pro/agent/query",
+        json={"question": "Investigate national generation for the past week."},
+    )
+    assert response.status_code == 404
+    assert response.json["code"] == "feature_unavailable"
+    assert "private" in response.headers["Cache-Control"]
