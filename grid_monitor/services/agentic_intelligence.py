@@ -125,7 +125,8 @@ def investigate(question: str, *, client=None, model: str | None = None) -> dict
     for turn in range(3):
         options = dict(
             model=model, instructions=INSTRUCTIONS,
-            input=input_items, store=False, max_output_tokens=1100,\n            parallel_tool_calls=False,
+            input=input_items, store=False, max_output_tokens=1100,
+            parallel_tool_calls=False,
         )
         if turn < 2:
             options["tools"] = TOOLS
