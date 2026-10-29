@@ -171,7 +171,7 @@ class Config:
     GRID_STRESS_STRESSED_MW = _env_float("GRID_STRESS_STRESSED_MW", 4500.0)
     GRID_STRESS_STABLE_MW = _env_float("GRID_STRESS_STABLE_MW", 5500.0)
 
-    # Account and billing features remain opt-in; production payments are blocked.
+    # The paid, read-only AI intelligence endpoint is disabled by default.\n    AGENTIC_ENABLED = _env_bool("AGENTIC_ENABLED", False)\n\n    # Account and billing features remain opt-in; production payments are blocked.
     ACCOUNTS_ENABLED = _env_bool("ACCOUNTS_ENABLED", False)
     SUBSCRIPTIONS_ENABLED = _env_bool("SUBSCRIPTIONS_ENABLED", False)
     PREMIUM_GATING_ENABLED = _env_bool("PREMIUM_GATING_ENABLED", False)
