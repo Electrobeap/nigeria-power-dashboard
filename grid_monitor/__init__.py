@@ -11,7 +11,7 @@ from grid_monitor.extensions import db, migrate
 from grid_monitor.routes.billing import billing_bp
 from grid_monitor.services.billing import register_billing_commands
 from grid_monitor.routes.accounts import accounts_bp
-from grid_monitor.routes.premium import premium_bp
+from grid_monitor.routes.premium import premium_bp\nfrom grid_monitor.routes.agent import agent_bp
 from grid_monitor.routes.subscriptions import subscription_bp
 from grid_monitor.services.accounts import init_accounts, start_mail_queue, validate_account_schema
 from grid_monitor.services.subscriptions import seed_subscription_pricing
@@ -86,7 +86,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(billing_bp)
     register_billing_commands(app)
     app.register_blueprint(subscription_bp)
-    app.register_blueprint(premium_bp)
+    app.register_blueprint(premium_bp)\n    app.register_blueprint(agent_bp)
     app.register_blueprint(research_bp)
     app.register_blueprint(geo_fast_bp)
     app.register_blueprint(web_bp)
